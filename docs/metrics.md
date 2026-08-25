@@ -427,3 +427,90 @@ i.e. more than 90 days ago is excluded; exactly on `REFERENCE_DATE` is
 included. Implemented once in `isWithinTrailingWindow()`
 (`src/data/mock/dates.ts`) and reused everywhere so the window can never
 drift between modules.
+
+---
+
+## Weekly Trend Series (Session 2 — Overview)
+
+**Business definition:** The Overview page's trend charts need a value per
+week, not a single trailing-window total, so week buckets are just the
+trailing-window rule applied 12 times in a row instead of once.
+
+**Formula:**
+
+```
+Week Bucket i (i = 0..11, i = 11 is the most recent) =
+  (REFERENCE_DATE - 7×(11-i) - 7, REFERENCE_DATE - 7×(11-i)]
+```
+
+Each bucket is `(start, end]` — the exact same inclusive/exclusive shape as
+`isWithinTrailingWindow`, just with a 7-day window anchored at each bucket's
+own `end` instead of always at `REFERENCE_DATE`.
+
+**Implementation:** `weekBuckets` in `src/lib/metrics/trends.ts`.
+
+### Procurement Spend Trend
+
+Weekly sum of `purchaseOrderValue` across `received` purchase orders, keyed
+on `actualDeliveryDate` — the same eligibility rule as trailing procurement
+spend, bucketed instead of summed once.
+
+**Implementation:** `procurementSpendTrend` in `src/lib/metrics/trends.ts`.
+
+### On-Time Shipment Rate Trend
+
+Weekly % of `delivered` shipments (keyed on `actualDeliveryDate`) with
+`actualDeliveryDate <= expectedDeliveryDate`. Unlike the scalar `null`
+convention used elsewhere, a week with zero delivered shipments plots as
+`0` — a chart series can't render a `null` gap as cleanly as a single
+scalar metric can.
+
+**Implementation:** `onTimeShipmentRateTrend` in `src/lib/metrics/trends.ts`.
+
+### Order Volume Trend
+
+Weekly sum of line `quantity` across `fulfilled` customer orders, keyed on
+`fulfilledDate`.
+
+**Implementation:** `orderVolumeTrend` in `src/lib/metrics/trends.ts`.
+
+### Inventory Movement Trend
+
+Weekly sum of `RECEIPT` + `TRANSFER_IN` quantity ("inbound") vs. `SALE` +
+`TRANSFER_OUT` quantity ("outbound"), keyed on transaction `date`.
+
+**Implementation:** `inventoryMovementTrend` in `src/lib/metrics/trends.ts`.
+
+---
+
+## Recent Activity Feed (Session 2 — Overview)
+
+**Business definition:** A single, chronological feed of notable supply
+chain events, drawn from the exact same records as everything else — there
+is no separate stored activity/event log.
+
+**Formula:**
+
+```
+Window = trailing 14 days (isWithinTrailingWindow(date, 14))
+
+Included events:
+  - Purchase order received (status == "received", keyed on actualDeliveryDate)
+  - Shipment delayed (status == "delayed", keyed on expectedDeliveryDate)
+  - Customer order fulfilled, where line value >= $500
+    (status == "fulfilled", keyed on fulfilledDate)
+  - Inventory adjustment, where |quantity| >= 15 units
+    (type == "ADJUSTMENT", keyed on date)
+```
+
+**Edge case:** The $500 and 15-unit thresholds exist only to keep the feed
+readable — without them, routine small fulfilled orders and cycle-count
+adjustments would flood out the events actually worth a manager's
+attention.
+
+**Ordering:** Descending by date; same-day events are ordered
+`shipment_delayed` → `po_received` → `customer_order_fulfilled` →
+`inventory_adjustment` (most urgent first), then capped at `limit`
+(default 15).
+
+**Implementation:** `getRecentActivity` in `src/lib/insights/activity.ts`.

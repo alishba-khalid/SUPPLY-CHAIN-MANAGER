@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { AlertTriangle, Info, OctagonAlert } from "lucide-react";
 import type { SupplyChainAlert } from "@/types/supply-chain";
 import { cn } from "@/lib/utils";
@@ -16,16 +17,17 @@ const SEVERITY_STYLES: Record<SupplyChainAlert["severity"], { icon: typeof Info;
   },
 };
 
-export function AlertCard({ alert }: { alert: SupplyChainAlert }) {
+export function AlertCard({ alert, actions }: { alert: SupplyChainAlert; actions?: ReactNode }) {
   const style = SEVERITY_STYLES[alert.severity];
   const Icon = style.icon;
 
   return (
     <div className={cn("flex gap-3 rounded-lg border p-4", style.className)}>
       <Icon size={18} className={cn("mt-0.5 shrink-0", style.iconClass)} />
-      <div>
+      <div className="flex-1">
         <p className="text-body font-medium text-(--color-text-primary)">{alert.title}</p>
         <p className="mt-0.5 text-small text-(--color-text-secondary)">{alert.description}</p>
+        {actions && <div className="mt-3 flex items-center gap-2">{actions}</div>}
       </div>
     </div>
   );

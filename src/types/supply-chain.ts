@@ -285,3 +285,30 @@ export interface SupplyChainHealthBreakdown {
   logistics: number;
   warehouse: number;
 }
+
+// ============================================================
+// Trends & activity (Session 2 — Overview)
+// ============================================================
+
+export interface TrendPoint {
+  periodStart: ISODate; // start of the bucket, e.g. a week start
+  label: string; // short display label, e.g. "Jul 27"
+  value: number;
+}
+
+export type ActivityEventType =
+  | "po_received"
+  | "shipment_delayed"
+  | "customer_order_fulfilled"
+  | "inventory_adjustment";
+
+export interface ActivityEvent {
+  id: ID;
+  type: ActivityEventType;
+  date: ISODate;
+  title: string;
+  description: string;
+  productId?: ID;
+  supplierId?: ID;
+  warehouseId?: ID;
+}

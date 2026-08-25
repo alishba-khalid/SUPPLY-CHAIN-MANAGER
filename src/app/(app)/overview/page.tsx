@@ -1,17 +1,33 @@
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionHeader } from "@/components/ui/section-header";
 import { MetricCard } from "@/components/ui/metric-card";
+import { ChartCard } from "@/components/ui/chart-card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { AlertCard } from "@/components/domain/alert-card";
-import { RecommendationCard } from "@/components/domain/recommendation-card";
-import { getSupplyChainHealth, getDashboardAlerts, getDashboardRecommendations } from "@/data/repositories/dashboard";
-import { CheckCircle2 } from "lucide-react";
+import { OverviewPanels } from "@/components/domain/overview-panels";
+import { TrendChart } from "@/components/domain/trend-chart";
+import { ActivityItem } from "@/components/domain/activity-item";
+import {
+  getSupplyChainHealth,
+  getDashboardAlerts,
+  getDashboardRecommendations,
+  getOverviewTrends,
+  getRecentActivityFeed,
+} from "@/data/repositories/dashboard";
+import { getProducts } from "@/data/repositories/products";
+import { getSuppliers } from "@/data/repositories/suppliers";
+import { getWarehouses } from "@/data/repositories/warehouses";
+import { History } from "lucide-react";
 
 export default async function OverviewPage() {
-  const [health, alerts, recommendations] = await Promise.all([
+  const [health, alerts, recommendations, trends, activity, products, suppliers, warehouses] = await Promise.all([
     getSupplyChainHealth(),
     getDashboardAlerts(),
     getDashboardRecommendations(),
+    getOverviewTrends(),
+    getRecentActivityFeed(),
+    getProducts(),
+    getSuppliers(),
+    getWarehouses(),
   ]);
 
   return (
@@ -31,47 +47,62 @@ export default async function OverviewPage() {
           <MetricCard label="Warehouses" value={`${health.warehouse}`} />
         </section>
 
-        <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <div className="space-y-3">
-            <SectionHeader
-              title="Needs Attention"
-              description={`${alerts.length} open alert${alerts.length === 1 ? "" : "s"}`}
-            />
-            {alerts.length === 0 ? (
-              <EmptyState
-                icon={<CheckCircle2 size={18} />}
-                title="Nothing needs attention."
-                description="Your supply chain is operating within healthy ranges."
-              />
-            ) : (
-              <div className="space-y-2">
-                {alerts.slice(0, 5).map((alert) => (
-                  <AlertCard key={alert.id} alert={alert} />
-                ))}
-              </div>
-            )}
-          </div>
+        <OverviewPanels
+          alerts={alerts}
+          recommendations={recommendations}
+          products={products}
+          suppliers={suppliers}
+          warehouses={warehouses}
+        />
 
-          <div className="space-y-3">
-            <SectionHeader
-              title="Recommended Actions"
-              description={`${recommendations.length} recommendation${recommendations.length === 1 ? "" : "s"}`}
-            />
-            {recommendations.length === 0 ? (
-              <EmptyState title="No recommendations right now." />
-            ) : (
-              <div className="space-y-2">
-                {recommendations.slice(0, 5).map((rec) => (
-                  <RecommendationCard key={rec.id} recommendation={rec} />
-                ))}
-              </div>
-            )}
+        <section className="space-y-3">
+          <SectionHeader title="Trends" description="Trailing 12 weeks, updated through today." />
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <ChartCard title="Procurement Spend" description="Weekly spend across received purchase orders.">
+              <TrendChart
+                series={[{ name: "Spend", color: "var(--color-brand)", data: trends.procurementSpend }]}
+                format="currency"
+              />
+            </ChartCard>
+            <ChartCard title="On-Time Shipment Rate" description="% of delivered shipments arriving on or before expected.">
+              <TrendChart
+                series={[{ name: "On-time rate", color: "var(--color-info)", data: trends.onTimeShipmentRate }]}
+                format="percent"
+              />
+            </ChartCard>
+            <ChartCard title="Order Volume" description="Units shipped across fulfilled customer orders.">
+              <TrendChart
+                series={[{ name: "Units", color: "var(--color-brand)", data: trends.orderVolume }]}
+                format="units"
+              />
+            </ChartCard>
+            <ChartCard title="Inventory Movement" description="Units received vs. units sold or transferred out.">
+              <TrendChart
+                series={[
+                  { name: "Inbound", color: "var(--color-brand)", data: trends.inventoryInbound },
+                  { name: "Outbound", color: "var(--color-info)", data: trends.inventoryOutbound },
+                ]}
+                format="units"
+              />
+            </ChartCard>
           </div>
         </section>
 
+        <section className="space-y-3">
+          <SectionHeader title="Recent Activity" description="Notable events from the last 14 days." />
+          {activity.length === 0 ? (
+            <EmptyState icon={<History size={18} />} title="No recent activity." />
+          ) : (
+            <div className="rounded-lg border border-(--color-border) bg-(--color-surface) px-4">
+              {activity.map((event) => (
+                <ActivityItem key={event.id} event={event} />
+              ))}
+            </div>
+          )}
+        </section>
+
         <p className="text-small text-(--color-text-muted)">
-          This is a Session 1 preview wired to real calculated data. The full Digital Manager overview — recent
-          activity, trends, and one-click actions — arrives in Session 2.
+          Inventory health, days of stock, and reorder signals arrive in Session 3.
         </p>
       </div>
     </div>
