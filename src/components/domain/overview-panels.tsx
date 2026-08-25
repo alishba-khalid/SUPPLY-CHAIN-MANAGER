@@ -65,7 +65,7 @@ function createIdSetStore(key: string) {
 const dismissedAlertsStore = createIdSetStore(DISMISSED_ALERTS_KEY);
 const resolvedRecommendationsStore = createIdSetStore(RESOLVED_RECOMMENDATIONS_KEY);
 
-type DetailTarget = { productId?: string; supplierId?: string; warehouseId?: string; description: string };
+type DetailTarget = { sku?: string; supplierId?: string; warehouseId?: number; description: string };
 
 export function OverviewPanels({
   alerts,
@@ -92,8 +92,8 @@ export function OverviewPanels({
   );
   const [detail, setDetail] = useState<DetailTarget | null>(null);
 
-  const productById = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
-  const supplierById = useMemo(() => new Map(suppliers.map((s) => [s.id, s])), [suppliers]);
+  const productBySku = useMemo(() => new Map(products.map((p) => [p.sku, p])), [products]);
+  const supplierById = useMemo(() => new Map(suppliers.map((s) => [s.supplierId, s])), [suppliers]);
   const warehouseById = useMemo(() => new Map(warehouses.map((w) => [w.id, w])), [warehouses]);
 
   function dismissAlert(id: string) {
@@ -134,7 +134,7 @@ export function OverviewPanels({
                         size="sm"
                         onClick={() =>
                           setDetail({
-                            productId: alert.productId,
+                            sku: alert.sku,
                             supplierId: alert.supplierId,
                             warehouseId: alert.warehouseId,
                             description: alert.description,
@@ -174,7 +174,7 @@ export function OverviewPanels({
                         size="sm"
                         onClick={() =>
                           setDetail({
-                            productId: rec.affectedProductIds?.[0],
+                            sku: rec.affectedSkus?.[0],
                             supplierId: rec.affectedSupplierId,
                             warehouseId: rec.affectedWarehouseId,
                             description: rec.description,
@@ -200,15 +200,15 @@ export function OverviewPanels({
           <div className="space-y-5">
             <p className="text-body text-(--color-text-secondary)">{detail.description}</p>
 
-            {detail.productId &&
+            {detail.sku &&
               (() => {
-                const product = productById.get(detail.productId);
+                const product = productBySku.get(detail.sku!);
                 return (
                   <div className="space-y-1 rounded-lg border border-(--color-border) p-4">
                     <div className="flex items-center gap-2 text-small font-medium text-(--color-text-primary)">
                       <Package size={16} /> Product
                     </div>
-                    <p className="text-body text-(--color-text-primary)">{product?.name ?? detail.productId}</p>
+                    <p className="text-body text-(--color-text-primary)">{product?.name ?? detail.sku}</p>
                     {product && (
                       <p className="text-small text-(--color-text-muted)">
                         {product.sku} · {product.category.replace("_", " ")} · ${product.unitCost.toFixed(2)}/unit
@@ -220,7 +220,7 @@ export function OverviewPanels({
 
             {detail.supplierId &&
               (() => {
-                const supplier = supplierById.get(detail.supplierId);
+                const supplier = supplierById.get(detail.supplierId!);
                 return (
                   <div className="space-y-1 rounded-lg border border-(--color-border) p-4">
                     <div className="flex items-center gap-2 text-small font-medium text-(--color-text-primary)">
@@ -229,17 +229,16 @@ export function OverviewPanels({
                     <p className="text-body text-(--color-text-primary)">{supplier?.name ?? detail.supplierId}</p>
                     {supplier && (
                       <p className="text-small text-(--color-text-muted)">
-                        {supplier.country} · {supplier.leadTimeDays}-day lead time · {supplier.contactName} (
-                        {supplier.contactEmail})
+                        {supplier.leadTimeDays}-day lead time · {supplier.email}
                       </p>
                     )}
                   </div>
                 );
               })()}
 
-            {detail.warehouseId &&
+            {detail.warehouseId !== undefined &&
               (() => {
-                const warehouse = warehouseById.get(detail.warehouseId);
+                const warehouse = warehouseById.get(detail.warehouseId!);
                 return (
                   <div className="space-y-1 rounded-lg border border-(--color-border) p-4">
                     <div className="flex items-center gap-2 text-small font-medium text-(--color-text-primary)">
@@ -248,8 +247,7 @@ export function OverviewPanels({
                     <p className="text-body text-(--color-text-primary)">{warehouse?.name ?? detail.warehouseId}</p>
                     {warehouse && (
                       <p className="text-small text-(--color-text-muted)">
-                        {warehouse.code} · {warehouse.city}, {warehouse.country} · {warehouse.capacityUnits.toLocaleString()}{" "}
-                        unit capacity
+                        {warehouse.code} · {warehouse.capacityUnits.toLocaleString()} unit capacity
                       </p>
                     )}
                   </div>

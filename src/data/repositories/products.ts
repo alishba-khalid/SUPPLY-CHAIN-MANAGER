@@ -1,18 +1,16 @@
 import type { Product } from "@/types/supply-chain";
-import { getSeedData } from "@/data/mock/seed";
+import { prisma } from "@/lib/prisma";
+
+function toProduct(row: { id: number; sku: string; name: string; category: string; unitCost: unknown; supplierId: string }): Product {
+  return { ...row, unitCost: Number(row.unitCost) };
+}
 
 export async function getProducts(): Promise<Product[]> {
-  return getSeedData().products;
+  const rows = await prisma.product.findMany({ orderBy: { sku: "asc" } });
+  return rows.map(toProduct);
 }
 
-export async function getActiveProducts(): Promise<Product[]> {
-  return getSeedData().products.filter((p) => p.active);
-}
-
-export async function getProduct(productId: string): Promise<Product | undefined> {
-  return getSeedData().products.find((p) => p.id === productId);
-}
-
-export async function getProductBySku(sku: string): Promise<Product | undefined> {
-  return getSeedData().products.find((p) => p.sku === sku);
+export async function getProduct(sku: string): Promise<Product | undefined> {
+  const row = await prisma.product.findUnique({ where: { sku } });
+  return row ? toProduct(row) : undefined;
 }

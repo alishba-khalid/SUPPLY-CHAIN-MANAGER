@@ -52,12 +52,12 @@ export function Sidebar() {
         collapsed ? "w-16" : "w-60",
       )}
     >
-      <div className="flex h-14 items-center gap-2 border-b border-(--color-border) px-4">
+      <Link href="/dashboard/overview" className="flex h-14 items-center gap-2 border-b border-(--color-border) px-4">
         <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-(--color-brand) text-white">
           <Boxes size={16} />
         </div>
         {!collapsed && <span className="text-body font-semibold text-(--color-text-primary)">Supply Chain Manager</span>}
-      </div>
+      </Link>
 
       <nav className="flex-1 space-y-0.5 overflow-y-auto p-2">
         {NAV_ITEMS.map((item) => {

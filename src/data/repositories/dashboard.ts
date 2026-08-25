@@ -1,17 +1,10 @@
 import type { ActivityEvent, Recommendation, SupplyChainAlert, SupplyChainHealthBreakdown, TrendPoint } from "@/types/supply-chain";
 import { getInventoryHealthScore, getInventoryTransactions } from "./inventory";
 import { getSupplierHealthScore } from "./suppliers";
-import { getProcurementHealthScore, getPurchaseOrders } from "./procurement";
-import { getLogisticsHealthScore, getShipments } from "./shipments";
+import { getProcurementHealthScore, getLogisticsHealthScore, getPurchaseOrders } from "./procurement";
 import { getWarehouseHealthScore } from "./warehouses";
-import { getCustomerOrders } from "./customers";
 import { overallHealthScore } from "@/lib/metrics/health";
-import {
-  inventoryMovementTrend,
-  onTimeShipmentRateTrend,
-  orderVolumeTrend,
-  procurementSpendTrend,
-} from "@/lib/metrics/trends";
+import { inventoryMovementTrend, onTimeShipmentRateTrend, poVolumeTrend, procurementSpendTrend } from "@/lib/metrics/trends";
 import { getAlerts } from "@/lib/insights/alerts";
 import { getRecommendations } from "@/lib/insights/recommendations";
 import { getRecentActivity } from "@/lib/insights/activity";
@@ -39,25 +32,20 @@ export async function getDashboardRecommendations(): Promise<Recommendation[]> {
 export interface OverviewTrends {
   procurementSpend: TrendPoint[];
   onTimeShipmentRate: TrendPoint[];
-  orderVolume: TrendPoint[];
+  poVolume: TrendPoint[];
   inventoryInbound: TrendPoint[];
   inventoryOutbound: TrendPoint[];
 }
 
 export async function getOverviewTrends(): Promise<OverviewTrends> {
-  const [purchaseOrders, shipments, customerOrders, transactions] = await Promise.all([
-    getPurchaseOrders(),
-    getShipments(),
-    getCustomerOrders(),
-    getInventoryTransactions(),
-  ]);
+  const [purchaseOrders, transactions] = await Promise.all([getPurchaseOrders(), getInventoryTransactions()]);
 
   const movement = inventoryMovementTrend(transactions);
 
   return {
     procurementSpend: procurementSpendTrend(purchaseOrders),
-    onTimeShipmentRate: onTimeShipmentRateTrend(shipments),
-    orderVolume: orderVolumeTrend(customerOrders),
+    onTimeShipmentRate: onTimeShipmentRateTrend(purchaseOrders),
+    poVolume: poVolumeTrend(purchaseOrders),
     inventoryInbound: movement.inbound,
     inventoryOutbound: movement.outbound,
   };

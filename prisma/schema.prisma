@@ -1,0 +1,113 @@
+// Prisma schema for Supply Chain Manager.
+// Six tables, matching the CSV/import structure exactly: warehouses, products,
+// inventory, suppliers, purchase_orders, transactions. Business-facing codes
+// (sku, supplier_id, warehouse code) are the join keys — not the internal
+// autoincrement ids — since that's how CSV imports and the rest of the app
+// will reference rows.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum TransactionDirection {
+  IN
+  OUT
+}
+
+model Warehouse {
+  id            Int      @id @default(autoincrement())
+  code          String   @unique
+  name          String
+  capacityUnits Int      @map("capacity_units")
+
+  inventory     Inventory[]
+  transactions  Transaction[]
+
+  @@map("warehouses")
+}
+
+model Supplier {
+  id            Int      @id @default(autoincrement())
+  supplierId    String   @unique @map("supplier_id")
+  name          String
+  leadTimeDays  Int      @map("lead_time_days")
+  email         String
+
+  products       Product[]
+  purchaseOrders PurchaseOrder[]
+
+  @@map("suppliers")
+}
+
+model Product {
+  id         Int      @id @default(autoincrement())
+  sku        String   @unique
+  name       String
+  category   String
+  unitCost   Decimal  @map("unit_cost") @db.Decimal(12, 2)
+  supplierId String   @map("supplier_id")
+  supplier   Supplier @relation(fields: [supplierId], references: [supplierId])
+
+  inventory      Inventory[]
+  purchaseOrders PurchaseOrder[]
+  transactions   Transaction[]
+
+  @@index([supplierId])
+  @@map("products")
+}
+
+model Inventory {
+  id               Int    @id @default(autoincrement())
+  sku              String
+  product          Product @relation(fields: [sku], references: [sku])
+  warehouseId      Int    @map("warehouse_id")
+  warehouse        Warehouse @relation(fields: [warehouseId], references: [id])
+  quantityOnHand   Int    @map("quantity_on_hand")
+
+  @@unique([sku, warehouseId])
+  @@index([sku])
+  @@index([warehouseId])
+  @@map("inventory")
+}
+
+model PurchaseOrder {
+  id           Int       @id @default(autoincrement())
+  poNumber     String    @unique @map("po_number")
+  supplierId   String    @map("supplier_id")
+  supplier     Supplier  @relation(fields: [supplierId], references: [supplierId])
+  sku          String
+  product      Product   @relation(fields: [sku], references: [sku])
+  quantity     Int
+  unitPrice    Decimal   @map("unit_price") @db.Decimal(12, 2)
+  orderDate    DateTime  @map("order_date") @db.Date
+  expectedDate DateTime  @map("expected_date") @db.Date
+  receivedDate DateTime? @map("received_date") @db.Date
+
+  @@index([sku])
+  @@index([supplierId])
+  @@index([orderDate])
+  @@index([expectedDate])
+  @@index([receivedDate])
+  @@map("purchase_orders")
+}
+
+model Transaction {
+  id          Int                  @id @default(autoincrement())
+  sku         String
+  product     Product              @relation(fields: [sku], references: [sku])
+  warehouseId Int                  @map("warehouse_id")
+  warehouse   Warehouse            @relation(fields: [warehouseId], references: [id])
+  quantity    Int
+  direction   TransactionDirection
+  date        DateTime             @db.Date
+
+  @@index([sku])
+  @@index([warehouseId])
+  @@index([date])
+  @@map("transactions")
+}

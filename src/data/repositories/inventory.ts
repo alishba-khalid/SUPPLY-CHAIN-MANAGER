@@ -1,38 +1,39 @@
 import type { InventoryInsight, InventoryRecord, InventoryTransaction } from "@/types/supply-chain";
-import { getSeedData } from "@/data/mock/seed";
+import { prisma } from "@/lib/prisma";
+import { toISODate } from "@/lib/dates";
 import { buildInventoryInsight, inventoryHealthScore } from "@/lib/metrics/inventory";
 
 export async function getInventoryRecords(): Promise<InventoryRecord[]> {
-  return getSeedData().inventoryRecords;
+  return prisma.inventory.findMany({ orderBy: { sku: "asc" } });
 }
 
 export async function getInventoryTransactions(filter?: {
-  productId?: string;
-  warehouseId?: string;
+  sku?: string;
+  warehouseId?: number;
 }): Promise<InventoryTransaction[]> {
-  const { inventoryTransactions } = getSeedData();
-  if (!filter) return inventoryTransactions;
-  return inventoryTransactions.filter(
-    (t) =>
-      (!filter.productId || t.productId === filter.productId) &&
-      (!filter.warehouseId || t.warehouseId === filter.warehouseId),
-  );
+  const rows = await prisma.transaction.findMany({
+    where: { sku: filter?.sku, warehouseId: filter?.warehouseId },
+    orderBy: { date: "asc" },
+  });
+  return rows.map((t) => ({ ...t, date: toISODate(t.date) }));
 }
 
-/** One insight per (active product, warehouse) pair currently carrying stock. */
+/** One insight per (product, warehouse) pair currently carrying stock. */
 export async function getInventoryInsights(): Promise<InventoryInsight[]> {
-  const { inventoryRecords, inventoryTransactions, products, suppliers } = getSeedData();
-  const productById = new Map(products.map((p) => [p.id, p]));
-  const supplierById = new Map(suppliers.map((s) => [s.id, s]));
+  const [records, transactions, products, suppliers] = await Promise.all([
+    getInventoryRecords(),
+    getInventoryTransactions(),
+    prisma.product.findMany(),
+    prisma.supplier.findMany(),
+  ]);
+  const supplierBySkuOwner = new Map(products.map((p) => [p.sku, p.supplierId]));
+  const leadTimeBySupplierId = new Map(suppliers.map((s) => [s.supplierId, s.leadTimeDays]));
 
-  return inventoryRecords
-    .filter((record) => productById.get(record.productId)?.active)
-    .map((record) => {
-      const product = productById.get(record.productId);
-      const supplier = product ? supplierById.get(product.primarySupplierId) : undefined;
-      const leadTimeDays = supplier?.leadTimeDays ?? 14;
-      return buildInventoryInsight(inventoryTransactions, record, leadTimeDays);
-    });
+  return records.map((record) => {
+    const supplierId = supplierBySkuOwner.get(record.sku);
+    const leadTimeDays = (supplierId !== undefined ? leadTimeBySupplierId.get(supplierId) : undefined) ?? 14;
+    return buildInventoryInsight(transactions, record, leadTimeDays);
+  });
 }
 
 export async function getInventoryHealthScore(): Promise<number> {
@@ -41,11 +42,8 @@ export async function getInventoryHealthScore(): Promise<number> {
 }
 
 export async function getTotalInventoryValue(): Promise<number> {
-  const { inventoryRecords, products } = getSeedData();
-  const productById = new Map(products.map((p) => [p.id, p]));
-  const total = inventoryRecords.reduce((sum, r) => {
-    const cost = productById.get(r.productId)?.unitCost ?? 0;
-    return sum + r.quantityOnHand * cost;
-  }, 0);
+  const [records, products] = await Promise.all([getInventoryRecords(), prisma.product.findMany()]);
+  const costBySku = new Map(products.map((p) => [p.sku, Number(p.unitCost)]));
+  const total = records.reduce((sum, r) => sum + r.quantityOnHand * (costBySku.get(r.sku) ?? 0), 0);
   return Math.round(total * 100) / 100;
 }

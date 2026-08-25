@@ -12,17 +12,17 @@ import {
 } from "lucide-react";
 
 export const NAV_ITEMS = [
-  { href: "/overview", label: "Overview", icon: LayoutDashboard },
-  { href: "/inventory", label: "Inventory", icon: Package },
-  { href: "/procurement", label: "Procurement", icon: ShoppingCart },
-  { href: "/suppliers", label: "Suppliers", icon: Truck },
-  { href: "/logistics", label: "Logistics", icon: Ship },
-  { href: "/warehouses", label: "Warehouses", icon: Warehouse },
-  { href: "/analytics", label: "Analytics", icon: BarChart3 },
-  { href: "/ai-manager", label: "AI Manager", icon: Sparkles },
+  { href: "/dashboard/overview", label: "Overview", icon: LayoutDashboard },
+  { href: "/dashboard/inventory", label: "Inventory", icon: Package },
+  { href: "/dashboard/procurement", label: "Procurement", icon: ShoppingCart },
+  { href: "/dashboard/suppliers", label: "Suppliers", icon: Truck },
+  { href: "/dashboard/logistics", label: "Logistics", icon: Ship },
+  { href: "/dashboard/warehouses", label: "Warehouses", icon: Warehouse },
+  { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/dashboard/ai-manager", label: "AI Manager", icon: Sparkles },
 ] as const;
 
 export const BOTTOM_NAV_ITEMS = [
-  { href: "/settings", label: "Settings", icon: Settings },
-  { href: "/profile", label: "Profile", icon: UserCircle },
+  { href: "/dashboard/settings", label: "Settings", icon: Settings },
+  { href: "/dashboard/profile", label: "Profile", icon: UserCircle },
 ] as const;

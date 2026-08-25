@@ -1,24 +1,16 @@
 /**
- * All business dates in the mock dataset are calculated relative to this
- * fixed reference date, never the system clock. This guarantees stable
- * overdue status, stable trailing-90-day windows, and reproducible
- * screenshots/tests.
+ * Shared date helpers for the metrics/insights layers. All trailing-window
+ * calculations are relative to the real system clock by default — this app
+ * is backed by a live, reseedable Postgres database, not a frozen mock
+ * snapshot, so "today" has to mean today.
  */
-export const REFERENCE_DATE = "2026-08-24";
-
-export function referenceDate(): Date {
-  return new Date(`${REFERENCE_DATE}T00:00:00Z`);
-}
 
 export function toISODate(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-/** Offset in days from REFERENCE_DATE. Negative = past, positive = future. */
-export function offsetDate(days: number): string {
-  const d = referenceDate();
-  d.setUTCDate(d.getUTCDate() + days);
-  return toISODate(d);
+export function todayISODate(): string {
+  return toISODate(new Date());
 }
 
 /** Adds `days` (may be negative) to an arbitrary ISO date string. */
@@ -42,7 +34,7 @@ export function isOnOrBefore(a: string, b: string): boolean {
 export function isWithinTrailingWindow(
   date: string,
   windowDays: number,
-  reference: string = REFERENCE_DATE,
+  reference: string = todayISODate(),
 ): boolean {
   const start = addDays(reference, -windowDays);
   return date > start && date <= reference;

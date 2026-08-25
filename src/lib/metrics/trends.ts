@@ -5,9 +5,9 @@
  * of the app (`isWithinTrailingWindow`), just applied once per week bucket
  * instead of once over the whole window.
  */
-import type { CustomerOrder, InventoryTransaction, PurchaseOrder, Shipment, TrendPoint } from "@/types/supply-chain";
-import { addDays, REFERENCE_DATE } from "@/data/mock/dates";
-import { isShipmentOnTime } from "./logistics";
+import type { InventoryTransaction, PurchaseOrder, TrendPoint } from "@/types/supply-chain";
+import { addDays, todayISODate } from "@/lib/dates";
+import { isOnTime, purchaseOrderValue } from "./supplier";
 
 const TRAILING_WEEKS = 12;
 const BUCKET_DAYS = 7;
@@ -22,7 +22,7 @@ export interface WeekBucket {
  * `windowWeeks` trailing 7-day buckets ending at `reference`, oldest first.
  * Each bucket is `(start, end]`, exactly mirroring `isWithinTrailingWindow`.
  */
-export function weekBuckets(windowWeeks: number = TRAILING_WEEKS, reference: string = REFERENCE_DATE): WeekBucket[] {
+export function weekBuckets(windowWeeks: number = TRAILING_WEEKS, reference: string = todayISODate()): WeekBucket[] {
   const buckets: WeekBucket[] = [];
   for (let weeksAgo = windowWeeks - 1; weeksAgo >= 0; weeksAgo--) {
     const end = addDays(reference, -BUCKET_DAYS * weeksAgo);
@@ -52,63 +52,54 @@ function sumByBucket(
   }));
 }
 
-/** Weekly spend across received purchase orders, keyed on `actualDeliveryDate`. */
+/** Weekly spend across received purchase orders, keyed on `receivedDate`. */
 export function procurementSpendTrend(
   purchaseOrders: PurchaseOrder[],
   windowWeeks: number = TRAILING_WEEKS,
 ): TrendPoint[] {
   const buckets = weekBuckets(windowWeeks);
   const entries = purchaseOrders
-    .filter((po) => po.status === "received" && !!po.actualDeliveryDate)
-    .map((po) => ({ date: po.actualDeliveryDate as string, value: po.purchaseOrderValue }));
+    .filter((po) => !!po.receivedDate)
+    .map((po) => ({ date: po.receivedDate as string, value: purchaseOrderValue(po) }));
   return sumByBucket(entries, buckets).map((p) => ({ ...p, value: Math.round(p.value * 100) / 100 }));
 }
 
 /**
- * Weekly on-time rate across delivered shipments, keyed on `actualDeliveryDate`.
- * A week with zero delivered shipments plots as `0`, since a chart series
- * cannot represent `null` gaps as cleanly as a scalar metric can.
+ * Weekly on-time rate across received purchase orders, keyed on `receivedDate`.
+ * A week with zero receipts plots as `0`, since a chart series cannot
+ * represent a `null` gap as cleanly as a scalar metric can.
  */
 export function onTimeShipmentRateTrend(
-  shipments: Shipment[],
+  purchaseOrders: PurchaseOrder[],
   windowWeeks: number = TRAILING_WEEKS,
 ): TrendPoint[] {
   const buckets = weekBuckets(windowWeeks);
-  const delivered = shipments.filter((s) => s.status === "delivered" && !!s.actualDeliveryDate);
+  const received = purchaseOrders.filter((po) => !!po.receivedDate);
   return buckets.map((bucket) => {
-    const eligible = delivered.filter((s) => inBucket(s.actualDeliveryDate as string, bucket));
-    const rate = eligible.length === 0 ? 0 : (eligible.filter(isShipmentOnTime).length / eligible.length) * 100;
+    const eligible = received.filter((po) => inBucket(po.receivedDate as string, bucket));
+    const rate = eligible.length === 0 ? 0 : (eligible.filter(isOnTime).length / eligible.length) * 100;
     return { periodStart: bucket.start, label: bucket.label, value: Math.round(rate * 10) / 10 };
   });
 }
 
-/** Weekly units shipped across fulfilled customer orders, keyed on `fulfilledDate`. */
-export function orderVolumeTrend(
-  customerOrders: CustomerOrder[],
+/** Weekly count of purchase orders placed, keyed on `orderDate`. */
+export function poVolumeTrend(
+  purchaseOrders: PurchaseOrder[],
   windowWeeks: number = TRAILING_WEEKS,
 ): TrendPoint[] {
   const buckets = weekBuckets(windowWeeks);
-  const entries = customerOrders
-    .filter((co) => co.status === "fulfilled" && !!co.fulfilledDate)
-    .map((co) => ({
-      date: co.fulfilledDate as string,
-      value: co.lines.reduce((sum, line) => sum + line.quantity, 0),
-    }));
+  const entries = purchaseOrders.map((po) => ({ date: po.orderDate, value: po.quantity }));
   return sumByBucket(entries, buckets);
 }
 
-/** Weekly inbound (RECEIPT+TRANSFER_IN) vs outbound (SALE+TRANSFER_OUT) units, keyed on `date`. */
+/** Weekly inbound (RECEIPT via transactions IN) vs outbound (OUT) units, keyed on `date`. */
 export function inventoryMovementTrend(
   transactions: InventoryTransaction[],
   windowWeeks: number = TRAILING_WEEKS,
 ): { inbound: TrendPoint[]; outbound: TrendPoint[] } {
   const buckets = weekBuckets(windowWeeks);
-  const inbound = transactions
-    .filter((t) => t.type === "RECEIPT" || t.type === "TRANSFER_IN")
-    .map((t) => ({ date: t.date, value: t.quantity }));
-  const outbound = transactions
-    .filter((t) => t.type === "SALE" || t.type === "TRANSFER_OUT")
-    .map((t) => ({ date: t.date, value: t.quantity }));
+  const inbound = transactions.filter((t) => t.direction === "IN").map((t) => ({ date: t.date, value: t.quantity }));
+  const outbound = transactions.filter((t) => t.direction === "OUT").map((t) => ({ date: t.date, value: t.quantity }));
   return {
     inbound: sumByBucket(inbound, buckets),
     outbound: sumByBucket(outbound, buckets),

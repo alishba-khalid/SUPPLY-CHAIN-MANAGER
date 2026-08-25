@@ -1,36 +1,84 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Supply Chain Manager
 
-## Getting Started
+An operations dashboard for distributors — inventory health, supplier reliability,
+procurement performance, logistics, and warehouse utilization, all rolled up into a
+single health score. Every number is computed by pure functions in `src/lib/metrics/*`
+and `src/lib/insights/*` from real data in Postgres — see `docs/metrics.md` for the
+exact formula behind every figure on the dashboard.
 
-First, run the development server:
+## Prerequisites
+
+- Node.js 20+
+- No Docker and no separate Postgres install needed — the database runs locally via
+  Prisma's own dev server (see below).
+
+## Getting started
 
 ```bash
+npm install
+
+# 1. Start the local database (leave this running in its own terminal)
+npm run db:dev
+
+# 2. In another terminal: create the schema and load demo data
+npm run db:migrate
+npm run db:seed
+
+# 3. Run the app
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) — it redirects to `/dashboard/overview`.
+The marketing landing page lives at `/`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Database
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The app is backed by Postgres via [Prisma](https://www.prisma.io/) (schema at
+`prisma/schema.prisma`). Locally it runs on **Prisma's own dev server** (`prisma dev`) —
+a real Postgres instance with no Docker or manual install required. It's a separate
+long-running process from `next dev`, so keep it running in its own terminal while you
+work.
 
-## Learn More
+| Command | What it does |
+| --- | --- |
+| `npm run db:dev` | Starts the local Postgres server (run this first, leave it running) |
+| `npm run db:migrate` | Applies `prisma/schema.prisma` to the database |
+| `npm run db:seed` | Wipes and repopulates a realistic-but-imperfect demo distributor (3 warehouses, ~120 SKUs, 8 suppliers, ~200 purchase orders, 90 days of transactions) — safe to re-run any time |
+| `npm run db:health` | Prints the current health score breakdown by domain, without starting the app |
+| `npm run db:studio` | Opens Prisma Studio, a GUI for browsing/editing the data directly |
 
-To learn more about Next.js, take a look at the following resources:
+**If the database connection acts up** (`P1017` / "connection closed" errors — a known
+rough edge of the local dev server under sustained use): stop and restart it —
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npx prisma dev stop scm2
+npm run db:dev
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+then re-run whichever command failed. The app's own Prisma client (`src/lib/prisma.ts`)
+already retries transient connection drops automatically, so this is only needed if a
+command fails outright.
 
-## Deploy on Vercel
+### Schema scope
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The schema intentionally covers six tables — `warehouses`, `suppliers`, `products`,
+`inventory`, `purchase_orders`, `transactions` — with no customer-order or shipment
+concept yet. See the "Schema scope" section at the top of `docs/metrics.md` for what
+that means for the Logistics score and OTIF calculation.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Project structure
+
+- `src/lib/metrics/*` — pure calculation functions (no data access, no UI)
+- `src/lib/insights/*` — alerts, recommendations, and the activity feed, derived from
+  the metrics layer
+- `src/data/repositories/*` — the only place that queries Prisma; everything else reads
+  through these functions
+- `src/app/(app)/dashboard/*` — the authenticated app shell (noindexed)
+- `src/app/(marketing)/*` — the public landing page
+- `docs/metrics.md` — the single source of truth for every formula; update it first if
+  a calculation changes
+
+## Learn more
+
+This project uses the Next.js App Router. See the
+[Next.js documentation](https://nextjs.org/docs) for framework-level questions.

@@ -1,36 +1,18 @@
 /**
  * Logistics metrics. See docs/metrics.md.
+ *
+ * Schema note: this pass's schema has no shipments table (see docs), so
+ * "logistics" is redefined as inbound purchase-order on-time delivery
+ * rate — the closest honest equivalent available. It intentionally reuses
+ * `poOnTimeRate` from supplier.ts (same underlying receipt-timing data as
+ * part of procurement's cycle-time score); that overlap is a disclosed
+ * limitation of the narrower schema, not a bug.
  */
-import type { Shipment } from "@/types/supply-chain";
-import { isWithinTrailingWindow } from "@/data/mock/dates";
+import type { PurchaseOrder } from "@/types/supply-chain";
+import { poOnTimeRate } from "./supplier";
 
-const TRAILING_WINDOW_DAYS = 90;
-
-export function isShipmentOnTime(shipment: Shipment): boolean {
-  return !!shipment.actualDeliveryDate && shipment.actualDeliveryDate <= shipment.expectedDeliveryDate;
-}
-
-/**
- * % of delivered shipments (trailing 90 days) that arrived on or before
- * the expected date. "delayed" is a live status (still in transit, past
- * due) rather than a completed outcome, so it isn't eligible here — only
- * a shipment that has actually arrived has an on-time/late result to
- * measure.
- */
-export function onTimeShipmentRate(
-  shipments: Shipment[],
-  windowDays: number = TRAILING_WINDOW_DAYS,
-): number | null {
-  const eligible = shipments.filter(
-    (s) => s.status === "delivered" && !!s.actualDeliveryDate && isWithinTrailingWindow(s.actualDeliveryDate, windowDays),
-  );
-  if (eligible.length === 0) return null;
-  const onTime = eligible.filter(isShipmentOnTime).length;
-  return Math.round((onTime / eligible.length) * 1000) / 10;
-}
-
-export function logisticsHealthScore(shipments: Shipment[], windowDays: number = TRAILING_WINDOW_DAYS): number {
-  const rate = onTimeShipmentRate(shipments, windowDays);
+export function logisticsHealthScore(purchaseOrders: PurchaseOrder[]): number {
+  const rate = poOnTimeRate(purchaseOrders);
   if (rate === null) return 0;
   return Math.min(100, Math.max(0, Math.round(rate)));
 }

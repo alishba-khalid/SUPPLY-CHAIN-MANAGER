@@ -64,19 +64,19 @@ export default async function OverviewPage() {
                 format="currency"
               />
             </ChartCard>
-            <ChartCard title="On-Time Shipment Rate" description="% of delivered shipments arriving on or before expected.">
+            <ChartCard title="On-Time Delivery Rate" description="% of received purchase orders arriving on or before expected.">
               <TrendChart
                 series={[{ name: "On-time rate", color: "var(--color-info)", data: trends.onTimeShipmentRate }]}
                 format="percent"
               />
             </ChartCard>
-            <ChartCard title="Order Volume" description="Units shipped across fulfilled customer orders.">
+            <ChartCard title="Purchase Order Volume" description="Units ordered per week, across all purchase orders.">
               <TrendChart
-                series={[{ name: "Units", color: "var(--color-brand)", data: trends.orderVolume }]}
+                series={[{ name: "Units", color: "var(--color-brand)", data: trends.poVolume }]}
                 format="units"
               />
             </ChartCard>
-            <ChartCard title="Inventory Movement" description="Units received vs. units sold or transferred out.">
+            <ChartCard title="Inventory Movement" description="Units received vs. units shipped out.">
               <TrendChart
                 series={[
                   { name: "Inbound", color: "var(--color-brand)", data: trends.inventoryInbound },

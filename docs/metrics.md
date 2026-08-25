@@ -5,9 +5,26 @@ Chain Manager. Business logic is implemented in `src/lib/metrics/*` and
 `src/lib/insights/*` — never inside a UI component. If a formula changes,
 update it here first.
 
-All calculations are relative to `REFERENCE_DATE = "2026-08-24"`
-(`src/data/mock/dates.ts`), never the system clock, so results are
-reproducible on every run.
+All calculations are relative to the real system clock (`src/lib/dates.ts`).
+Earlier sessions ran on a frozen in-memory mock dataset anchored to a fixed
+`REFERENCE_DATE` for reproducibility; the app is now backed by a real
+Postgres database (`prisma/schema.prisma`, seeded by `prisma/seed.ts`) that
+can be reseeded at any time, so "today" has to mean today.
+
+## Schema scope
+
+The database has six tables: `warehouses`, `suppliers`, `products`,
+`inventory`, `purchase_orders`, `transactions`. There is **no customer-order
+or shipment table** in this pass. Two consequences, both intentional:
+
+- **Logistics** is redefined as inbound purchase-order on-time delivery rate
+  (see "Logistics Health" below) rather than shipment tracking — there are
+  no shipments to track.
+- `purchase_orders` has no separate received-quantity column — a row is
+  either not yet received (`receivedDate` null) or received, with no
+  partial-receipt state. "In full" is therefore structurally true for every
+  received row; see "Supplier OTIF" and "Procurement Health" below for where
+  this shows up.
 
 ---
 
@@ -174,7 +191,7 @@ Inventory Turnover (annualized) =
   (Average Daily Demand × 365) / Average Available Inventory
 ```
 
-**Source data:** `Average Daily Demand`, `InventoryRecord.quantityAvailable`.
+**Source data:** `Average Daily Demand`, `inventory.quantity_on_hand`.
 
 **Edge case:** `null` when Average Daily Demand is `null` or available
 inventory is `0`.
@@ -214,20 +231,19 @@ industry-standard measure of supplier reliability.
 **Formula:**
 
 ```
-On Time  = actualDeliveryDate <= expectedDeliveryDate
-In Full  = sum(receivedQuantity) >= sum(orderedQuantity)  (across PO lines)
+On Time  = receivedDate <= expectedDate
+In Full  = receivedDate is set   (see "Schema scope" — no partial-receipt column exists)
 OTIF     = On Time AND In Full
 
 Eligible Purchase Orders (trailing 90 days) =
-  status == "received" AND actualDeliveryDate is set
-  AND actualDeliveryDate ∈ (REFERENCE_DATE - 90, REFERENCE_DATE]
+  receivedDate is set AND receivedDate ∈ (today - 90, today]
 
 Supplier OTIF % = (count(OTIF orders) / count(Eligible Purchase Orders)) × 100
 ```
 
-**Source data:** `PurchaseOrder[]`, `PurchaseOrderLine[]`.
+**Source data:** `purchase_orders`.
 
-**Time window:** Trailing 90 days, keyed on `actualDeliveryDate`.
+**Time window:** Trailing 90 days, keyed on `receivedDate`.
 
 **Edge case:** `null` when a supplier has zero eligible purchase orders in
 the window — never reported as `0%`, which would misleadingly imply poor
@@ -278,64 +294,88 @@ Procurement Health =
   + Price Stability Score   × 30%
 ```
 
-- **PO Fulfillment Score** = % of received POs where received quantity ≥
-  ordered quantity (company-wide "in full" rate).
+- **PO Fulfillment Score** = % of received POs that are "in full" — see
+  "Schema scope": this is structurally 100 whenever any POs have been
+  received, since there is no partial-receipt column to violate it. Kept as
+  its own component (not inlined to a constant) so the limitation stays
+  visible at its source, not silently dropped.
 - **PO Cycle-Time Score** = % of received POs delivered on or before the
-  expected delivery date (company-wide "on time" rate).
+  expected delivery date (company-wide "on time" rate, no trailing window —
+  all history).
 - **Price Stability Score** = `100 - (avg absolute % deviation of paid
-  unit cost vs. the product's baseline unitCost × 200)`, clamped to
+  unit price vs. the product's baseline unitCost × 200)`, clamped to
   [0, 100]. 0% average deviation → 100; ~50% average deviation → 0.
 
-**Source data:** `PurchaseOrder[]`, `PurchaseOrderLine.unitCost`,
-`Product.unitCost` (baseline).
+**Source data:** `purchase_orders`, `products.unit_cost` (baseline).
 
 **Edge case:** `0` when there are no received purchase orders at all;
-Price Stability defaults to `100` when there is no line data to compare.
+Price Stability defaults to `100` when there is no data to compare.
 
 **Implementation:** `procurementHealthScore` and its three components in
 `src/lib/metrics/procurement.ts`.
 
 ---
 
-## On-Time Shipment Rate (Logistics)
+## PO Cycle Time
 
-**Business definition:** The percentage of shipments (inbound and
-outbound) that arrived on or before their expected delivery date.
+**Business definition:** How long, on average, it actually takes a
+purchase order to arrive from the day it's placed — a raw operational
+figure distinct from the 0–100 cycle-time *score* above.
 
 **Formula:**
 
 ```
-Eligible Shipments (trailing 90 days) =
-  status == "delivered" AND actualDeliveryDate is set
-  AND actualDeliveryDate ∈ (REFERENCE_DATE - 90, REFERENCE_DATE]
-
-On-Time Shipment Rate = (count(actualDeliveryDate <= expectedDeliveryDate) / count(Eligible Shipments)) × 100
+PO Cycle Time (days) = mean(receivedDate - orderDate), across all received purchase orders
 ```
 
-**Source data:** `Shipment[]`. Note `status == "delayed"` means *currently* overdue and not yet delivered — a live problem, not a completed outcome — so it is excluded from this rate; a shipment that arrived late is still `status == "delivered"`, with its lateness captured by `actualDeliveryDate > expectedDeliveryDate`.
+**Edge case:** `null` when there are no received purchase orders.
 
-**Time window:** Trailing 90 days.
+**Implementation:** `averagePoCycleTimeDays` in `src/lib/metrics/procurement.ts`.
 
-**Edge case:** `null` when there are no eligible shipments in the window.
+---
 
-**Implementation:** `onTimeShipmentRate` in `src/lib/metrics/logistics.ts`.
+## Price Variance
+
+**Business definition:** How far a specific purchase order's paid unit
+price drifted from the product's baseline cost — the per-order figure
+underlying the company-wide Price Stability Score.
+
+**Formula:**
+
+```
+Price Variance % = (unitPrice - product.unitCost) / product.unitCost × 100
+```
+
+Positive = paid more than baseline; negative = paid less.
+
+**Edge case:** `null` when the product's baseline unit cost is `0`.
+
+**Implementation:** `priceVariancePercent` in `src/lib/metrics/procurement.ts`.
 
 ---
 
 ## Logistics Health
 
-**Business definition:** Session 1's initial logistics health score.
+**Business definition:** How reliably inbound stock arrives on time.
+Redefined for this schema (see "Schema scope") — there are no shipments to
+track, so this reuses inbound purchase-order receipt timing, the closest
+honest equivalent available. This intentionally overlaps with Procurement's
+PO Cycle-Time Score (same underlying data); that's a disclosed limitation
+of the narrower schema, not a bug.
 
 **Formula:**
 
 ```
-Logistics Health = On-Time Shipment Rate  (0 when the rate is null)
+Eligible Purchase Orders (trailing 90 days) =
+  receivedDate is set AND receivedDate ∈ (today - 90, today]
+
+Logistics Health = (count(receivedDate <= expectedDate) / count(Eligible Purchase Orders)) × 100
 ```
 
-Clamped to [0, 100]. This will expand in Session 5 (e.g. weighting inbound
-vs. outbound separately).
+Clamped to [0, 100]. `0` when there are no eligible purchase orders.
 
-**Implementation:** `logisticsHealthScore` in `src/lib/metrics/logistics.ts`.
+**Implementation:** `poOnTimeRate` in `src/lib/metrics/supplier.ts`,
+`logisticsHealthScore` in `src/lib/metrics/logistics.ts`.
 
 ---
 
@@ -401,14 +441,15 @@ composed in `getSupplyChainHealth()` in `src/data/repositories/dashboard.ts`.
 **Formula:**
 
 ```
-Inventory Health = (count(SKUs where Safety Stock <= Available <= Overstock Threshold) / count(active SKU-warehouse pairs)) × 100
+Inventory Health = (count(SKUs where Safety Stock <= Available <= Overstock Threshold) / count(SKU-warehouse pairs)) × 100
 ```
 
-Clamped to [0, 100]. Only active products contribute.
+Clamped to [0, 100].
 
-**Example:** 150 active products stocked across warehouses produce 210
-product-warehouse pairs; 178 of them sit within their healthy range →
-Inventory Health = 178 / 210 × 100 = **84.8 → 85**.
+**Example:** 120 SKUs stocked across warehouses produce 120
+product-warehouse pairs (one warehouse per SKU in this seed); 66 of them
+sit within their healthy range → Inventory Health = 66 / 120 × 100 =
+**55.0 → 55**.
 
 **Implementation:** `inventoryHealthScore` in `src/lib/metrics/inventory.ts`.
 
@@ -420,13 +461,13 @@ Every "trailing 90-day" calculation in this document uses the same
 inclusive/exclusive rule:
 
 ```
-date ∈ (REFERENCE_DATE - 90 days, REFERENCE_DATE]
+date ∈ (today - 90 days, today]
 ```
 
-i.e. more than 90 days ago is excluded; exactly on `REFERENCE_DATE` is
-included. Implemented once in `isWithinTrailingWindow()`
-(`src/data/mock/dates.ts`) and reused everywhere so the window can never
-drift between modules.
+i.e. more than 90 days ago is excluded; exactly today is included.
+Implemented once in `isWithinTrailingWindow()` (`src/lib/dates.ts`) and
+reused everywhere so the window can never drift between modules. `today`
+is the real system clock — see the note at the top of this document.
 
 ---
 
@@ -440,44 +481,42 @@ trailing-window rule applied 12 times in a row instead of once.
 
 ```
 Week Bucket i (i = 0..11, i = 11 is the most recent) =
-  (REFERENCE_DATE - 7×(11-i) - 7, REFERENCE_DATE - 7×(11-i)]
+  (today - 7×(11-i) - 7, today - 7×(11-i)]
 ```
 
 Each bucket is `(start, end]` — the exact same inclusive/exclusive shape as
 `isWithinTrailingWindow`, just with a 7-day window anchored at each bucket's
-own `end` instead of always at `REFERENCE_DATE`.
+own `end` instead of always at `today`.
 
 **Implementation:** `weekBuckets` in `src/lib/metrics/trends.ts`.
 
 ### Procurement Spend Trend
 
-Weekly sum of `purchaseOrderValue` across `received` purchase orders, keyed
-on `actualDeliveryDate` — the same eligibility rule as trailing procurement
+Weekly sum of `quantity × unitPrice` across received purchase orders, keyed
+on `receivedDate` — the same eligibility rule as trailing procurement
 spend, bucketed instead of summed once.
 
 **Implementation:** `procurementSpendTrend` in `src/lib/metrics/trends.ts`.
 
-### On-Time Shipment Rate Trend
+### On-Time Delivery Rate Trend
 
-Weekly % of `delivered` shipments (keyed on `actualDeliveryDate`) with
-`actualDeliveryDate <= expectedDeliveryDate`. Unlike the scalar `null`
-convention used elsewhere, a week with zero delivered shipments plots as
-`0` — a chart series can't render a `null` gap as cleanly as a single
-scalar metric can.
+Weekly % of received purchase orders (keyed on `receivedDate`) with
+`receivedDate <= expectedDate`. Unlike the scalar `null` convention used
+elsewhere, a week with zero receipts plots as `0` — a chart series can't
+render a `null` gap as cleanly as a single scalar metric can.
 
 **Implementation:** `onTimeShipmentRateTrend` in `src/lib/metrics/trends.ts`.
 
-### Order Volume Trend
+### Purchase Order Volume Trend
 
-Weekly sum of line `quantity` across `fulfilled` customer orders, keyed on
-`fulfilledDate`.
+Weekly sum of `quantity` across all purchase orders, keyed on `orderDate`.
 
-**Implementation:** `orderVolumeTrend` in `src/lib/metrics/trends.ts`.
+**Implementation:** `poVolumeTrend` in `src/lib/metrics/trends.ts`.
 
 ### Inventory Movement Trend
 
-Weekly sum of `RECEIPT` + `TRANSFER_IN` quantity ("inbound") vs. `SALE` +
-`TRANSFER_OUT` quantity ("outbound"), keyed on transaction `date`.
+Weekly sum of inbound (`direction == "IN"`) vs. outbound (`direction ==
+"OUT"`) transaction quantity, keyed on transaction `date`.
 
 **Implementation:** `inventoryMovementTrend` in `src/lib/metrics/trends.ts`.
 
@@ -495,22 +534,19 @@ is no separate stored activity/event log.
 Window = trailing 14 days (isWithinTrailingWindow(date, 14))
 
 Included events:
-  - Purchase order received (status == "received", keyed on actualDeliveryDate)
-  - Shipment delayed (status == "delayed", keyed on expectedDeliveryDate)
-  - Customer order fulfilled, where line value >= $500
-    (status == "fulfilled", keyed on fulfilledDate)
-  - Inventory adjustment, where |quantity| >= 15 units
-    (type == "ADJUSTMENT", keyed on date)
+  - Purchase order received (receivedDate is set, keyed on receivedDate)
+  - Inventory movement, where quantity >= 15 units
+    (any transaction, keyed on date)
 ```
 
-**Edge case:** The $500 and 15-unit thresholds exist only to keep the feed
-readable — without them, routine small fulfilled orders and cycle-count
-adjustments would flood out the events actually worth a manager's
-attention.
+**Edge case:** The 15-unit threshold exists only to keep the feed
+readable — without it, routine small transactions would flood out the
+events actually worth a manager's attention. (Earlier sessions also
+surfaced shipment-delayed and customer-order-fulfilled events; both concepts
+were dropped from this schema — see "Schema scope" at the top of this doc.)
 
 **Ordering:** Descending by date; same-day events are ordered
-`shipment_delayed` → `po_received` → `customer_order_fulfilled` →
-`inventory_adjustment` (most urgent first), then capped at `limit`
-(default 15).
+`po_received` → `inventory_movement` (most urgent first), then capped at
+`limit` (default 15).
 
 **Implementation:** `getRecentActivity` in `src/lib/insights/activity.ts`.

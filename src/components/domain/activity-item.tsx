@@ -1,24 +1,23 @@
-import { AlertTriangle, ClipboardEdit, PackageCheck, ShoppingBag } from "lucide-react";
+import { ArrowDownToLine, ArrowUpFromLine, PackageCheck } from "lucide-react";
 import type { ActivityEvent, ActivityEventType } from "@/types/supply-chain";
-import { daysBetween, REFERENCE_DATE } from "@/data/mock/dates";
+import { daysBetween, todayISODate } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 
-const TYPE_STYLES: Record<ActivityEventType, { icon: typeof PackageCheck; iconClass: string }> = {
-  po_received: { icon: PackageCheck, iconClass: "text-(--color-brand)" },
-  shipment_delayed: { icon: AlertTriangle, iconClass: "text-(--color-critical)" },
-  customer_order_fulfilled: { icon: ShoppingBag, iconClass: "text-(--color-info)" },
-  inventory_adjustment: { icon: ClipboardEdit, iconClass: "text-(--color-text-muted)" },
+const TYPE_STYLES: Record<ActivityEventType, { iconClass: string }> = {
+  po_received: { iconClass: "text-(--color-brand)" },
+  inventory_movement: { iconClass: "text-(--color-info)" },
 };
 
 function relativeLabel(date: string): string {
-  const days = daysBetween(date, REFERENCE_DATE);
+  const days = daysBetween(date, todayISODate());
   if (days <= 0) return "Today";
   if (days === 1) return "Yesterday";
   return `${days} days ago`;
 }
 
 export function ActivityItem({ event }: { event: ActivityEvent }) {
-  const { icon: Icon, iconClass } = TYPE_STYLES[event.type];
+  const Icon = event.type === "po_received" ? PackageCheck : event.title.startsWith("Inbound") ? ArrowDownToLine : ArrowUpFromLine;
+  const { iconClass } = TYPE_STYLES[event.type];
 
   return (
     <div className="flex items-start gap-3 border-b border-(--color-border) py-3 last:border-b-0">

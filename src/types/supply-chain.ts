@@ -1,13 +1,15 @@
 /**
  * Centralized domain types for Supply Chain Manager.
  *
- * These types are the single source of truth for shape across the mock
- * data layer, the repository layer, and the UI. They are designed to map
- * cleanly to a future Supabase/PostgreSQL schema — field names here should
- * be treated as the eventual column names.
+ * These mirror the Postgres schema (`prisma/schema.prisma`) exactly — this
+ * is the shape the repository layer maps Prisma rows into, and the shape
+ * the metrics/insights layers consume. Business-facing codes (`sku`,
+ * `supplierId`) are the join keys, matching the database.
+ *
+ * Scope note: this schema has no customer-order or shipment concept (see
+ * docs/metrics.md's "Schema scope" section) — logistics is derived from
+ * inbound purchase-order receipt timing instead.
  */
-
-export type ID = string;
 
 export type ISODate = string; // "YYYY-MM-DD"
 export type ISODateTime = string; // ISO 8601 timestamp
@@ -16,67 +18,28 @@ export type ISODateTime = string; // ISO 8601 timestamp
 // Core entities
 // ============================================================
 
-export interface Company {
-  id: ID;
+export interface Warehouse {
+  id: number;
+  code: string;
   name: string;
-  timezone: string;
-  createdAt: ISODateTime;
-}
-
-export type UserRole = "owner" | "admin" | "manager" | "viewer";
-
-export interface User {
-  id: ID;
-  companyId: ID;
-  name: string;
-  email: string;
-  role: UserRole;
-  avatarUrl?: string;
-}
-
-export type ProductCategory =
-  | "raw_material"
-  | "component"
-  | "finished_good"
-  | "packaging"
-  | "mro"; // maintenance, repair, operations
-
-export interface Product {
-  id: ID;
-  sku: string;
-  name: string;
-  category: ProductCategory;
-  unitCost: number; // cost to acquire one unit, USD
-  unitPrice: number; // sell price, USD (0 for non-resale items)
-  primarySupplierId: ID;
-  unitOfMeasure: string; // "each", "case", "kg", etc.
-  active: boolean;
-  createdAt: ISODateTime;
+  capacityUnits: number;
 }
 
 export interface Supplier {
-  id: ID;
+  id: number;
+  supplierId: string; // business-facing code, e.g. "SUP-001"
   name: string;
-  country: string;
-  leadTimeDays: number; // standard replenishment lead time
-  paymentTerms: string; // e.g. "Net 30"
-  contactName: string;
-  contactEmail: string;
-  active: boolean;
-  createdAt: ISODateTime;
+  leadTimeDays: number;
+  email: string;
 }
 
-export type WarehouseType = "distribution_center" | "retail" | "fulfillment" | "cross_dock";
-
-export interface Warehouse {
-  id: ID;
+export interface Product {
+  id: number;
+  sku: string;
   name: string;
-  code: string;
-  city: string;
-  country: string;
-  type: WarehouseType;
-  capacityUnits: number; // max storage capacity, in units
-  active: boolean;
+  category: string;
+  unitCost: number;
+  supplierId: string;
 }
 
 // ============================================================
@@ -84,120 +47,37 @@ export interface Warehouse {
 // ============================================================
 
 export interface InventoryRecord {
-  id: ID;
-  productId: ID;
-  warehouseId: ID;
+  id: number;
+  sku: string;
+  warehouseId: number;
   quantityOnHand: number;
-  quantityReserved: number; // committed to open customer orders
-  quantityAvailable: number; // onHand - reserved
-  updatedAt: ISODateTime;
 }
 
-export type InventoryTransactionType =
-  | "RECEIPT"
-  | "SALE"
-  | "TRANSFER_IN"
-  | "TRANSFER_OUT"
-  | "ADJUSTMENT";
+export type TransactionDirection = "IN" | "OUT";
 
 export interface InventoryTransaction {
-  id: ID;
-  productId: ID;
-  warehouseId: ID;
-  type: InventoryTransactionType;
-  quantity: number; // always positive; direction implied by `type`
-  date: ISODate;
-  referenceId?: ID; // e.g. purchaseOrderId, customerOrderId
-}
-
-// ============================================================
-// Customers & demand
-// ============================================================
-
-export interface Customer {
-  id: ID;
-  name: string;
-  country: string;
-  createdAt: ISODateTime;
-}
-
-export type CustomerOrderStatus = "open" | "fulfilled" | "cancelled";
-
-export interface CustomerOrderLine {
-  id: ID;
-  customerOrderId: ID;
-  productId: ID;
+  id: number;
+  sku: string;
+  warehouseId: number;
   quantity: number;
-  unitPrice: number;
-}
-
-export interface CustomerOrder {
-  id: ID;
-  orderNumber: string;
-  customerId: ID;
-  warehouseId: ID;
-  orderDate: ISODate;
-  fulfilledDate?: ISODate;
-  status: CustomerOrderStatus;
-  lines: CustomerOrderLine[];
+  direction: TransactionDirection;
+  date: ISODate;
 }
 
 // ============================================================
 // Procurement
 // ============================================================
 
-export type PurchaseOrderStatus =
-  | "draft"
-  | "pending_approval"
-  | "approved"
-  | "sent"
-  | "partially_received"
-  | "received"
-  | "cancelled";
-
-export interface PurchaseOrderLine {
-  id: ID;
-  purchaseOrderId: ID;
-  productId: ID;
-  orderedQuantity: number;
-  receivedQuantity: number;
-  unitCost: number;
-}
-
 export interface PurchaseOrder {
-  id: ID;
+  id: number;
   poNumber: string;
-  supplierId: ID;
-  warehouseId: ID;
-  status: PurchaseOrderStatus;
-  orderedDate: ISODate;
-  expectedDeliveryDate: ISODate;
-  actualDeliveryDate?: ISODate;
-  purchaseOrderValue: number; // sum of line (orderedQuantity * unitCost)
-  lines: PurchaseOrderLine[];
-}
-
-// ============================================================
-// Logistics
-// ============================================================
-
-export type ShipmentStatus = "pending" | "in_transit" | "delivered" | "delayed" | "cancelled";
-
-export type ShipmentDirection = "inbound" | "outbound";
-
-export interface Shipment {
-  id: ID;
-  shipmentNumber: string;
-  direction: ShipmentDirection;
-  purchaseOrderId?: ID;
-  customerOrderId?: ID;
-  originWarehouseId?: ID;
-  destinationWarehouseId?: ID;
-  carrier: string;
-  status: ShipmentStatus;
-  shippedDate?: ISODate;
-  expectedDeliveryDate: ISODate;
-  actualDeliveryDate?: ISODate;
+  supplierId: string;
+  sku: string;
+  quantity: number;
+  unitPrice: number;
+  orderDate: ISODate;
+  expectedDate: ISODate;
+  receivedDate: ISODate | null;
 }
 
 // ============================================================
@@ -205,8 +85,8 @@ export interface Shipment {
 // ============================================================
 
 export interface SupplierPerformance {
-  supplierId: ID;
-  windowDays: number; // trailing window used, e.g. 90
+  supplierId: string;
+  windowDays: number;
   eligiblePurchaseOrders: number;
   onTimeInFullCount: number;
   otifPercent: number | null; // null when no eligible POs
@@ -223,8 +103,8 @@ export type InventoryStatus =
   | "dead_stock";
 
 export interface InventoryInsight {
-  productId: ID;
-  warehouseId: ID;
+  sku: string;
+  warehouseId: number;
   availableQuantity: number;
   averageDailyDemand: number | null; // null => insufficient demand data
   daysOfStock: number | null; // null when averageDailyDemand is null/0
@@ -244,36 +124,31 @@ export type RecommendationCategory =
 export type RecommendationPriority = "low" | "medium" | "high" | "critical";
 
 export interface Recommendation {
-  id: ID;
+  id: string;
   category: RecommendationCategory;
   priority: RecommendationPriority;
   title: string;
   description: string;
-  affectedProductIds?: ID[];
-  affectedSupplierId?: ID;
-  affectedWarehouseId?: ID;
+  affectedSkus?: string[];
+  affectedSupplierId?: string;
+  affectedWarehouseId?: number;
   estimatedImpact?: string; // human-readable, e.g. "$28,400 tied up"
   createdAt: ISODateTime;
 }
 
 export type AlertSeverity = "info" | "warning" | "critical";
 
-export type AlertCategory =
-  | "inventory"
-  | "supplier"
-  | "procurement"
-  | "logistics"
-  | "warehouse";
+export type AlertCategory = "inventory" | "supplier" | "procurement" | "logistics" | "warehouse";
 
 export interface SupplyChainAlert {
-  id: ID;
+  id: string;
   category: AlertCategory;
   severity: AlertSeverity;
   title: string;
   description: string;
-  productId?: ID;
-  supplierId?: ID;
-  warehouseId?: ID;
+  sku?: string;
+  supplierId?: string;
+  warehouseId?: number;
   createdAt: ISODateTime;
 }
 
@@ -287,7 +162,7 @@ export interface SupplyChainHealthBreakdown {
 }
 
 // ============================================================
-// Trends & activity (Session 2 — Overview)
+// Trends & activity (Overview)
 // ============================================================
 
 export interface TrendPoint {
@@ -296,19 +171,15 @@ export interface TrendPoint {
   value: number;
 }
 
-export type ActivityEventType =
-  | "po_received"
-  | "shipment_delayed"
-  | "customer_order_fulfilled"
-  | "inventory_adjustment";
+export type ActivityEventType = "po_received" | "inventory_movement";
 
 export interface ActivityEvent {
-  id: ID;
+  id: string;
   type: ActivityEventType;
   date: ISODate;
   title: string;
   description: string;
-  productId?: ID;
-  supplierId?: ID;
-  warehouseId?: ID;
+  sku?: string;
+  supplierId?: string;
+  warehouseId?: number;
 }

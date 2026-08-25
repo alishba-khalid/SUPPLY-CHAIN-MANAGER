@@ -1,12 +1,18 @@
 /**
  * Procurement health metrics. See docs/metrics.md.
+ *
+ * Schema note: `procurementFulfillmentScore` is structurally 100 whenever
+ * any POs have been received, since this schema has no partial-receipt
+ * quantity column (see supplier.ts's file header) — kept as its own
+ * function, not inlined to a constant, so the composite formula stays
+ * legible and the limitation stays visible at its source.
  */
-import type { PurchaseOrder } from "@/types/supply-chain";
-import { isOnTime, isInFull } from "./supplier";
+import type { Product, PurchaseOrder } from "@/types/supply-chain";
+import { isOnTime, isInFull, purchaseOrderValue } from "./supplier";
 
 /** % of received POs that arrived with the full ordered quantity. */
 export function procurementFulfillmentScore(purchaseOrders: PurchaseOrder[]): number {
-  const eligible = purchaseOrders.filter((po) => po.status === "received");
+  const eligible = purchaseOrders.filter((po) => !!po.receivedDate);
   if (eligible.length === 0) return 0;
   const inFull = eligible.filter(isInFull).length;
   return Math.round((inFull / eligible.length) * 100);
@@ -14,10 +20,28 @@ export function procurementFulfillmentScore(purchaseOrders: PurchaseOrder[]): nu
 
 /** % of received POs that arrived on or before the expected date. */
 export function procurementCycleTimeScore(purchaseOrders: PurchaseOrder[]): number {
-  const eligible = purchaseOrders.filter((po) => po.status === "received");
+  const eligible = purchaseOrders.filter((po) => !!po.receivedDate);
   if (eligible.length === 0) return 0;
   const onTime = eligible.filter(isOnTime).length;
   return Math.round((onTime / eligible.length) * 100);
+}
+
+/** Mean days between `orderDate` and `receivedDate`, across received POs. */
+export function averagePoCycleTimeDays(purchaseOrders: PurchaseOrder[]): number | null {
+  const eligible = purchaseOrders.filter((po): po is PurchaseOrder & { receivedDate: string } => !!po.receivedDate);
+  if (eligible.length === 0) return null;
+  const days = eligible.map((po) => {
+    const orderMs = new Date(`${po.orderDate}T00:00:00Z`).getTime();
+    const receivedMs = new Date(`${po.receivedDate}T00:00:00Z`).getTime();
+    return (receivedMs - orderMs) / 86_400_000;
+  });
+  return Math.round((days.reduce((a, b) => a + b, 0) / days.length) * 10) / 10;
+}
+
+/** (paid unit price - product's baseline unit cost) / baseline, as a %. Positive = paid more than baseline. */
+export function priceVariancePercent(po: PurchaseOrder, product: Pick<Product, "unitCost">): number | null {
+  if (product.unitCost <= 0) return null;
+  return Math.round(((po.unitPrice - product.unitCost) / product.unitCost) * 1000) / 10;
 }
 
 /**
@@ -31,12 +55,10 @@ export function procurementPriceStabilityScore(
 ): number {
   const deviations: number[] = [];
   for (const po of purchaseOrders) {
-    if (po.status !== "received") continue;
-    for (const line of po.lines) {
-      const baseline = productBaselineCost.get(line.productId);
-      if (!baseline || baseline <= 0) continue;
-      deviations.push(Math.abs(line.unitCost - baseline) / baseline);
-    }
+    if (!po.receivedDate) continue;
+    const baseline = productBaselineCost.get(po.sku);
+    if (!baseline || baseline <= 0) continue;
+    deviations.push(Math.abs(po.unitPrice - baseline) / baseline);
   }
   if (deviations.length === 0) return 100;
   const avgDeviation = deviations.reduce((a, b) => a + b, 0) / deviations.length;
@@ -53,3 +75,5 @@ export function procurementHealthScore(
   const score = fulfillment * 0.4 + cycleTime * 0.3 + priceStability * 0.3;
   return Math.min(100, Math.max(0, Math.round(score)));
 }
+
+export { purchaseOrderValue };

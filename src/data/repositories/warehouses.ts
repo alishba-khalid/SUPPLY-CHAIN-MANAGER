@@ -1,5 +1,5 @@
 import type { Warehouse } from "@/types/supply-chain";
-import { getSeedData } from "@/data/mock/seed";
+import { prisma } from "@/lib/prisma";
 import { getInventoryInsights } from "./inventory";
 import {
   capacityUtilization,
@@ -11,7 +11,7 @@ import {
 } from "@/lib/metrics/warehouse";
 
 export interface WarehouseHealth {
-  warehouseId: string;
+  warehouseId: number;
   onHandUnits: number;
   capacityUnits: number;
   utilizationPercent: number;
@@ -22,23 +22,25 @@ export interface WarehouseHealth {
 }
 
 export async function getWarehouses(): Promise<Warehouse[]> {
-  return getSeedData().warehouses;
+  return prisma.warehouse.findMany({ orderBy: { id: "asc" } });
 }
 
-export async function getWarehouse(warehouseId: string): Promise<Warehouse | undefined> {
-  return getSeedData().warehouses.find((w) => w.id === warehouseId);
+export async function getWarehouse(warehouseId: number): Promise<Warehouse | undefined> {
+  const warehouse = await prisma.warehouse.findUnique({ where: { id: warehouseId } });
+  return warehouse ?? undefined;
 }
 
-export async function getWarehouseHealth(warehouseId: string): Promise<WarehouseHealth | undefined> {
-  const { warehouses, inventoryRecords } = getSeedData();
-  const warehouse = warehouses.find((w) => w.id === warehouseId);
+export async function getWarehouseHealth(warehouseId: number): Promise<WarehouseHealth | undefined> {
+  const warehouse = await prisma.warehouse.findUnique({ where: { id: warehouseId } });
   if (!warehouse) return undefined;
 
-  const onHandUnits = inventoryRecords
-    .filter((r) => r.warehouseId === warehouseId)
-    .reduce((sum, r) => sum + r.quantityOnHand, 0);
+  const onHandUnits = await prisma.inventory.aggregate({
+    where: { warehouseId },
+    _sum: { quantityOnHand: true },
+  });
+  const units = onHandUnits._sum.quantityOnHand ?? 0;
 
-  const utilizationPercent = Math.round(capacityUtilization(onHandUnits, warehouse.capacityUnits) * 10) / 10;
+  const utilizationPercent = Math.round(capacityUtilization(units, warehouse.capacityUnits) * 10) / 10;
   const utilizationScore = capacityUtilizationScore(utilizationPercent);
 
   const insights = (await getInventoryInsights()).filter((i) => i.warehouseId === warehouseId);
@@ -46,7 +48,7 @@ export async function getWarehouseHealth(warehouseId: string): Promise<Warehouse
 
   return {
     warehouseId,
-    onHandUnits,
+    onHandUnits: units,
     capacityUnits: warehouse.capacityUnits,
     utilizationPercent,
     utilizationBand: utilizationBand(utilizationPercent),
@@ -57,7 +59,7 @@ export async function getWarehouseHealth(warehouseId: string): Promise<Warehouse
 }
 
 export async function getAllWarehouseHealth(): Promise<WarehouseHealth[]> {
-  const { warehouses } = getSeedData();
+  const warehouses = await getWarehouses();
   const results = await Promise.all(warehouses.map((w) => getWarehouseHealth(w.id)));
   return results.filter((r): r is WarehouseHealth => !!r);
 }

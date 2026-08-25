@@ -1,37 +1,55 @@
 import type { PurchaseOrder } from "@/types/supply-chain";
-import { getSeedData } from "@/data/mock/seed";
-import { isWithinTrailingWindow } from "@/data/mock/dates";
-import { procurementHealthScore } from "@/lib/metrics/procurement";
+import { prisma } from "@/lib/prisma";
+import { toISODate } from "@/lib/dates";
+import { procurementHealthScore, averagePoCycleTimeDays } from "@/lib/metrics/procurement";
+import { logisticsHealthScore } from "@/lib/metrics/logistics";
 
-export async function getPurchaseOrders(): Promise<PurchaseOrder[]> {
-  return getSeedData().purchaseOrders;
+interface PurchaseOrderRow {
+  id: number;
+  poNumber: string;
+  supplierId: string;
+  sku: string;
+  quantity: number;
+  unitPrice: unknown;
+  orderDate: Date;
+  expectedDate: Date;
+  receivedDate: Date | null;
 }
 
-export async function getPurchaseOrder(purchaseOrderId: string): Promise<PurchaseOrder | undefined> {
-  return getSeedData().purchaseOrders.find((po) => po.id === purchaseOrderId);
+export function toPurchaseOrder(row: PurchaseOrderRow): PurchaseOrder {
+  return {
+    id: row.id,
+    poNumber: row.poNumber,
+    supplierId: row.supplierId,
+    sku: row.sku,
+    quantity: row.quantity,
+    unitPrice: Number(row.unitPrice),
+    orderDate: toISODate(row.orderDate),
+    expectedDate: toISODate(row.expectedDate),
+    receivedDate: row.receivedDate ? toISODate(row.receivedDate) : null,
+  };
+}
+
+export async function getPurchaseOrders(): Promise<PurchaseOrder[]> {
+  const rows = await prisma.purchaseOrder.findMany({ orderBy: { orderDate: "desc" } });
+  return rows.map(toPurchaseOrder);
 }
 
 export async function getOpenPurchaseOrders(): Promise<PurchaseOrder[]> {
-  const { purchaseOrders } = getSeedData();
-  return purchaseOrders.filter((po) => po.status === "sent" || po.status === "approved" || po.status === "partially_received");
-}
-
-export async function getPendingApprovalPurchaseOrders(): Promise<PurchaseOrder[]> {
-  const { purchaseOrders } = getSeedData();
-  return purchaseOrders.filter((po) => po.status === "pending_approval" || po.status === "draft");
-}
-
-/** Trailing 90-day procurement spend across received purchase orders. */
-export async function getTrailingProcurementSpend(windowDays = 90): Promise<number> {
-  const { purchaseOrders } = getSeedData();
-  const total = purchaseOrders
-    .filter((po) => po.status === "received" && po.actualDeliveryDate && isWithinTrailingWindow(po.actualDeliveryDate, windowDays))
-    .reduce((sum, po) => sum + po.purchaseOrderValue, 0);
-  return Math.round(total * 100) / 100;
+  const rows = await prisma.purchaseOrder.findMany({ where: { receivedDate: null }, orderBy: { expectedDate: "asc" } });
+  return rows.map(toPurchaseOrder);
 }
 
 export async function getProcurementHealthScore(): Promise<number> {
-  const { purchaseOrders, products } = getSeedData();
-  const baselineCost = new Map(products.map((p) => [p.id, p.unitCost]));
+  const [purchaseOrders, products] = await Promise.all([getPurchaseOrders(), prisma.product.findMany()]);
+  const baselineCost = new Map(products.map((p) => [p.sku, Number(p.unitCost)]));
   return procurementHealthScore(purchaseOrders, baselineCost);
+}
+
+export async function getAveragePoCycleTimeDays(): Promise<number | null> {
+  return averagePoCycleTimeDays(await getPurchaseOrders());
+}
+
+export async function getLogisticsHealthScore(): Promise<number> {
+  return logisticsHealthScore(await getPurchaseOrders());
 }

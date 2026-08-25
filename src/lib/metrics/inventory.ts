@@ -3,10 +3,7 @@
  * assumptions, and worked examples.
  */
 import type { InventoryStatus, InventoryTransaction, InventoryInsight } from "@/types/supply-chain";
-import { isWithinTrailingWindow } from "@/data/mock/dates";
-
-/** Movements that deplete stock at a given warehouse. */
-const OUTBOUND_TYPES = new Set(["SALE", "TRANSFER_OUT"]);
+import { isWithinTrailingWindow } from "@/lib/dates";
 
 const TRAILING_WINDOW_DAYS = 90;
 const OVERSTOCK_HORIZON_DAYS = 30;
@@ -15,13 +12,13 @@ const SLOW_MOVING_DAYS = 180;
 
 export function trailingOutboundQuantity(
   transactions: InventoryTransaction[],
-  productId: string,
-  warehouseId: string,
+  sku: string,
+  warehouseId: number,
   windowDays: number = TRAILING_WINDOW_DAYS,
 ): number {
   return transactions.reduce((sum, t) => {
-    if (t.productId !== productId || t.warehouseId !== warehouseId) return sum;
-    if (!OUTBOUND_TYPES.has(t.type)) return sum;
+    if (t.sku !== sku || t.warehouseId !== warehouseId) return sum;
+    if (t.direction !== "OUT") return sum;
     if (!isWithinTrailingWindow(t.date, windowDays)) return sum;
     return sum + t.quantity;
   }, 0);
@@ -105,28 +102,28 @@ export function classifyInventoryStatus(params: ClassifyParams): InventoryStatus
 
 export function buildInventoryInsight(
   transactions: InventoryTransaction[],
-  record: { productId: string; warehouseId: string; quantityAvailable: number },
+  record: { sku: string; warehouseId: number; quantityOnHand: number },
   supplierLeadTimeDays: number,
   windowDays: number = TRAILING_WINDOW_DAYS,
 ): InventoryInsight {
-  const trailing = trailingOutboundQuantity(transactions, record.productId, record.warehouseId, windowDays);
+  const trailing = trailingOutboundQuantity(transactions, record.sku, record.warehouseId, windowDays);
   const avgDemand = averageDailyDemand(trailing, windowDays);
-  const dos = daysOfStock(record.quantityAvailable, avgDemand);
+  const dos = daysOfStock(record.quantityOnHand, avgDemand);
   const ss = safetyStock(avgDemand, supplierLeadTimeDays);
   const rp = reorderPoint(avgDemand, supplierLeadTimeDays);
   const ot = overstockThreshold(avgDemand, supplierLeadTimeDays);
 
   return {
-    productId: record.productId,
+    sku: record.sku,
     warehouseId: record.warehouseId,
-    availableQuantity: record.quantityAvailable,
+    availableQuantity: record.quantityOnHand,
     averageDailyDemand: avgDemand !== null ? Math.round(avgDemand * 100) / 100 : null,
     daysOfStock: dos !== null ? Math.round(dos * 10) / 10 : null,
     safetyStock: Math.round(ss * 100) / 100,
     reorderPoint: Math.round(rp * 100) / 100,
     overstockThreshold: Math.round(ot * 100) / 100,
     status: classifyInventoryStatus({
-      availableQuantity: record.quantityAvailable,
+      availableQuantity: record.quantityOnHand,
       avgDailyDemand: avgDemand,
       daysOfStockValue: dos,
       safetyStockValue: ss,

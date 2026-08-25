@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { SITE_NAME, SITE_URL, TAGLINE } from "@/lib/site-config";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -9,8 +10,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Supply Chain Manager",
-  description: "Your supply chain just hired a manager.",
+  metadataBase: new URL(SITE_URL),
+  title: SITE_NAME,
+  description: TAGLINE,
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
