@@ -1,41 +1,34 @@
-import { PageHeader } from "@/components/ui/page-header";
 import { SectionHeader } from "@/components/ui/section-header";
 import { MetricCard } from "@/components/ui/metric-card";
 import { ChartCard } from "@/components/ui/chart-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { OverviewPanels } from "@/components/domain/overview-panels";
+import { OverviewHeader } from "@/components/domain/overview-header";
 import { TrendChart } from "@/components/domain/trend-chart";
 import { ActivityItem } from "@/components/domain/activity-item";
-import {
-  getSupplyChainHealth,
-  getDashboardAlerts,
-  getDashboardRecommendations,
-  getOverviewTrends,
-  getRecentActivityFeed,
-} from "@/data/repositories/dashboard";
-import { getProducts } from "@/data/repositories/products";
-import { getSuppliers } from "@/data/repositories/suppliers";
-import { getWarehouses } from "@/data/repositories/warehouses";
+import { LeadTimeWarningBanner } from "@/components/domain/lead-time-warning-banner";
+import { getOverviewDashboardData } from "@/data/repositories/dashboard";
+import { requireOrgId } from "@/lib/auth";
 import { History } from "lucide-react";
 
 export default async function OverviewPage() {
-  const [health, alerts, recommendations, trends, activity, products, suppliers, warehouses] = await Promise.all([
-    getSupplyChainHealth(),
-    getDashboardAlerts(),
-    getDashboardRecommendations(),
-    getOverviewTrends(),
-    getRecentActivityFeed(),
-    getProducts(),
-    getSuppliers(),
-    getWarehouses(),
-  ]);
+  const orgId = await requireOrgId();
+
+  const {
+    products,
+    suppliers,
+    warehouses,
+    health,
+    alerts,
+    recommendations,
+    trends,
+    activity,
+    subscription,
+  } = await getOverviewDashboardData(orgId);
 
   return (
     <div>
-      <PageHeader
-        title="Good morning, Sarah."
-        description="Here's what your Supply Chain Manager is watching right now."
-      />
+      <OverviewHeader userName="Sarah" />
 
       <div className="space-y-8 p-8">
         <section className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
@@ -46,6 +39,8 @@ export default async function OverviewPage() {
           <MetricCard label="Logistics" value={`${health.logistics}`} />
           <MetricCard label="Warehouses" value={`${health.warehouse}`} />
         </section>
+ 
+        <LeadTimeWarningBanner suppliers={suppliers} />
 
         <OverviewPanels
           alerts={alerts}
@@ -53,6 +48,7 @@ export default async function OverviewPage() {
           products={products}
           suppliers={suppliers}
           warehouses={warehouses}
+          isStarter={subscription.plan === "starter"}
         />
 
         <section className="space-y-3">
@@ -100,10 +96,6 @@ export default async function OverviewPage() {
             </div>
           )}
         </section>
-
-        <p className="text-small text-(--color-text-muted)">
-          Inventory health, days of stock, and reorder signals arrive in Session 3.
-        </p>
       </div>
     </div>
   );

@@ -5,12 +5,12 @@ function toProduct(row: { id: number; sku: string; name: string; category: strin
   return { ...row, unitCost: Number(row.unitCost) };
 }
 
-export async function getProducts(): Promise<Product[]> {
-  const rows = await prisma.product.findMany({ orderBy: { sku: "asc" } });
+export async function getProducts(orgId: string): Promise<Product[]> {
+  const rows = await prisma.product.findMany({ where: { orgId }, orderBy: { sku: "asc" } });
   return rows.map(toProduct);
 }
 
-export async function getProduct(sku: string): Promise<Product | undefined> {
-  const row = await prisma.product.findUnique({ where: { sku } });
+export async function getProduct(orgId: string, sku: string): Promise<Product | undefined> {
+  const row = await prisma.product.findUnique({ where: { orgId_sku: { orgId, sku } } });
   return row ? toProduct(row) : undefined;
 }

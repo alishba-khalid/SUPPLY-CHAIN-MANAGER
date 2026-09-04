@@ -26,7 +26,7 @@ export function Hero() {
               Start free trial
               <ArrowRight size={16} />
             </Link>
-            <Link href="/dashboard/overview" className={buttonVariants({ variant: "secondary", size: "lg", className: "w-full sm:w-auto" })}>
+            <Link href="/dashboard/overview?demo=true" className={buttonVariants({ variant: "secondary", size: "lg", className: "w-full sm:w-auto" })}>
               See live demo
             </Link>
           </div>

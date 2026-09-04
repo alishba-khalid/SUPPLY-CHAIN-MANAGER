@@ -22,13 +22,13 @@ const TYPE_RANK: Record<ActivityEvent["type"], number> = {
   inventory_movement: 1,
 };
 
-export async function getRecentActivity(limit = 15): Promise<ActivityEvent[]> {
+export async function getRecentActivity(orgId: string, limit = 15): Promise<ActivityEvent[]> {
   const [purchaseOrders, transactions, suppliers, products, warehouses] = await Promise.all([
-    getPurchaseOrders(),
-    getInventoryTransactions(),
-    getSuppliers(),
-    getProducts(),
-    getWarehouses(),
+    getPurchaseOrders(orgId),
+    getInventoryTransactions(orgId),
+    getSuppliers(orgId),
+    getProducts(orgId),
+    getWarehouses(orgId),
   ]);
 
   const supplierBySupplierId = new Map(suppliers.map((s) => [s.supplierId, s]));

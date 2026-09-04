@@ -1,9 +1,12 @@
 // Prisma schema for Supply Chain Manager.
-// Six tables, matching the CSV/import structure exactly: warehouses, products,
-// inventory, suppliers, purchase_orders, transactions. Business-facing codes
-// (sku, supplier_id, warehouse code) are the join keys — not the internal
-// autoincrement ids — since that's how CSV imports and the rest of the app
-// will reference rows.
+//
+// Multi-tenant: every table carries `orgId` (a Clerk organization id), and
+// every unique constraint and relation is *composite on orgId* rather than
+// on the business key alone. This is deliberate, not decoration — it means
+// there is no longer a valid Prisma call shape that looks up a row (or
+// creates a relation) without also supplying the org, so a cross-tenant
+// leak is a schema-level impossibility, not just an app-code discipline.
+// See docs/metrics.md's "Multi-tenant data isolation" section.
 
 generator client {
   provider = "prisma-client"
@@ -21,19 +24,24 @@ enum TransactionDirection {
 
 model Warehouse {
   id            Int      @id @default(autoincrement())
-  code          String   @unique
+  orgId         String   @map("org_id")
+  code          String
   name          String
   capacityUnits Int      @map("capacity_units")
 
   inventory     Inventory[]
   transactions  Transaction[]
 
+  @@unique([orgId, code])
+  @@unique([orgId, id]) // lets Inventory/Transaction FK to (orgId, warehouseId) — see below
+  @@index([orgId])
   @@map("warehouses")
 }
 
 model Supplier {
   id            Int      @id @default(autoincrement())
-  supplierId    String   @unique @map("supplier_id")
+  orgId         String   @map("org_id")
+  supplierId    String   @map("supplier_id")
   name          String
   leadTimeDays  Int      @map("lead_time_days")
   email         String
@@ -41,73 +49,95 @@ model Supplier {
   products       Product[]
   purchaseOrders PurchaseOrder[]
 
+  @@unique([orgId, supplierId])
+  @@index([orgId])
   @@map("suppliers")
 }
 
 model Product {
   id         Int      @id @default(autoincrement())
-  sku        String   @unique
+  orgId      String   @map("org_id")
+  sku        String
   name       String
   category   String
   unitCost   Decimal  @map("unit_cost") @db.Decimal(12, 2)
   supplierId String   @map("supplier_id")
-  supplier   Supplier @relation(fields: [supplierId], references: [supplierId])
+  supplier   Supplier @relation(fields: [orgId, supplierId], references: [orgId, supplierId])
 
   inventory      Inventory[]
   purchaseOrders PurchaseOrder[]
   transactions   Transaction[]
 
-  @@index([supplierId])
+  @@unique([orgId, sku])
+  @@index([orgId, supplierId])
   @@map("products")
 }
 
 model Inventory {
-  id               Int    @id @default(autoincrement())
-  sku              String
-  product          Product @relation(fields: [sku], references: [sku])
-  warehouseId      Int    @map("warehouse_id")
-  warehouse        Warehouse @relation(fields: [warehouseId], references: [id])
-  quantityOnHand   Int    @map("quantity_on_hand")
+  id             Int       @id @default(autoincrement())
+  orgId          String    @map("org_id")
+  sku            String
+  product        Product   @relation(fields: [orgId, sku], references: [orgId, sku])
+  warehouseId    Int       @map("warehouse_id")
+  warehouse      Warehouse @relation(fields: [orgId, warehouseId], references: [orgId, id])
+  quantityOnHand Int       @map("quantity_on_hand")
 
-  @@unique([sku, warehouseId])
-  @@index([sku])
-  @@index([warehouseId])
+  @@unique([orgId, sku, warehouseId])
+  @@index([orgId, sku])
+  @@index([orgId, warehouseId])
   @@map("inventory")
 }
 
 model PurchaseOrder {
   id           Int       @id @default(autoincrement())
-  poNumber     String    @unique @map("po_number")
+  orgId        String    @map("org_id")
+  poNumber     String    @map("po_number")
   supplierId   String    @map("supplier_id")
-  supplier     Supplier  @relation(fields: [supplierId], references: [supplierId])
+  supplier     Supplier  @relation(fields: [orgId, supplierId], references: [orgId, supplierId])
   sku          String
-  product      Product   @relation(fields: [sku], references: [sku])
+  product      Product   @relation(fields: [orgId, sku], references: [orgId, sku])
   quantity     Int
   unitPrice    Decimal   @map("unit_price") @db.Decimal(12, 2)
   orderDate    DateTime  @map("order_date") @db.Date
   expectedDate DateTime  @map("expected_date") @db.Date
   receivedDate DateTime? @map("received_date") @db.Date
 
-  @@index([sku])
-  @@index([supplierId])
-  @@index([orderDate])
-  @@index([expectedDate])
-  @@index([receivedDate])
+  @@unique([orgId, poNumber])
+  @@index([orgId, sku])
+  @@index([orgId, supplierId])
+  @@index([orgId, orderDate])
+  @@index([orgId, expectedDate])
+  @@index([orgId, receivedDate])
   @@map("purchase_orders")
 }
 
 model Transaction {
   id          Int                  @id @default(autoincrement())
+  orgId       String               @map("org_id")
   sku         String
-  product     Product              @relation(fields: [sku], references: [sku])
+  product     Product              @relation(fields: [orgId, sku], references: [orgId, sku])
   warehouseId Int                  @map("warehouse_id")
-  warehouse   Warehouse            @relation(fields: [warehouseId], references: [id])
+  warehouse   Warehouse            @relation(fields: [orgId, warehouseId], references: [orgId, id])
   quantity    Int
   direction   TransactionDirection
   date        DateTime             @db.Date
 
-  @@index([sku])
-  @@index([warehouseId])
-  @@index([date])
+  @@index([orgId, sku])
+  @@index([orgId, warehouseId])
+  @@index([orgId, date])
   @@map("transactions")
 }
+
+model ImportMapping {
+  id               Int      @id @default(autoincrement())
+  orgId            String   @map("org_id")
+  headersSignature String   @map("headers_signature")
+  mappingJson      String   @map("mapping_json")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@unique([orgId, headersSignature])
+  @@index([orgId])
+  @@map("import_mappings")
+}
+

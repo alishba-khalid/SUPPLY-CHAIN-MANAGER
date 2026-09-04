@@ -6,6 +6,7 @@ import {
   Ship,
   Warehouse,
   BarChart3,
+  LineChart,
   Sparkles,
   Settings,
   UserCircle,
@@ -19,6 +20,7 @@ export const NAV_ITEMS = [
   { href: "/dashboard/logistics", label: "Logistics", icon: Ship },
   { href: "/dashboard/warehouses", label: "Warehouses", icon: Warehouse },
   { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/dashboard/forecast-accuracy", label: "Forecast Accuracy", icon: LineChart },
   { href: "/dashboard/ai-manager", label: "AI Manager", icon: Sparkles },
 ] as const;
 

@@ -550,3 +550,153 @@ were dropped from this schema — see "Schema scope" at the top of this doc.)
 `limit` (default 15).
 
 **Implementation:** `getRecentActivity` in `src/lib/insights/activity.ts`.
+
+---
+
+## Inventory Table (`/dashboard/inventory`)
+
+**Business definition:** One row per SKU per warehouse, showing whether it
+needs a reorder, is overstocked, or is dead stock — and, on demand, the
+exact arithmetic behind that call.
+
+This is a **different, page-specific classification** from "Stock-out Risk,
+Overstock, Slow-Moving & Dead Stock" above, which drives the Overview health
+score and alerts. Both share the same underlying `avg_daily_demand`/
+`safety_stock` formulas, but this page's `stock_status` uses simpler,
+literal thresholds given directly for this page — the two will disagree on
+some rows by design, not by bug.
+
+**Formula:**
+
+```
+days_of_history  = min(90, days since the earliest transaction for this SKU+warehouse)
+                    (0 if there has never been a transaction at all)
+
+avg_daily_demand = (outbound units, trailing 90 days) / days_of_history
+                    null when days_of_history = 0 — never divide by zero,
+                    never silently show 0
+
+days_of_stock    = quantity_on_hand / avg_daily_demand
+                    null when avg_daily_demand is null or 0 (would be
+                    infinite — displayed as "No demand", never computed)
+
+safety_stock     = avg_daily_demand × lead_time_days × 0.5
+reorder_point    = (avg_daily_demand × lead_time_days) + safety_stock
+                    both null when lead_time_days is unknown — never
+                    defaulted to a number
+
+stock_status (first match wins):
+  1. no history, or confirmed zero demand over the trailing window -> dead_stock
+  2. quantity_on_hand < reorder_point (only possible with a lead time on
+     record)                                                        -> understock
+  3. days_of_stock > 90                                              -> overstock
+  4. reorder_point is unknown (no supplier lead time on record)      -> unknown
+  5. otherwise                                                       -> healthy
+```
+
+**Edge cases** (all explicit, none silent):
+- **Zero demand over 90 days** → `avg_daily_demand = 0`, not `null` — days_of_stock
+  would be `0 / 0`, so it's reported `null` and shown as "No demand"; the
+  row is classified `dead_stock`, never `overstock`.
+- **No supplier lead time on record** (the product's `supplier_id` doesn't
+  match any row in `suppliers`, or was never set) → `lead_time_days` is
+  `null` via the `LEFT JOIN`; `safety_stock`/`reorder_point` are `null`; the
+  row shows "No lead time on record" rather than a guessed number, and is
+  classified `unknown` unless it's already `overstock` or `dead_stock`.
+- **Fewer than 90 days of history** → `days_of_history` is whatever history
+  actually exists (not hardcoded to 90), and the row is labeled with exactly
+  how many days its figure is based on.
+
+**ABC classification:**
+
+```
+demand_value = avg_daily_demand × unit_cost   (a $/day rate; null carries through)
+
+Rank all rows with a non-null, non-zero demand_value descending by demand_value.
+Walk the ranked list, keeping a running cumulative sum:
+  A: cumulative running total <= 80% of the grand total demand_value
+  B: 80% < cumulative <= 95%
+  C: cumulative > 95%
+Rows with no demand_value (dead stock, or no demand data) get no ABC class.
+```
+
+**Scale:** Computed with Postgres window functions over the *entire* table
+(`prisma/schema.prisma`'s `inventory`/`transactions`/`products`/`suppliers`),
+not in application code — a cumulative-percentage rank has to see every row
+before a single page can be returned, so this runs once in the database,
+then the same query applies filters, sorting, and `LIMIT`/`OFFSET` for
+pagination. This is what keeps the page correct at 10,000+ SKUs without
+pulling the whole table into Node on every request.
+
+**Implementation:** `getInventoryTable` in `src/data/repositories/inventory.ts`
+(raw SQL — see the CTE-by-CTE comment there for exactly how each formula
+above maps to a query stage).
+
+## Multi-tenant data isolation
+
+**Requirement:** no user may ever see data belonging to another
+organization, through any route, query, search, export, or URL
+manipulation. This is a security control, not a feature, and is enforced
+structurally rather than by convention.
+
+**Mechanism chosen: a single scoped data-access layer**, not Postgres RLS.
+Every DB read/write in this app funnels through the repository functions in
+`src/data/repositories/*.ts`; each one takes `orgId: string` as a
+**mandatory first argument** — there is no overload or default that omits
+it, so forgetting it is a TypeScript compile error, not a runtime bug that
+silently returns every org's rows. RLS was rejected for this stack
+specifically: Prisma has no native per-request session-variable support
+over a pooled connection, which would mean wrapping every query in an
+explicit `$transaction` + `SET LOCAL` — more new discipline to get right,
+not less, and it stacks badly on top of this project's already-flaky local
+dev Postgres proxy.
+
+**The four structural guarantees:**
+
+1. **Mandatory parameter.** Every repository function's first parameter is
+   `orgId`. There is no code path to `prisma.<model>.findMany()` (etc.)
+   without one.
+2. **Composite unique constraints.** `Product.sku`, `Supplier.supplierId`,
+   `Warehouse.code`, `PurchaseOrder.poNumber` are `@@unique([orgId, ...])`,
+   not bare `@unique`. Prisma's generated `findUnique` therefore *requires*
+   the composite key (e.g. `{ orgId_sku: { orgId, sku } }`) — there is no
+   longer a valid call shape that looks a row up by business key alone.
+   This is also what makes fetch-by-ID safe by construction: looking up
+   another org's real SKU/supplier/PO number with your own `orgId` simply
+   returns `null` (query miss), and the caller's `notFound()` renders the
+   same 404 whether the ID belongs to another org or doesn't exist at all —
+   never a 403 that would confirm the record exists.
+3. **Composite foreign keys.** Every relation FKs on `(orgId, ...)` — e.g.
+   `Inventory` → `Warehouse` via `(orgId, warehouseId) -> Warehouse(orgId, id)`.
+   Creating a row in one org that references another org's row is a
+   **database constraint violation**, not just an application bug.
+4. **A lint rule, not a convention.** `eslint.config.mjs` sets
+   `no-restricted-imports` against `@/lib/prisma` for every file except
+   `src/data/repositories/**/*.ts`. Importing the Prisma client anywhere
+   else — a page, a component, an API route — is a lint error. This is the
+   layer that stops a future change from quietly reaching around the scoped
+   functions.
+
+**Where `orgId` comes from:** exclusively `requireOrgId()` in `src/lib/auth.ts`,
+which reads the signed Clerk session (`auth()` from `@clerk/nextjs/server`)
+on the server. It is never read from a URL parameter, query string, request
+body, or any other client-suppliable input. `src/proxy.ts` additionally
+blocks any request under `/dashboard/*` that lacks a signed-in user with an
+active organization before a page even renders.
+
+**The raw-SQL exception, handled explicitly:** `getInventoryTable`'s
+ABC-classification query (see above) can't be expressed with Prisma's query
+builder, so it joins `inventory`/`products`/`suppliers`/`warehouses`/
+`transactions` directly in SQL. Because those joins match on business keys
+(`sku`, `supplier_id`, `warehouse_id`) that are only unique *within* an org,
+every join condition also equates `org_id` across the two tables (e.g.
+`JOIN products p ON p.sku = i.sku AND p.org_id = i.org_id`), and the base
+CTE additionally filters `WHERE i.org_id = ${orgId}`. Without the per-join
+`org_id` equality, two orgs reusing the same SKU string would silently join
+across tenants — this is called out here because it is the one place in the
+codebase where "add a `WHERE org_id = ...`" isn't sufficient by itself.
+
+**Seeding:** `prisma/seed.ts` takes a required `--org <clerkOrgId>` argument
+(no default) and derives its RNG seed from the org id, so two orgs seeded
+this way get visibly different datasets — this is what makes the isolation
+checks below meaningful rather than coincidental.

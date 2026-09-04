@@ -8,22 +8,27 @@
  * legible and the limitation stays visible at its source.
  */
 import type { Product, PurchaseOrder } from "@/types/supply-chain";
-import { isOnTime, isInFull, purchaseOrderValue } from "./supplier";
+import { isOnTime, isInFull, isOtif, poOnTimeRate, purchaseOrderValue } from "./supplier";
+import { isWithinTrailingWindow } from "@/lib/dates";
 
-/** % of received POs that arrived with the full ordered quantity. */
-export function procurementFulfillmentScore(purchaseOrders: PurchaseOrder[]): number {
-  const eligible = purchaseOrders.filter((po) => !!po.receivedDate);
-  if (eligible.length === 0) return 0;
-  const inFull = eligible.filter(isInFull).length;
-  return Math.round((inFull / eligible.length) * 100);
+const TRAILING_WINDOW_DAYS = 90;
+
+/** % of purchase orders delivered on time and in full (OTIF) in the trailing 90-day window. Includes open overdue POs. */
+export function procurementFulfillmentScore(
+  purchaseOrders: PurchaseOrder[],
+  windowDays: number = TRAILING_WINDOW_DAYS,
+): number {
+  const rate = poOnTimeRate(purchaseOrders, windowDays);
+  return rate !== null ? Math.round(rate) : 0;
 }
 
-/** % of received POs that arrived on or before the expected date. */
-export function procurementCycleTimeScore(purchaseOrders: PurchaseOrder[]): number {
-  const eligible = purchaseOrders.filter((po) => !!po.receivedDate);
-  if (eligible.length === 0) return 0;
-  const onTime = eligible.filter(isOnTime).length;
-  return Math.round((onTime / eligible.length) * 100);
+/** % of received POs that arrived on or before the expected date in the trailing 90-day window. */
+export function procurementCycleTimeScore(
+  purchaseOrders: PurchaseOrder[],
+  windowDays: number = TRAILING_WINDOW_DAYS,
+): number {
+  const rate = poOnTimeRate(purchaseOrders, windowDays);
+  return rate !== null ? Math.round(rate) : 0;
 }
 
 /** Mean days between `orderDate` and `receivedDate`, across received POs. */

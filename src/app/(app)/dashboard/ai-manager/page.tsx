@@ -1,14 +1,33 @@
 import { PageHeader } from "@/components/ui/page-header";
-import { SessionPlaceholder } from "@/components/domain/session-placeholder";
+import { AIManagerView } from "@/components/domain/ai-manager-view";
+import { requireOrgId } from "@/lib/auth";
+import { getSupplyChainHealth, getDashboardAlerts } from "@/data/repositories/dashboard";
+import { getOrgSubscription, getOrgQuotaUsage } from "@/data/repositories/subscription";
 
-export default function AIManagerPage() {
+export default async function AIManagerPage() {
+  const orgId = await requireOrgId();
+
+  const [health, alerts, subscription, quota] = await Promise.all([
+    getSupplyChainHealth(orgId),
+    getDashboardAlerts(orgId),
+    getOrgSubscription(orgId),
+    getOrgQuotaUsage(orgId),
+  ]);
+
   return (
     <div>
-      <PageHeader title="AI Manager" description="Ask questions about your supply chain." />
-      <SessionPlaceholder
-        session="Session 6"
-        description="Deterministic AI responses — answer, evidence, explanation, and recommendation — grounded in the exact same seed data as every other page."
+      <PageHeader
+        title="AI Manager"
+        description="Deterministic conversational intelligence grounded in your operational supply chain data."
       />
+      <div className="p-8">
+        <AIManagerView
+          subscription={subscription}
+          quota={quota}
+          health={health}
+          alerts={alerts}
+        />
+      </div>
     </div>
   );
 }

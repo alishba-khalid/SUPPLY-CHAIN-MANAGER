@@ -7,6 +7,7 @@ import { FeaturesGrid } from "@/components/marketing/features-grid";
 import { Qualifier } from "@/components/marketing/qualifier";
 import { HowItWorks } from "@/components/marketing/how-it-works";
 import { AiSpotlight } from "@/components/marketing/ai-spotlight";
+import { ProofSection } from "@/components/marketing/proof-section";
 import { SalaryComparison } from "@/components/marketing/salary-comparison";
 import { Pricing } from "@/components/marketing/pricing";
 import { Faq } from "@/components/marketing/faq";
@@ -48,6 +49,7 @@ export default function MarketingHomePage() {
       <FeaturesGrid />
       <Qualifier />
       <HowItWorks />
+      <ProofSection />
       <AiSpotlight />
       <SalaryComparison />
       <Pricing />

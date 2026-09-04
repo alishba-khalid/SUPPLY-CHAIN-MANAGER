@@ -7,9 +7,11 @@ const STATUS_MAP: Record<string, { label: string; tone: Tone }> = {
   healthy: { label: "Healthy", tone: "success" },
   low_stock: { label: "Low Stock", tone: "warning" },
   stock_out_risk: { label: "Critical", tone: "critical" },
+  understock: { label: "Understock", tone: "critical" },
   overstock: { label: "Overstock", tone: "info" },
   slow_moving: { label: "Slow Moving", tone: "warning" },
   dead_stock: { label: "Dead Stock", tone: "neutral" },
+  unknown: { label: "Unknown", tone: "neutral" },
 
   // Purchase order status
   draft: { label: "Draft", tone: "neutral" },

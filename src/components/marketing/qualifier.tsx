@@ -1,7 +1,7 @@
 import { Check } from "lucide-react";
 
 const CHECKS = [
-  "3 or more warehouses, and no single view across them",
+  "1 or more warehouses, and no single view across them",
   "500+ SKUs, with reorder points that live in someone's head",
   "Purchase orders tracked in a spreadsheet nobody trusts",
 ];
@@ -13,14 +13,14 @@ export function Qualifier() {
 
       <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-3">
         {CHECKS.map((check) => (
-          <div key={check} className="flex items-start gap-2.5">
+          <div key={check} className="flex items-start gap-2.5 rounded-lg border border-(--color-border) bg-(--color-surface) p-4">
             <Check size={18} className="mt-0.5 shrink-0 text-(--color-brand)" />
-            <p className="text-body text-(--color-text-secondary)">{check}</p>
+            <p className="text-body font-medium text-(--color-text-primary)">{check}</p>
           </div>
         ))}
       </div>
 
-      <p className="mt-8 text-center text-body text-(--color-text-muted)">
+      <p className="mt-8 text-center text-body font-medium text-(--color-text-secondary)">
         If two of these are true, the first morning briefing will tell you something you didn&apos;t know.
       </p>
     </section>

@@ -7,13 +7,13 @@ import { getInventoryInsights } from "@/data/repositories/inventory";
 import { getAllSupplierPerformance, getSuppliers } from "@/data/repositories/suppliers";
 import { getProducts } from "@/data/repositories/products";
 
-export async function getRecommendations(): Promise<Recommendation[]> {
+export async function getRecommendations(orgId: string): Promise<Recommendation[]> {
   const now = new Date().toISOString();
   const [insights, supplierPerf, products, suppliers] = await Promise.all([
-    getInventoryInsights(),
-    getAllSupplierPerformance(),
-    getProducts(),
-    getSuppliers(),
+    getInventoryInsights(orgId),
+    getAllSupplierPerformance(orgId),
+    getProducts(orgId),
+    getSuppliers(orgId),
   ]);
   const productBySku = new Map(products.map((p) => [p.sku, p]));
   const supplierById = new Map(suppliers.map((s) => [s.supplierId, s]));

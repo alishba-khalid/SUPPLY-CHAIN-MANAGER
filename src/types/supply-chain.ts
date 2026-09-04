@@ -117,6 +117,8 @@ export interface InventoryInsight {
 export type RecommendationCategory =
   | "reorder"
   | "reduce_purchase"
+  | "expedite"
+  | "transfer"
   | "supplier_review"
   | "logistics_review"
   | "warehouse_review";
@@ -149,6 +151,9 @@ export interface SupplyChainAlert {
   sku?: string;
   supplierId?: string;
   warehouseId?: number;
+  teaser?: string;
+  suggestedQuantity?: number;
+  estimatedCost?: number;
   createdAt: ISODateTime;
 }
 
@@ -182,4 +187,79 @@ export interface ActivityEvent {
   sku?: string;
   supplierId?: string;
   warehouseId?: number;
+}
+
+// ============================================================
+// Inventory Table (paginated, query-side — see docs/metrics.md)
+// ============================================================
+
+/**
+ * Distinct from `InventoryStatus` above, which drives the Overview health
+ * score/alerts. This is the simpler, page-specific classification named in
+ * the Inventory page's own spec — see docs/metrics.md's "Inventory Table"
+ * section for exactly how each value is decided, including the two edge
+ * cases (`dead_stock` for no/zero demand, `unknown` for a missing supplier
+ * lead time) that aren't literal reads of a single formula.
+ */
+export type InventoryRowStatus = "understock" | "overstock" | "healthy" | "dead_stock" | "unknown";
+
+export type AbcClass = "A" | "B" | "C" | null;
+
+export interface InventoryTableRow {
+  sku: string;
+  productName: string;
+  category: string;
+  warehouseId: number;
+  warehouseCode: string;
+  warehouseName: string;
+  supplierId: string | null;
+  supplierName: string | null;
+  quantityOnHand: number;
+  unitCost: number;
+  leadTimeDays: number | null; // null => no supplier on record, or supplier has no lead time
+  daysOfHistory: number; // 0..90 — how much trailing history this row's demand figure is based on
+  avgDailyDemand: number | null; // null => no transaction history at all
+  daysOfStock: number | null; // null when avgDailyDemand is null or 0 (would be infinite)
+  safetyStock: number | null;
+  reorderPoint: number | null;
+  status: InventoryRowStatus;
+  abcClass: AbcClass;
+}
+
+export interface InventoryTableSummary {
+  totalRows: number;
+  understockCount: number;
+  overstockCount: number;
+  deadStockCount: number;
+}
+
+export interface InventoryTableFilters {
+  warehouseId?: number;
+  status?: InventoryRowStatus;
+  abcClass?: "A" | "B" | "C";
+  supplierId?: string;
+  search?: string;
+}
+
+export type InventoryTableSortKey =
+  | "status"
+  | "sku"
+  | "name"
+  | "warehouse"
+  | "onHand"
+  | "daysOfStock"
+  | "reorderPoint";
+
+export interface InventoryTableParams extends InventoryTableFilters {
+  sortKey?: InventoryTableSortKey;
+  sortDir?: "asc" | "desc";
+  page?: number; // 1-indexed
+  pageSize?: number;
+}
+
+export interface InventoryTableResult {
+  rows: InventoryTableRow[];
+  totalMatching: number; // rows matching current filters, across all pages
+  summary: InventoryTableSummary; // unfiltered totals, for the four summary cards
+  hasAnyTransactionHistory: boolean; // false => show the "import your data" empty state
 }

@@ -10,7 +10,7 @@
  * its source, not silently dropped.
  */
 import type { PurchaseOrder, SupplierPerformance } from "@/types/supply-chain";
-import { daysBetween, isWithinTrailingWindow } from "@/lib/dates";
+import { daysBetween, isWithinTrailingWindow, todayISODate } from "@/lib/dates";
 
 const TRAILING_WINDOW_DAYS = 90;
 
@@ -31,31 +31,44 @@ export function purchaseOrderValue(po: PurchaseOrder): number {
   return po.quantity * po.unitPrice;
 }
 
-/** % of received purchase orders (any supplier) delivered on or before their expected date. */
-export function poOnTimeRate(purchaseOrders: PurchaseOrder[], windowDays: number = TRAILING_WINDOW_DAYS): number | null {
-  const eligible = purchaseOrders.filter((po) => !!po.receivedDate && isWithinTrailingWindow(po.receivedDate, windowDays));
+/** % of eligible purchase orders (any supplier) delivered on or before their expected date. Includes open overdue POs. */
+export function poOnTimeRate(purchaseOrders: PurchaseOrder[] = [], windowDays: number = TRAILING_WINDOW_DAYS): number | null {
+  const today = todayISODate();
+  const eligible = purchaseOrders.filter((po) => {
+    if (po.receivedDate !== null) {
+      return isWithinTrailingWindow(po.receivedDate, windowDays, today);
+    }
+    return po.expectedDate < today && isWithinTrailingWindow(po.expectedDate, windowDays, today);
+  });
   if (eligible.length === 0) return null;
-  const onTime = eligible.filter(isOnTime).length;
+  const onTime = eligible.filter(isOtif).length;
   return Math.round((onTime / eligible.length) * 1000) / 10;
 }
 
 /**
- * Trailing 90-day OTIF for one supplier. Eligible = received purchase
- * orders whose receipt fell inside the window (still-open orders are
- * excluded — they haven't produced a delivery outcome yet).
+ * Trailing 90-day OTIF for one supplier.
+ * Eligible includes:
+ * 1. Received purchase orders whose receipt fell inside the window.
+ * 2. Open purchase orders that are currently overdue (past expectedDate within window).
  */
 export function computeSupplierPerformance(
   supplierId: string,
-  purchaseOrders: PurchaseOrder[],
+  purchaseOrders: PurchaseOrder[] = [],
   windowDays: number = TRAILING_WINDOW_DAYS,
 ): SupplierPerformance {
-  const eligible = purchaseOrders.filter(
-    (po) => po.supplierId === supplierId && !!po.receivedDate && isWithinTrailingWindow(po.receivedDate, windowDays),
-  );
+  const today = todayISODate();
+  const eligible = purchaseOrders.filter((po) => {
+    if (po.supplierId !== supplierId) return false;
+    if (po.receivedDate !== null) {
+      return isWithinTrailingWindow(po.receivedDate, windowDays, today);
+    }
+    return po.expectedDate < today && isWithinTrailingWindow(po.expectedDate, windowDays, today);
+  });
 
   const otifCount = eligible.filter(isOtif).length;
   const totalSpend = eligible.reduce((s, po) => s + purchaseOrderValue(po), 0);
-  const leadTimes = eligible.map((po) => daysBetween(po.orderDate, po.receivedDate as string));
+  const closedOrders = eligible.filter((po) => po.receivedDate !== null);
+  const leadTimes = closedOrders.map((po) => daysBetween(po.orderDate, po.receivedDate as string));
   const avgLeadTime = leadTimes.length ? leadTimes.reduce((a, b) => a + b, 0) / leadTimes.length : null;
 
   return {
@@ -77,3 +90,29 @@ export function supplierHealthScore(performances: SupplierPerformance[]): number
   const weighted = withData.reduce((s, p) => s + (p.otifPercent as number) * p.totalSpend, 0) / totalSpend;
   return Math.min(100, Math.max(0, Math.round(weighted)));
 }
+
+/**
+ * Computes average lateness in days for a supplier on closed (received) purchase orders.
+ * Only orders received late (receivedDate > expectedDate) contribute to the average lateness.
+ * Returns null if the supplier has no eligible closed orders.
+ */
+export function supplierAverageDelayDays(
+  supplierId: string,
+  purchaseOrders: PurchaseOrder[] = [],
+  windowDays: number = TRAILING_WINDOW_DAYS,
+): number | null {
+  const eligible = (purchaseOrders || []).filter(
+    (po) => po.supplierId === supplierId && !!po.receivedDate && isWithinTrailingWindow(po.receivedDate, windowDays),
+  );
+  if (eligible.length === 0) return null;
+
+  const lateOrders = eligible.filter((po) => (po.receivedDate as string) > po.expectedDate);
+  if (lateOrders.length === 0) return 0;
+
+  const totalLateDays = lateOrders.reduce(
+    (sum, po) => sum + daysBetween(po.expectedDate, po.receivedDate as string),
+    0,
+  );
+  return Math.round((totalLateDays / lateOrders.length) * 10) / 10;
+}
+

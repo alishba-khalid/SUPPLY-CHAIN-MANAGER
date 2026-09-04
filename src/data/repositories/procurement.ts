@@ -30,26 +30,29 @@ export function toPurchaseOrder(row: PurchaseOrderRow): PurchaseOrder {
   };
 }
 
-export async function getPurchaseOrders(): Promise<PurchaseOrder[]> {
-  const rows = await prisma.purchaseOrder.findMany({ orderBy: { orderDate: "desc" } });
+export async function getPurchaseOrders(orgId: string): Promise<PurchaseOrder[]> {
+  const rows = await prisma.purchaseOrder.findMany({ where: { orgId }, orderBy: { orderDate: "desc" } });
   return rows.map(toPurchaseOrder);
 }
 
-export async function getOpenPurchaseOrders(): Promise<PurchaseOrder[]> {
-  const rows = await prisma.purchaseOrder.findMany({ where: { receivedDate: null }, orderBy: { expectedDate: "asc" } });
+export async function getOpenPurchaseOrders(orgId: string): Promise<PurchaseOrder[]> {
+  const rows = await prisma.purchaseOrder.findMany({
+    where: { orgId, receivedDate: null },
+    orderBy: { expectedDate: "asc" },
+  });
   return rows.map(toPurchaseOrder);
 }
 
-export async function getProcurementHealthScore(): Promise<number> {
-  const [purchaseOrders, products] = await Promise.all([getPurchaseOrders(), prisma.product.findMany()]);
+export async function getProcurementHealthScore(orgId: string): Promise<number> {
+  const [purchaseOrders, products] = await Promise.all([getPurchaseOrders(orgId), prisma.product.findMany({ where: { orgId } })]);
   const baselineCost = new Map(products.map((p) => [p.sku, Number(p.unitCost)]));
   return procurementHealthScore(purchaseOrders, baselineCost);
 }
 
-export async function getAveragePoCycleTimeDays(): Promise<number | null> {
-  return averagePoCycleTimeDays(await getPurchaseOrders());
+export async function getAveragePoCycleTimeDays(orgId: string): Promise<number | null> {
+  return averagePoCycleTimeDays(await getPurchaseOrders(orgId));
 }
 
-export async function getLogisticsHealthScore(): Promise<number> {
-  return logisticsHealthScore(await getPurchaseOrders());
+export async function getLogisticsHealthScore(orgId: string): Promise<number> {
+  return logisticsHealthScore(await getPurchaseOrders(orgId));
 }

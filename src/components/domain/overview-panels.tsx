@@ -62,6 +62,9 @@ function createIdSetStore(key: string) {
   return { getSnapshot, getServerSnapshot, subscribe, add };
 }
 
+import { SuggestedPoModal } from "./suggested-po-modal";
+import type { SuggestedPurchaseOrder } from "@/lib/forecasting/demand-forecast";
+
 const dismissedAlertsStore = createIdSetStore(DISMISSED_ALERTS_KEY);
 const resolvedRecommendationsStore = createIdSetStore(RESOLVED_RECOMMENDATIONS_KEY);
 
@@ -73,12 +76,14 @@ export function OverviewPanels({
   products,
   suppliers,
   warehouses,
+  isStarter = false,
 }: {
   alerts: SupplyChainAlert[];
   recommendations: Recommendation[];
   products: Product[];
   suppliers: Supplier[];
   warehouses: Warehouse[];
+  isStarter?: boolean;
 }) {
   const dismissedAlerts = useSyncExternalStore(
     dismissedAlertsStore.subscribe,
@@ -91,6 +96,7 @@ export function OverviewPanels({
     resolvedRecommendationsStore.getServerSnapshot,
   );
   const [detail, setDetail] = useState<DetailTarget | null>(null);
+  const [activeSuggestion, setActiveSuggestion] = useState<SuggestedPurchaseOrder | null>(null);
 
   const productBySku = useMemo(() => new Map(products.map((p) => [p.sku, p])), [products]);
   const supplierById = useMemo(() => new Map(suppliers.map((s) => [s.supplierId, s])), [suppliers]);
@@ -102,6 +108,41 @@ export function OverviewPanels({
 
   function resolveRecommendation(id: string) {
     resolvedRecommendationsStore.add(id);
+  }
+
+  function handleQuickOrder(alert: SupplyChainAlert) {
+    if (!alert.sku) return;
+    const product = productBySku.get(alert.sku);
+    const supplier = product ? supplierById.get(product.supplierId) : undefined;
+    const warehouse = alert.warehouseId ? warehouseById.get(alert.warehouseId) : undefined;
+
+    const suggestion: SuggestedPurchaseOrder = {
+      id: `SUG-${alert.id}`,
+      sku: alert.sku,
+      productName: product?.name || alert.sku,
+      category: product?.category || "general",
+      supplierId: product?.supplierId || alert.supplierId || "SUP-001",
+      supplierName: supplier?.name || "Primary Supplier",
+      supplierLeadTimeDays: supplier?.leadTimeDays || 14,
+      warehouseId: alert.warehouseId || 1,
+      warehouseCode: warehouse?.code || "WH-1",
+      currentOnHand: 0,
+      targetStock: alert.suggestedQuantity || 500,
+      inboundQuantity: 0,
+      reorderPoint: 0,
+      dailyDemand: 0,
+      dailyDemandSigma: 0,
+      safetyStock: 0,
+      suggestedQuantity: alert.suggestedQuantity || 500,
+      actionType: "reorder",
+      unitPrice: product?.unitCost || 10,
+      estimatedCost: alert.estimatedCost || (alert.suggestedQuantity || 500) * (product?.unitCost || 10),
+      daysOfCoverCurrent: null,
+      daysOfCoverProjected: 30,
+      reasoning: alert.description,
+    };
+
+    setActiveSuggestion(suggestion);
   }
 
   const visibleAlerts = alerts.filter((a) => !dismissedAlerts.has(a.id));
@@ -127,6 +168,8 @@ export function OverviewPanels({
                 <AlertCard
                   key={alert.id}
                   alert={alert}
+                  isStarter={isStarter}
+                  onQuickOrder={handleQuickOrder}
                   actions={
                     <>
                       <Button
@@ -256,6 +299,12 @@ export function OverviewPanels({
           </div>
         )}
       </Drawer>
+
+      <SuggestedPoModal
+        open={activeSuggestion !== null}
+        onClose={() => setActiveSuggestion(null)}
+        suggestion={activeSuggestion}
+      />
     </>
   );
 }

@@ -1,10 +1,21 @@
-/** Prints the current health score breakdown. Run after seeding or any data change. */
+/** Prints the current health score breakdown for one org. Run after seeding or any data change. */
 import "dotenv/config";
 import { getSupplyChainHealth } from "../src/data/repositories/dashboard";
 
+function parseOrgId(): string {
+  const flagIndex = process.argv.indexOf("--org");
+  const orgId = flagIndex !== -1 ? process.argv[flagIndex + 1] : undefined;
+  if (!orgId) {
+    console.error("Usage: tsx prisma/health-check.ts --org <clerkOrgId>");
+    process.exit(1);
+  }
+  return orgId;
+}
+
 async function main() {
-  const health = await getSupplyChainHealth();
-  console.log("Health score breakdown:");
+  const orgId = parseOrgId();
+  const health = await getSupplyChainHealth(orgId);
+  console.log(`Health score breakdown (org ${orgId}):`);
   console.log(`  Overall:     ${health.overall}`);
   console.log(`  Inventory:   ${health.inventory}`);
   console.log(`  Suppliers:   ${health.supplier}`);
