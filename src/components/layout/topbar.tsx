@@ -4,11 +4,11 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { OrganizationSwitcher, UserButton } from "@clerk/nextjs";
-import { Menu, Search, Globe, ArrowLeft } from "lucide-react";
+import { Menu, Search, Globe, ArrowLeft, Sparkles } from "lucide-react";
 import { Command, type CommandItem } from "@/components/ui/command";
 import { NAV_ITEMS, BOTTOM_NAV_ITEMS } from "./nav-items";
 
-export function Topbar() {
+export function Topbar({ isDemo }: { isDemo?: boolean }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const router = useRouter();
@@ -48,16 +48,23 @@ export function Topbar() {
           <span>Back</span>
         </button>
 
-        <OrganizationSwitcher
-          hidePersonal
-          appearance={{
-            elements: {
-              rootBox: "text-small font-medium",
-              organizationSwitcherTrigger:
-                "text-(--color-text-secondary) hover:bg-(--color-surface-secondary) rounded-md px-2 py-1",
-            },
-          }}
-        />
+        {isDemo ? (
+          <span className="flex items-center gap-1.5 rounded-md px-2 py-1 text-small font-medium text-(--color-text-secondary)">
+            <Sparkles size={13} className="text-amber-500" />
+            Demo Workspace
+          </span>
+        ) : (
+          <OrganizationSwitcher
+            hidePersonal
+            appearance={{
+              elements: {
+                rootBox: "text-small font-medium",
+                organizationSwitcherTrigger:
+                  "text-(--color-text-secondary) hover:bg-(--color-surface-secondary) rounded-md px-2 py-1",
+              },
+            }}
+          />
+        )}
       </div>
 
       <button

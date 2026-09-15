@@ -7,6 +7,7 @@ import {
   Warehouse,
   BarChart3,
   LineChart,
+  Waves,
   Sparkles,
   Settings,
   UserCircle,
@@ -15,6 +16,7 @@ import {
 export const NAV_ITEMS = [
   { href: "/dashboard/overview", label: "Overview", icon: LayoutDashboard },
   { href: "/dashboard/inventory", label: "Inventory", icon: Package },
+  { href: "/dashboard/projections", label: "Projections", icon: Waves },
   { href: "/dashboard/procurement", label: "Procurement", icon: ShoppingCart },
   { href: "/dashboard/suppliers", label: "Suppliers", icon: Truck },
   { href: "/dashboard/logistics", label: "Logistics", icon: Ship },

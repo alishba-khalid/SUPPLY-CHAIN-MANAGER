@@ -15,6 +15,23 @@ export const DEFAULT_SERVICE_LEVEL_Z = 1.65;
 /** Continuous daily review model: orders and stock are evaluated on a 1-day cycle */
 export const REVIEW_PERIOD_DAYS = 1;
 
+export type DemandVariabilityClass = "X" | "Y" | "Z";
+
+/**
+ * Standard XYZ demand-variability classification from the coefficient of
+ * variation (σ/μ): X = steady demand, Y = moderate variability, Z = erratic
+ * or intermittent. Used as the local (non-Python-service) fallback — the
+ * live forecasting microservice returns its own xyz_class per series when
+ * reachable; this keeps the grid classified even when it is not.
+ */
+export function classifyDemandVariability(dailyDemandSigma: number, dailyDemand: number): DemandVariabilityClass {
+  if (dailyDemand <= 0) return "Z";
+  const cv = dailyDemandSigma / dailyDemand;
+  if (cv < 0.5) return "X";
+  if (cv <= 1.0) return "Y";
+  return "Z";
+}
+
 export function trailingOutboundQuantity(
   transactions: InventoryTransaction[],
   sku: string,

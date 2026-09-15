@@ -229,3 +229,38 @@ export async function getBatchDemandForecast(
     return buildLocalFallbackForecast(seriesList);
   }
 }
+
+/**
+ * Groups trailing outbound transactions into the microservice's per-SKU,
+ * per-warehouse series format. Shared by every caller of
+ * `getBatchDemandForecast` so the "is the live service reachable" check
+ * always uses the same real transaction history.
+ */
+export function buildSeriesInputs(
+  transactions: { sku: string; warehouseId: number; direction: "IN" | "OUT"; quantity: number; date: string }[],
+  unitCostBySku: Map<string, number>,
+  horizonDays: number = 28
+): SeriesInput[] {
+  const seriesMap = new Map<string, { sku: string; warehouse: string; historyMap: Map<string, number> }>();
+
+  for (const t of transactions) {
+    if (t.direction !== "OUT") continue;
+    const dateStr = new Date(t.date).toISOString().slice(0, 10);
+    const key = `${t.sku}::${t.warehouseId}`;
+    if (!seriesMap.has(key)) {
+      seriesMap.set(key, { sku: t.sku, warehouse: String(t.warehouseId), historyMap: new Map() });
+    }
+    const entry = seriesMap.get(key)!;
+    entry.historyMap.set(dateStr, (entry.historyMap.get(dateStr) ?? 0) + t.quantity);
+  }
+
+  return Array.from(seriesMap.values()).map((item) => ({
+    sku: item.sku,
+    warehouse: item.warehouse,
+    history: Array.from(item.historyMap.entries())
+      .map(([date, qty]) => ({ date, qty }))
+      .sort((a, b) => a.date.localeCompare(b.date)),
+    horizon_days: horizonDays,
+    unit_cost: unitCostBySku.get(item.sku) || 10.0,
+  }));
+}
