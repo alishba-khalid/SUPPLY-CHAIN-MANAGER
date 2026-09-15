@@ -27,6 +27,27 @@ function buildChartData(projection: SkuWarehouseProjection): ChartPoint[] {
   ];
 }
 
+/**
+ * Recharts' own "nice tick" generation for a `type="number"` axis with an
+ * explicit array `domain` occasionally emits duplicate/garbage-magnitude
+ * labels on this chart shape (verified against production — the plotted
+ * line's proportions are correct, only the tick text is wrong). Computing
+ * clean, evenly-spaced whole-unit ticks ourselves sidesteps it entirely.
+ */
+function computeNiceTicks(min: number, max: number, count = 5): number[] {
+  const range = Math.max(1, max - min);
+  const rawStep = range / (count - 1);
+  const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
+  const residual = rawStep / magnitude;
+  const niceStep = Math.max(1, Math.round((residual >= 5 ? 10 : residual >= 2 ? 5 : residual >= 1 ? 2 : 1) * magnitude));
+  const niceMin = Math.floor(min / niceStep) * niceStep;
+  const ticks: number[] = [];
+  for (let v = niceMin; v <= max + niceStep * 0.5; v += niceStep) {
+    ticks.push(Math.round(v));
+  }
+  return ticks;
+}
+
 /** Custom dot renderer: only draws a marker on days an inbound PO lands — overdue POs get a distinct style. */
 function makeArrivalDot(compact: boolean) {
   return function ArrivalDot(props: { cx?: number; cy?: number; payload?: ChartPoint; index?: number }) {
@@ -120,6 +141,7 @@ export function SawtoothChart({
   const padding = Math.max(5, Math.round((maxBalance - minBalance) * (compact ? 0.15 : 0.35)));
   const yMin = minBalance - padding;
   const yMax = maxBalance + padding;
+  const yTicks = computeNiceTicks(yMin, yMax);
 
   return (
     <div style={{ height }} className="w-full">
@@ -133,7 +155,15 @@ export function SawtoothChart({
             tickFormatter={(d: number) => `d${d}`}
             hide={compact}
           />
-          <YAxis stroke="var(--color-text-muted)" fontSize={11} width={48} hide={compact} domain={[yMin, yMax]} />
+          <YAxis
+            stroke="var(--color-text-muted)"
+            fontSize={11}
+            width={52}
+            hide={compact}
+            domain={[yMin, yMax]}
+            ticks={yTicks}
+            tickFormatter={(v: number) => Math.round(v).toLocaleString()}
+          />
           {!compact && <Tooltip content={<SawtoothTooltip />} />}
 
           {/* Stockout window (red) and below-safety-stock window (amber) */}
