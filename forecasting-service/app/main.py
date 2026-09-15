@@ -27,6 +27,14 @@ from app.core.metrics import calculate_all_metrics
 START_TIME = time.time()
 FORECAST_SERVICE_SECRET = os.environ.get("FORECAST_SERVICE_SECRET")
 
+# Vercel sets these automatically for a build triggered by a git push — they
+# are absent for a deploy pushed from a local directory. That absence is
+# itself a useful signal: GET /health returning null here means whatever is
+# running did NOT come from the repo, which is exactly the drift this field
+# exists to catch.
+GIT_COMMIT_SHA = os.environ.get("VERCEL_GIT_COMMIT_SHA")
+GIT_COMMIT_REF = os.environ.get("VERCEL_GIT_COMMIT_REF")
+
 def verify_secret(x_forecast_secret: str | None = Header(None, alias="X-Forecast-Secret")):
     if FORECAST_SERVICE_SECRET and x_forecast_secret != FORECAST_SERVICE_SECRET:
         raise HTTPException(status_code=401, detail="Invalid or missing X-Forecast-Secret header")
@@ -51,6 +59,9 @@ def health_check() -> Dict[str, Any]:
         "status": "healthy",
         "service": "forecasting-service",
         "version": "1.0.0",
+        "commit_sha": GIT_COMMIT_SHA,
+        "commit_ref": GIT_COMMIT_REF,
+        "instance_started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(START_TIME)),
         "uptime_seconds": round(time.time() - START_TIME, 1),
         "available_models": [
             "Naive (Last Value)",
