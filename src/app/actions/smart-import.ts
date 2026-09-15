@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 
 const MAX_IMPORT_ROWS = 5000;
+const MAX_PAYLOAD_BYTES = 2 * 1024 * 1024; // 2MB — matches next.config.ts's serverActions.bodySizeLimit
 const IMPORT_PER_IP_LIMIT = 10;
 const IMPORT_PER_IP_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
 
@@ -24,18 +25,23 @@ function totalRowCount(payload: ImportCommitPayload): number {
 export async function commitSmartImportAction(payload: ImportCommitPayload): Promise<ImportCommitResult> {
   const orgId = await requireOrgId();
 
-  // Server-side enforcement of the same 5,000-row cap the UI shows —
-  // the UI check alone doesn't stop a request crafted to call this action
-  // directly. Checked before the demo no-op so oversized payloads are
-  // rejected instead of silently "succeeding".
+  // Server-side enforcement of the same 5,000-row cap the UI shows, plus a
+  // byte-size cap (a payload can stay under the row cap while still being
+  // huge via oversized field values) — the UI checks alone don't stop a
+  // request crafted to call this action directly. Both checked before the
+  // demo no-op so oversized payloads are rejected, not silently "succeeded".
   const rowCount = totalRowCount(payload);
-  if (rowCount > MAX_IMPORT_ROWS) {
+  const payloadBytes = Buffer.byteLength(JSON.stringify(payload), "utf8");
+  if (rowCount > MAX_IMPORT_ROWS || payloadBytes > MAX_PAYLOAD_BYTES) {
     return {
       success: false,
       importedCounts: { warehouses: 0, suppliers: 0, products: 0, inventory: 0, purchaseOrders: 0, transactions: 0 },
       missingLeadTimeCount: 0,
       missingCapacityCount: 0,
-      error: `Import limited to ${MAX_IMPORT_ROWS.toLocaleString()} rows per file. This file has ${rowCount.toLocaleString()} rows.`,
+      error:
+        rowCount > MAX_IMPORT_ROWS
+          ? `Import limited to ${MAX_IMPORT_ROWS.toLocaleString()} rows per file. This file has ${rowCount.toLocaleString()} rows.`
+          : `Import payload too large (${(payloadBytes / (1024 * 1024)).toFixed(1)}MB, limit ${(MAX_PAYLOAD_BYTES / (1024 * 1024)).toFixed(0)}MB).`,
     };
   }
 
