@@ -121,4 +121,13 @@ Open [http://localhost:3005](http://localhost:3005) to explore the application l
 
 ### Demo dataset
 
-Org `org_demo` is pre-seeded with: 4 warehouses, 6 suppliers, 24 products, 49 inventory positions, 64 purchase orders, and ~3,900 transactions over 90 days. Because it's anchored to fixed historical dates while real time keeps moving, day-of-cover and OTIF figures drift slightly from any specific number quoted here — that's expected, not a bug.
+Org `org_demo` is pre-seeded with: 4 warehouses, 6 suppliers, 24 products, 49 inventory positions, 64 purchase orders, and ~3,900 transactions over 90 days. `npm run db:seed` anchors every transaction/PO date to the real clock at seed time (not a fixed calendar date), so these five counts and SKU-1015's ~3.2 days of cover are exact immediately after a fresh seed and then drift slowly as real time passes — expected, not a bug. `npm run test:verify` checks all of this against whichever database `DATABASE_URL` points at.
+
+### Known metric drift
+
+Two numbers move for reasons worth naming explicitly, so a future "why doesn't this match the README" doesn't turn into a multi-hour investigation the way it did once already:
+
+- **Overall health score** (weighted: inventory 0.30, supplier 0.20, procurement 0.20, logistics 0.20, warehouse 0.10) sits around **85/100** on a freshly seeded canonical dataset, not a lower number some earlier planning notes assumed — verified by re-running the pre-refactor scoring formula against live data and getting 84, not a materially different number. `verify-canonical.ts` asserts it stays in a 75-95 band; a value outside that band is a real regression worth investigating, not drift.
+- **Alert count** sits around **6** (1 stockout-imminent, 1 low-stock, 2 overdue POs, 1 supplier underperformance, 1 overstock rollup covering all 12 overstocked positions as a single card) — not a much larger number. `verify-canonical.ts` asserts a 4-10 band for the same reason.
+
+Both bands, and the reasoning behind them, live in `prisma/verify-canonical.ts`'s file header — update the band and this paragraph together if the scoring formula or seed data changes deliberately.

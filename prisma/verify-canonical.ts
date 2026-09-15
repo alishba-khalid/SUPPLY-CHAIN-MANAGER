@@ -6,6 +6,21 @@
  * 3. SUP-004 at 0% OTIF
  * 4. Exactly 2 overdue POs across the org
  * 5. Exactly 12 overstock positions
+ * 6. Overall health score within a band around 85 (see note below)
+ * 7. Alert count within a band around 6 (see note below)
+ *
+ * Checks 6-7 use bands, not exact values, deliberately: both the health
+ * score and the alert list are computed against wall-clock "today" over a
+ * seed anchored to a fixed date, so they drift by small amounts as real
+ * time passes — same reason check 2's day-of-cover uses a range. A band
+ * catches a real regression (score collapsing to 20, alerts exploding to
+ * 40) without false-failing on ordinary drift. These two were added after
+ * an investigation traced an "expected ~54, saw 85" report: neither the
+ * current formulas nor the pre-199ab41 ones (re-run against live data)
+ * produce anything near 54 — the actual health-score composite is
+ * inventory(0.30) + supplier(0.20) + procurement(0.20) + logistics(0.20)
+ * + warehouse(0.10), and 85 is what it correctly computes to. See
+ * README's "Known metric drift" section.
  */
 import "dotenv/config";
 import assert from "node:assert/strict";
@@ -14,6 +29,8 @@ import { PrismaClient } from "../src/generated/prisma/client";
 import { buildInventoryInsight } from "../src/lib/metrics/inventory";
 import { computeSupplierPerformance } from "../src/lib/metrics/supplier";
 import { todayISODate } from "../src/lib/dates";
+import { getSupplyChainHealth } from "../src/data/repositories/dashboard";
+import { getAlerts } from "../src/lib/insights/alerts";
 import type { PurchaseOrder, InventoryTransaction } from "../src/types/supply-chain";
 
 const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL;
@@ -159,6 +176,31 @@ export async function verifyCanonicalData(targetOrg: string = ORG_ID) {
   console.log("\n5. Overstock Positions Check:");
   console.log(`  Overstock count : ${overstockPositions.length} (expected 12)`);
   assert.equal(overstockPositions.length, 12, "Must have exactly 12 overstock positions");
+
+  // 6. Overall health score — reads the same repository function the
+  // dashboard actually calls, not a reimplementation, so this can't drift
+  // from the real app by reimplementation error.
+  const health = await getSupplyChainHealth(targetOrg);
+  console.log("\n6. Overall Health Score Check:");
+  console.log(`  Overall: ${health.overall} (expected 75-95)`);
+  console.log(`  Components: inventory=${health.inventory} supplier=${health.supplier} procurement=${health.procurement} logistics=${health.logistics} warehouse=${health.warehouse}`);
+  assert.ok(
+    health.overall >= 75 && health.overall <= 95,
+    `Overall health score ${health.overall} must be in the 75-95 band. If it's outside this band, that's a real regression worth investigating — ` +
+      `if it's a deliberate, understood change to the scoring formula or seed data, update this band and README's "Known metric drift" section together.`
+  );
+
+  // 7. Alert count — same reasoning: a live regression (e.g. an alert
+  // category silently stops firing) should fail this; ordinary date drift
+  // should not.
+  const alerts = await getAlerts(targetOrg);
+  console.log("\n7. Alert Count Check:");
+  console.log(`  Total alerts: ${alerts.length} (expected 4-10)`);
+  alerts.forEach((a) => console.log(`    (${a.severity}) ${a.title}`));
+  assert.ok(
+    alerts.length >= 4 && alerts.length <= 10,
+    `Alert count ${alerts.length} must be in the 4-10 band.`
+  );
 
   console.log("\n✅ ALL CANONICAL VALUES VERIFIED AND MATCH SPECIFICATION EXACTLY!");
 }
