@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import type { OrgSubscription, QuotaUsage } from "@/types/subscription";
 import type { SupplyChainHealthBreakdown, SupplyChainAlert } from "@/types/supply-chain";
-import { logAiQueryUsageAction } from "@/app/actions/subscription";
+import { askAiManagerAction } from "@/app/actions/ai-manager";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Bot, Sparkles, Send, ArrowRight, Zap, CheckCircle2, AlertTriangle, ShieldCheck } from "lucide-react";
@@ -90,47 +90,33 @@ export function AIManagerView({
     setInput("");
 
     startTransition(async () => {
-      // Record meter deduction
-      const usageRes = await logAiQueryUsageAction();
-      if (usageRes.success) {
-        setRemainingQueries(usageRes.remaining);
+      // Answer generation, quota, and rate-limit checks all happen
+      // server-side (askAiManagerAction) — the client only renders the result.
+      const res = await askAiManagerAction(textToSend);
+
+      if (!res.success) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `err-${Date.now()}`,
+            sender: "ai",
+            text: `⚠️ ${res.error ?? "Something went wrong — please try again."}`,
+            timestamp: "Just now",
+          },
+        ]);
+        return;
       }
 
-      // Generate deterministic domain grounded response
-      const lower = textToSend.toLowerCase();
-      let reply = "";
-      let rec: string | undefined;
-      let action: { label: string; href: string } | undefined;
-
-      if (lower.includes("stockout") || lower.includes("risk") || lower.includes("low")) {
-        const stockouts = alerts.filter((a) => a.severity === "critical" || a.severity === "warning");
-        reply = `There are currently ${stockouts.length} active inventory alerts requiring attention. The most urgent is ${stockouts[0]?.title || "none"}.`;
-        rec = `Action: Issue purchase orders for positions with days of cover lower than supplier lead times to avoid production halts.`;
-        action = { label: "View Low Stock in Inventory", href: "/dashboard/inventory?status=understock" };
-      } else if (lower.includes("supplier") || lower.includes("otif") || lower.includes("delivery")) {
-        reply = `Supplier score is currently ${health.supplier}/100 and Procurement score is ${health.procurement}/100 based on trailing 90-day purchase order receipts.`;
-        rec = `Action: Investigate suppliers with sub-80% OTIF rates and adjust safety stock lead times accordingly.`;
-        action = { label: "Open Supplier Scorecards", href: "/dashboard/suppliers" };
-      } else if (lower.includes("overstock") || lower.includes("capital") || lower.includes("tied up")) {
-        const overstocks = alerts.filter((a) => a.title.includes("cover") && a.description.includes("tied up"));
-        reply = `Found ${overstocks.length} overstock positions exceeding healthy holding thresholds. Overstock costs carry and ties up working capital.`;
-        rec = `Action: Delay scheduled purchase orders for high-cover SKUs to liberate cash flow.`;
-        action = { label: "Review Overstock Inventory", href: "/dashboard/inventory?status=overstock" };
-      } else {
-        reply = `Analysis complete across all active facilities. System health is at ${health.overall}/100 with Inventory at ${health.inventory}/100 and Logistics at ${health.logistics}/100.`;
-        rec = `Recommendation: Maintain weekly reorder reviews and monitor trailing lead times.`;
-        action = { label: "View Analytics Overview", href: "/dashboard/analytics" };
-      }
-
+      setRemainingQueries(res.remaining);
       setMessages((prev) => [
         ...prev,
         {
           id: `ai-${Date.now()}`,
           sender: "ai",
-          text: reply,
+          text: res.reply!,
           timestamp: "Just now",
-          recommendation: rec,
-          suggestedAction: action,
+          recommendation: res.recommendation,
+          suggestedAction: res.suggestedAction,
         },
       ]);
     });
@@ -259,6 +245,7 @@ export function AIManagerView({
               onChange={(e) => setInput(e.target.value)}
               placeholder="Ask about inventory, supplier performance, stockouts, or spend..."
               disabled={isPending}
+              maxLength={300}
               className="flex-1 rounded-lg border border-(--color-border) bg-(--color-surface-secondary) px-4 py-2.5 text-small text-(--color-text-primary) placeholder:text-(--color-text-muted) focus:border-(--color-brand) focus:outline-none"
             />
             <Button type="submit" disabled={!input.trim() || isPending} className="gap-1.5 shrink-0">

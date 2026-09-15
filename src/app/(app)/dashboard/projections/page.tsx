@@ -18,7 +18,8 @@ import { getAllSkuWarehouseProjections, type SkuWarehouseProjection } from "@/li
 import { getBatchDemandForecast, buildSeriesInputs } from "@/lib/forecasting/python-client";
 import { classifyDemandVariability, type DemandVariabilityClass } from "@/lib/metrics/inventory";
 import { requireOrgId } from "@/lib/auth";
-import { Waves } from "lucide-react";
+import { checkPageRateLimit } from "@/lib/rate-limit";
+import { Waves, Clock } from "lucide-react";
 
 export interface ProjectionGridEntry {
   projection: SkuWarehouseProjection;
@@ -42,6 +43,23 @@ export default async function ProjectionsGridPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const orgId = await requireOrgId();
+
+  const withinRateLimit = await checkPageRateLimit("projections-grid");
+  if (!withinRateLimit) {
+    return (
+      <div>
+        <PageHeader title="Stockout Projections" />
+        <div className="p-8">
+          <EmptyState
+            icon={<Clock size={18} />}
+            title="Too many requests"
+            description="This page is rate-limited to protect the underlying forecasting service. Please wait a few minutes and try again."
+          />
+        </div>
+      </div>
+    );
+  }
+
   const raw = await searchParams;
   const one = (v: string | string[] | undefined): string | undefined => (Array.isArray(v) ? v[0] : v);
 

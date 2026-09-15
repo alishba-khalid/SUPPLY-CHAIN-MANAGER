@@ -1,11 +1,12 @@
 "use server";
 
 import { requireOrgId, isDemoOrg } from "@/lib/auth";
-import { updateOrgSubscription, recordAiQueryUsage } from "@/data/repositories/subscription";
+import { updateOrgSubscription } from "@/data/repositories/subscription";
 import { createPurchaseOrderAction } from "@/app/actions/domain";
 import type { PlanTier, BillingCycle } from "@/types/subscription";
 import type { SuggestedPurchaseOrder } from "@/lib/forecasting/demand-forecast";
 import { revalidatePath } from "next/cache";
+import { checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 
 const DEMO_MSG = "Demo mode — action is simulated and not saved.";
 
@@ -38,18 +39,16 @@ export async function changePlanAction({
   }
 }
 
-export async function logAiQueryUsageAction() {
-  try {
-    const orgId = await requireOrgId();
-    return await recordAiQueryUsage(orgId);
-  } catch (err) {
-    return { success: false, remaining: 0 };
-  }
-}
-
 export async function createPoFromSuggestionAction(suggestion: SuggestedPurchaseOrder) {
   try {
     const orgId = await requireOrgId();
+
+    const ip = await getRequestIp();
+    const rateLimit = await checkRateLimit(`po-action:ip:${ip}`, 20, 10 * 60 * 1000);
+    if (!rateLimit.allowed) {
+      return { success: false, error: "Too many requests — please wait a few minutes and try again." };
+    }
+
     const today = new Date();
     const orderDate = today.toISOString().slice(0, 10);
     const expected = new Date(today);

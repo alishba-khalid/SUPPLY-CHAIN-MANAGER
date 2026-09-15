@@ -1,13 +1,32 @@
 import { PageHeader } from "@/components/ui/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
 import { ForecastAccuracyClient } from "@/components/domain/forecast-accuracy-client";
 import { getInventoryTransactions } from "@/data/repositories/inventory";
 import { getProducts } from "@/data/repositories/products";
 import { getWarehouses } from "@/data/repositories/warehouses";
 import { getBatchDemandForecast, type SeriesInput } from "@/lib/forecasting/python-client";
 import { requireOrgId } from "@/lib/auth";
+import { checkPageRateLimit } from "@/lib/rate-limit";
+import { Clock } from "lucide-react";
 
 export default async function ForecastAccuracyPage() {
   const orgId = await requireOrgId();
+
+  const withinRateLimit = await checkPageRateLimit("forecast-accuracy");
+  if (!withinRateLimit) {
+    return (
+      <div>
+        <PageHeader title="Forecast Accuracy & Demand Planning" />
+        <div className="p-8">
+          <EmptyState
+            icon={<Clock size={18} />}
+            title="Too many requests"
+            description="This page is rate-limited to protect the underlying forecasting service. Please wait a few minutes and try again."
+          />
+        </div>
+      </div>
+    );
+  }
 
   const [transactions, products, warehouses] = await Promise.all([
     getInventoryTransactions(orgId),

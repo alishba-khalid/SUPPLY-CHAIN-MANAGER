@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Clock } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Card } from "@/components/ui/card";
 import { SawtoothChart } from "@/components/domain/sawtooth-chart";
 import { ForecastModeBadge } from "@/components/domain/forecast-mode-badge";
@@ -17,6 +18,7 @@ import { getPurchaseOrders } from "@/data/repositories/procurement";
 import { getSkuWarehouseProjection } from "@/lib/forecasting/demand-forecast";
 import { getBatchDemandForecast, buildSeriesInputs } from "@/lib/forecasting/python-client";
 import { requireOrgId } from "@/lib/auth";
+import { checkPageRateLimit } from "@/lib/rate-limit";
 
 export default async function SkuProjectionPage({
   params,
@@ -24,6 +26,23 @@ export default async function SkuProjectionPage({
   params: Promise<{ sku: string; warehouseId: string }>;
 }) {
   const orgId = await requireOrgId();
+
+  const withinRateLimit = await checkPageRateLimit("projections-detail");
+  if (!withinRateLimit) {
+    return (
+      <div>
+        <PageHeader title="Stockout Projection" />
+        <div className="p-8">
+          <EmptyState
+            icon={<Clock size={18} />}
+            title="Too many requests"
+            description="This page is rate-limited to protect the underlying forecasting service. Please wait a few minutes and try again."
+          />
+        </div>
+      </div>
+    );
+  }
+
   const { sku, warehouseId: warehouseIdParam } = await params;
   const warehouseId = Number(warehouseIdParam);
 

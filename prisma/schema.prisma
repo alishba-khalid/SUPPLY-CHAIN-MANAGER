@@ -141,3 +141,18 @@ model ImportMapping {
   @@map("import_mappings")
 }
 
+// Durable, shared-across-instances counters backing public-endpoint rate
+// limits (AI Manager, smart importer). A plain in-memory counter doesn't
+// work here: every serverless invocation can land on a different instance.
+// `key` encodes scope + window, e.g. "ai:ip:1.2.3.4:2026-09-15T06:40" —
+// callers bump the count atomically and compare it to their own limit.
+model RateLimitBucket {
+  key         String   @id
+  count       Int      @default(0)
+  windowEnds  DateTime @map("window_ends")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([windowEnds])
+  @@map("rate_limit_buckets")
+}
+
