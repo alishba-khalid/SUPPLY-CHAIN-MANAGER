@@ -30,13 +30,15 @@ The projected on-hand balance for one SKU at one warehouse, walked forward day b
                    ▼                                 ▼
 ┌──────────────────────────────────────┐ ┌───────────────────────────────┐
 │     PostgreSQL Database (Neon)       │ │  Python Forecasting Service   │
-│  • Warehouses, Suppliers, Products   │ │  (FastAPI, on Vercel)         │
+│  • Warehouses, Suppliers, Products   │ │  (FastAPI, Vercel serverless) │
 │  • Inventory, POs, 90d Transactions  │ │  • 7-Model Rolling Tournament │
 │  • Canonical Dataset Protection      │ │  • Croston SBA, Holt-Winters  │
 └──────────────────────────────────────┘ └───────────────────────────────┘
 ```
 
-The web app and the forecasting service are two separately deployed projects. The web app calls the forecasting service over authenticated HTTPS for the model-tournament path (Forecast Accuracy page, stockout projections); the core reorder-point math below runs independently, in the web app itself, and never depends on the Python service being reachable.
+The web app and the forecasting service are two separately deployed Vercel projects. The web app calls the forecasting service over authenticated HTTPS for the model-tournament path (Forecast Accuracy page, stockout projections); the core reorder-point math below runs independently, in the web app itself, and never depends on the Python service being reachable.
+
+**The Python service is a Vercel serverless function, not a container.** `forecasting-service/api/index.py` re-exports the existing FastAPI `app` object; Vercel's zero-config FastAPI detection wraps it as a Fluid Compute function (`vercel project inspect` confirms `Framework Preset: FastAPI`). statsmodels, scipy, pandas, and numpy all fit comfortably — the deployed function bundle is 62.6MB, well under Vercel's 250MB standard / 5GB Fluid Compute limits. There is no always-on process and no traditional "sleeping free-tier dyno"; the runtime is a request-triggered function whose container gets recycled after a period of inactivity, same as any other Vercel Function.
 
 ## The forecasting approach
 
@@ -87,6 +89,7 @@ The tournament engine was benchmarked against the real Walmart **M5 Forecasting 
 - **The hosted demo caps imports at 5,000 rows per file**, enforced server-side. That's a public-instance safeguard, not a product ceiling — a self-hosted deployment can raise or remove it.
 - **No payment processing is wired up.** The plan/billing UI writes to an in-memory store to demonstrate tier gating; it is not connected to Stripe or any processor.
 - **Cold starts happen, and the app says so.** The forecasting service runs as a serverless function; after a period of inactivity, the first request can be slow enough to miss the web app's 2.5-second budget. When that happens, the dashboard falls back to a deterministic trailing-mean calculation automatically — and always labels which mode produced the numbers on screen, never silently.
+- **The forecasting service isn't git-connected for auto-deploy yet.** It was deployed via CLI from a local directory; a `GET /health` currently returns an empty `commit_sha` because of that, not because of a code bug (see `src/lib/forecasting/__tests__/contract-deployed-service.test.ts`, which asserts this and currently fails on that one check by design, to keep the gap visible instead of silent). Fixing it needs the project's Root Directory set to `forecasting-service` in the Vercel dashboard — the Vercel CLI has no command for that setting.
 
 ## Getting started (local development)
 
