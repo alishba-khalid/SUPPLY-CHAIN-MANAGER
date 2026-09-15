@@ -9,8 +9,9 @@ export function LeadTimeWarningBanner({
   suppliers?: Supplier[];
   className?: string;
 }) {
-  // Check if any supplier has default 14-day lead time
-  const unconfiguredSuppliers = suppliers.filter((s) => s.leadTimeDays === 14);
+  // Suppliers whose lead time was actually missing and defaulted — not just
+  // suppliers whose real, provided lead time happens to equal 14 days.
+  const unconfiguredSuppliers = suppliers.filter((s) => s.leadTimeMissing);
 
   if (unconfiguredSuppliers.length === 0) return null;
 

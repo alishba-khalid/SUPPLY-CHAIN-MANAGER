@@ -30,6 +30,8 @@ export interface Supplier {
   supplierId: string; // business-facing code, e.g. "SUP-001"
   name: string;
   leadTimeDays: number;
+  /** True only when the source data had no lead time and this defaulted to 14 — not true just because leadTimeDays === 14. */
+  leadTimeMissing: boolean;
   email: string;
 }
 

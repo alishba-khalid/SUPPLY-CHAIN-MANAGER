@@ -37,6 +37,7 @@ describe("Time-Phased Forward Projection & Netting Regression Suite (C4 + V1-V5 
     supplierId: "SUP-005",
     name: "Apex Precision Seals",
     leadTimeDays: 7,
+    leadTimeMissing: false,
     email: "orders@apex.com",
   };
 
@@ -253,6 +254,7 @@ describe("Time-Phased Forward Projection & Netting Regression Suite (C4 + V1-V5 
       supplierId: "SUP-004",
       name: "Orion Electronics Ltd",
       leadTimeDays: 30,
+      leadTimeMissing: false,
       email: "orders@orion.com",
     };
     const prod: Product = {
@@ -414,6 +416,7 @@ describe("Time-Phased Forward Projection & Netting Regression Suite (C4 + V1-V5 
       supplierId: "SUP-004",
       name: "Orion Electronics Ltd",
       leadTimeDays: 30,
+      leadTimeMissing: false,
       email: "orders@orion.com",
     };
 

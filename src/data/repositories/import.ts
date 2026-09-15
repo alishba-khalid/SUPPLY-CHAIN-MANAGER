@@ -91,15 +91,17 @@ export async function importData(
           for (const row of rows) {
             const supplierId = String(getField(row, "Supplier ID", "supplierId", "supplier_id", "id", "vendor_id") || "").trim();
             const name = String(getField(row, "Name", "name", "supplier_name", "vendor_name") || "").trim();
-            const leadTimeDays = Number(getField(row, "Lead Time (Days)", "leadTimeDays", "lead_time_days", "lead_time", "leadTime") || 14);
+            const rawLeadTime = getField(row, "Lead Time (Days)", "leadTimeDays", "lead_time_days", "lead_time", "leadTime");
+            const leadTimeMissing = !rawLeadTime;
+            const leadTimeDays = Number(rawLeadTime || 14);
             const email = String(getField(row, "Email", "email", "supplier_email", "contact_email") || "").trim();
 
             if (!supplierId || !name) continue;
 
             await tx.supplier.upsert({
               where: { orgId_supplierId: { orgId, supplierId } },
-              create: { orgId, supplierId, name, leadTimeDays, email },
-              update: { name, leadTimeDays, email },
+              create: { orgId, supplierId, name, leadTimeDays, leadTimeMissing, email },
+              update: { name, leadTimeDays, leadTimeMissing, email },
             });
             count++;
           }

@@ -44,6 +44,12 @@ model Supplier {
   supplierId    String   @map("supplier_id")
   name          String
   leadTimeDays  Int      @map("lead_time_days")
+  // True only when the source data had no lead time and this fell back to
+  // the 14-day default — NOT true whenever leadTimeDays happens to equal 14.
+  // A supplier can genuinely have a real 14-day lead time; without this
+  // flag persisted, the UI has no way to tell the two cases apart and the
+  // lead-time warning banner false-positives on the real one.
+  leadTimeMissing Boolean @default(false) @map("lead_time_missing")
   email         String
 
   products       Product[]

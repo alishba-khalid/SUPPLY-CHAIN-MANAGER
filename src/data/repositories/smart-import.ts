@@ -61,6 +61,7 @@ export async function commitSmartImport(
                 supplierId: s.supplierId,
                 name: s.name,
                 leadTimeDays: s.leadTimeDays || 14,
+                leadTimeMissing: s.leadTimeMissing ?? false,
                 email: s.email,
               })),
             });
@@ -200,11 +201,13 @@ export async function commitSmartImport(
                 supplierId: s.supplierId,
                 name: s.name,
                 leadTimeDays: s.leadTimeDays || 14,
+                leadTimeMissing: s.leadTimeMissing ?? false,
                 email: s.email,
               },
               update: {
                 name: s.name,
                 leadTimeDays: s.leadTimeDays || undefined,
+                leadTimeMissing: s.leadTimeMissing ?? false,
                 email: s.email,
               },
             })
