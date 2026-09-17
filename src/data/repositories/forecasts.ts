@@ -119,13 +119,17 @@ export async function getLastForecastComputedAt(orgId: string): Promise<Date | n
   return latest?.computedAt ?? null;
 }
 
-/** Whether THIS ONE series has a stored result — used by the single-SKU projection detail page instead of pulling the whole org's rows. */
-export async function hasStoredForecast(orgId: string, sku: string, warehouseId: number): Promise<boolean> {
+/** Whether THIS ONE series has a stored result, and when it was computed — used by the single-SKU projection detail page instead of pulling the whole org's rows. */
+export async function getStoredForecastMeta(
+  orgId: string,
+  sku: string,
+  warehouseId: number
+): Promise<{ isLive: boolean; computedAt: Date | null }> {
   const row = await prisma.forecastResult.findUnique({
     where: { orgId_sku_warehouseId: { orgId, sku, warehouseId } },
-    select: { sku: true },
+    select: { computedAt: true },
   });
-  return row !== null;
+  return { isLive: row !== null, computedAt: row?.computedAt ?? null };
 }
 
 /** Batch-job write side — upserts one chunk's worth of tournament results. */

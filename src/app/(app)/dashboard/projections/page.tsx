@@ -16,7 +16,8 @@ import { getPurchaseOrders } from "@/data/repositories/procurement";
 import { getOrgSubscription } from "@/data/repositories/subscription";
 import { getAllSkuWarehouseProjections, type SkuWarehouseProjection } from "@/lib/forecasting/demand-forecast";
 import { buildSeriesInputs } from "@/lib/forecasting/python-client";
-import { getStoredForecast } from "@/data/repositories/forecasts";
+import { getStoredForecast, getLastForecastComputedAt } from "@/data/repositories/forecasts";
+import { RecomputeForecastsButton } from "@/components/domain/recompute-forecasts-button";
 import { classifyDemandVariability, type DemandVariabilityClass } from "@/lib/metrics/inventory";
 import { requireOrgId } from "@/lib/auth";
 import { checkPageRateLimit } from "@/lib/rate-limit";
@@ -99,6 +100,7 @@ export default async function ProjectionsGridPage({
   // CV estimate.
   const unitCostBySku = new Map(products.map((p) => [p.sku, p.unitCost]));
   const forecastData = await getStoredForecast(orgId, buildSeriesInputs(transactions, unitCostBySku));
+  const lastComputedAt = await getLastForecastComputedAt(orgId);
   const liveXyzBySeries = new Map(
     forecastData.results.filter((r) => !r.is_fallback).map((r) => [`${r.sku}::${r.warehouse}`, r.xyz_class])
   );
@@ -163,7 +165,10 @@ export default async function ProjectionsGridPage({
         ) : (
           <>
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <ForecastModeBadge liveCount={forecastData.liveCount} totalCount={forecastData.liveCount + forecastData.pendingCount} />
+              <div className="flex flex-wrap items-center gap-3">
+                <ForecastModeBadge liveCount={forecastData.liveCount} totalCount={forecastData.liveCount + forecastData.pendingCount} />
+                <RecomputeForecastsButton lastComputedAt={lastComputedAt ? lastComputedAt.toISOString() : null} />
+              </div>
               <span className="text-caption text-(--color-text-muted)">
                 {filtered.length} of {entries.length} SKU × warehouse positions
               </span>

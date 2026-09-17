@@ -56,5 +56,21 @@ export async function GET(req: Request) {
     }
   }
 
-  return Response.json({ ok: true, results, finishedAt: new Date().toISOString() });
+  const hasErrors = results.some((r) => r.errors.length > 0);
+  if (hasErrors) {
+    // Surface at error level (not just embedded in the JSON body) so a
+    // failed chunk shows up in Vercel's runtime logs / "View Logs" for this
+    // cron job, not just in a response body nobody is reading.
+    for (const r of results) {
+      if (r.errors.length > 0) console.error(`[recompute-forecasts] ${r.orgId}: ${r.errors.join("; ")}`);
+    }
+  }
+
+  // Non-2xx on any error so Vercel's own cron/runtime-log tooling records
+  // this invocation as failed, instead of a plain 200 with the failure
+  // buried in a response body nobody automatically reads.
+  return Response.json(
+    { ok: !hasErrors, results, finishedAt: new Date().toISOString() },
+    { status: hasErrors ? 500 : 200 }
+  );
 }
