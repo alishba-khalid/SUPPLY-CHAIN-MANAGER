@@ -18,6 +18,7 @@ import { getOpenPurchaseOrders } from "@/data/repositories/procurement";
 import { getProducts } from "@/data/repositories/products";
 import { getWarehouses } from "@/data/repositories/warehouses";
 import { daysBetween, todayISODate } from "@/lib/dates";
+import { splitEffectivePipeline } from "@/lib/insights/inventory-availability";
 
 interface AlertWithRank extends SupplyChainAlert {
   tier: number;
@@ -85,9 +86,11 @@ export async function getAlerts(
       (insight.daysOfStock !== null && insight.daysOfStock < supplierLeadTimeDays) ||
       insight.status === "stock_out_risk";
 
-    // Open PO inbound calculation
+    // Open PO inbound calculation — overdue POs are excluded from available/pipeline
+    // inventory here (see inventory-availability.ts), so a stockout alert can never
+    // credit stock that the procurement alert on the same page flags as overdue.
     const skuOpenPOs = openPOsBySku.get(insight.sku) ?? [];
-    const inboundQty = skuOpenPOs.reduce((sum, po) => sum + po.quantity, 0);
+    const { effectivePos, effectiveQuantity: inboundQty, excludedOverduePos } = splitEffectivePipeline(skuOpenPOs, today);
 
     // Target stock proportional to lead time
     const safetyBufferDays = Math.max(2, Math.round(supplierLeadTimeDays * 0.5));
@@ -98,25 +101,38 @@ export async function getAlerts(
     if (suggestedQty > 200) suggestedQty = Math.ceil(suggestedQty / 50) * 50;
     else if (suggestedQty > 20) suggestedQty = Math.ceil(suggestedQty / 10) * 10;
 
+    // "Effective cover" = on-hand plus only the in-transit quantity that is still
+    // credible (not overdue) — the number the reorder decision is actually based on.
+    const effectiveCoverDays = demand > 0 ? Math.round(((insight.availableQuantity + inboundQty) / demand) * 10) / 10 : daysOfCover;
+    const excludedNote = excludedOverduePos
+      .map(
+        (po) =>
+          `${po.quantity.toLocaleString()} units on ${po.poNumber}, but that PO is ${po.daysOverdue} day${po.daysOverdue === 1 ? "" : "s"} overdue — excluded from available stock`,
+      )
+      .join("; ");
+
     if (isStockoutImminent) {
       // Tier 1: Stockout imminent (days of cover < supplier lead time)
       const valueAtRisk = demand * supplierLeadTimeDays * unitCost;
       const inboundNote =
         inboundQty > 0
-          ? ` (${inboundQty.toLocaleString()} units already in transit on ${skuOpenPOs[0]?.poNumber})`
+          ? ` (${inboundQty.toLocaleString()} units already in transit on ${effectivePos[0]?.poNumber})`
           : "";
+
+      const descriptionParts = [`Below reorder point. Supplier lead time is ${supplierLeadTimeDays} days${inboundNote}.`];
+      if (excludedNote) descriptionParts.push(`${excludedNote}. Effective cover: ${Math.round(effectiveCoverDays)} days.`);
 
       const teaser =
         suggestedQty > 0
           ? `Growth plans would order ${suggestedQty.toLocaleString()} units from ${product?.supplierId || "primary supplier"} today — upgrade to generate this PO.`
-          : `Inbound PO ${skuOpenPOs[0]?.poNumber || "in transit"} covers replenishment target.`;
+          : `Inbound PO ${effectivePos[0]?.poNumber || "in transit"} covers replenishment target.`;
 
       rankedAlerts.push({
         id: `ALT-INV-STOCKOUT-${insight.sku}-${insight.warehouseId}`,
         category: "inventory",
         severity: "critical",
         title: `${insight.sku} at ${warehouseCode} — ${daysOfCover} days of cover`,
-        description: `Below reorder point. Supplier lead time is ${supplierLeadTimeDays} days${inboundNote}.`,
+        description: descriptionParts.join(" "),
         sku: insight.sku,
         warehouseId: insight.warehouseId,
         teaser,
@@ -131,20 +147,23 @@ export async function getAlerts(
       const valueAtRisk = (insight.reorderPoint - insight.availableQuantity) * unitCost;
       const inboundNote =
         inboundQty > 0
-          ? ` (${inboundQty.toLocaleString()} units inbound on ${skuOpenPOs[0]?.poNumber})`
+          ? ` (${inboundQty.toLocaleString()} units inbound on ${effectivePos[0]?.poNumber})`
           : "";
+
+      const descriptionParts = [`Below reorder point. Supplier lead time is ${supplierLeadTimeDays} days${inboundNote}.`];
+      if (excludedNote) descriptionParts.push(`${excludedNote}. Effective cover: ${Math.round(effectiveCoverDays)} days.`);
 
       const teaser =
         suggestedQty > 0
           ? `Growth plans would order ${suggestedQty.toLocaleString()} units from ${product?.supplierId || "primary supplier"} today — upgrade to generate this PO.`
-          : `Inbound PO ${skuOpenPOs[0]?.poNumber || "in transit"} covers replenishment target.`;
+          : `Inbound PO ${effectivePos[0]?.poNumber || "in transit"} covers replenishment target.`;
 
       rankedAlerts.push({
         id: `ALT-INV-LOW-${insight.sku}-${insight.warehouseId}`,
         category: "inventory",
         severity: "warning",
         title: `${insight.sku} at ${warehouseCode} — ${daysOfCover} days of cover`,
-        description: `Below reorder point. Supplier lead time is ${supplierLeadTimeDays} days${inboundNote}.`,
+        description: descriptionParts.join(" "),
         sku: insight.sku,
         warehouseId: insight.warehouseId,
         teaser,

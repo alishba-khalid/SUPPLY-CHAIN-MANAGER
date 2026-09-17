@@ -17,7 +17,7 @@ import {
   variabilitySafetyStock,
   winsorizedDailyDemandStandardDeviation,
 } from "@/lib/metrics/inventory";
-import { supplierAverageDelayDays } from "@/lib/metrics/supplier";
+import { isPoOverdue } from "@/lib/insights/inventory-availability";
 
 export interface DemandProjection {
   sku: string;
@@ -135,8 +135,13 @@ export function calculateDemandProjection(
 }
 
 /**
- * Normalized internal representation of an open PO with resolved expected ETA.
- * Overdue POs are never credited at day 0 — they are rescheduled based on supplier lateness (V2).
+ * Normalized internal representation of an open PO. Overdue POs (expected date
+ * passed, nothing received) are excluded from available/pipeline inventory —
+ * their quantity never counts toward cover-days or reorder math (see
+ * `@/lib/insights/inventory-availability`, the same overdue check the alert
+ * engine uses) — but they still carry `effectiveArrivalDate` (their original
+ * expected date) so they remain visible, clearly marked, wherever open POs
+ * are listed.
  */
 interface ProcessedOpenPo {
   rawPo: PurchaseOrder;
@@ -328,40 +333,22 @@ function buildProjectionContext({
     recordsBySku.set(r.sku, list);
   }
 
-  // Pre-calculate supplier average delay days for V2 overdue rescheduling
-  const supplierDelayMap = new Map<string, number | null>();
-  for (const s of suppliers) {
-    supplierDelayMap.set(s.supplierId, supplierAverageDelayDays(s.supplierId, purchaseOrders));
-  }
-
-  // Process and index open POs by SKU with overdue rescheduling
+  // Process and index open POs by SKU. Overdue POs are flagged but never
+  // credited — no rescheduled ETA is invented for them, since there is no
+  // evidence the units are actually in transit once the expected date has
+  // passed without receipt.
   const openPosBySku = new Map<string, ProcessedOpenPo[]>();
   for (const po of purchaseOrders) {
     if (po.receivedDate === null) {
-      let effectiveArrivalDate = po.expectedDate;
-      let isOverdue = false;
-      let daysOverdue = 0;
-      let overdueNote: string | undefined;
-
-      if (po.expectedDate < today) {
-        isOverdue = true;
-        daysOverdue = daysBetween(po.expectedDate, today);
-        const avgDelay = supplierDelayMap.get(po.supplierId);
-
-        if (typeof avgDelay === "number" && avgDelay > 0) {
-          // Option (b): Reschedule to revised ETA based on supplier average delay
-          const additionalDays = Math.max(1, Math.round(avgDelay));
-          effectiveArrivalDate = addDaysISO(today, additionalDays);
-          overdueNote = `${po.poNumber} overdue ${daysOverdue}d, revised ETA ${effectiveArrivalDate.slice(5)} based on supplier average (+${avgDelay}d)`;
-        } else {
-          // Option (a): Fallback when no supplier delay history is available -> exclude from horizon
-          effectiveArrivalDate = "9999-12-31";
-          overdueNote = `${po.poNumber} overdue ${daysOverdue}d (excluded from projection due to missing supplier history)`;
-        }
-      }
+      const effectiveArrivalDate = po.expectedDate;
+      const overdue = isPoOverdue(po, today);
+      const daysOverdue = overdue ? daysBetween(po.expectedDate, today) : 0;
+      const overdueNote = overdue
+        ? `${po.poNumber} is ${daysOverdue}d overdue (was due ${po.expectedDate}) — excluded from available/pipeline inventory`
+        : undefined;
 
       const list = openPosBySku.get(po.sku) ?? [];
-      list.push({ rawPo: po, effectiveArrivalDate, isOverdue, daysOverdue, overdueNote });
+      list.push({ rawPo: po, effectiveArrivalDate, isOverdue: overdue, daysOverdue, overdueNote });
       openPosBySku.set(po.sku, list);
     }
   }
@@ -428,12 +415,19 @@ function computeSkuWarehouseProjection(
   const horizonDays = Math.max(leadTimeDays + Math.max(3, Math.round(leadTimeDays * 0.5)), 14);
   const horizonEndDate = addDaysISO(today, horizonDays);
 
-  // Filter open POs for this SKU arriving within horizon
+  // Filter open POs for this SKU arriving within horizon. `horizonPOs` keeps
+  // overdue POs for display (inboundDetailsList) so they stay visible,
+  // clearly marked as excluded; `creditedHorizonPOs` drops them entirely —
+  // that's the list every cover-days / reorder-quantity number below is
+  // computed from, so an overdue PO's quantity is never counted as
+  // available/pipeline inventory.
   const openPOs = openPosBySku.get(insight.sku) ?? [];
   const horizonPOs = openPOs.filter((p) => p.effectiveArrivalDate <= horizonEndDate);
   const sortedHorizonPOs = [...horizonPOs].sort((a, b) => a.effectiveArrivalDate.localeCompare(b.effectiveArrivalDate));
-  const firstInboundPo = sortedHorizonPOs[0];
-  const totalInboundInHorizon = horizonPOs.reduce((sum, p) => sum + p.rawPo.quantity, 0);
+  const creditedHorizonPOs = horizonPOs.filter((p) => !p.isOverdue);
+  const sortedCreditedHorizonPOs = [...creditedHorizonPOs].sort((a, b) => a.effectiveArrivalDate.localeCompare(b.effectiveArrivalDate));
+  const firstInboundPo = sortedCreditedHorizonPOs[0];
+  const totalInboundInHorizon = creditedHorizonPOs.reduce((sum, p) => sum + p.rawPo.quantity, 0);
 
   const inboundDetailsList: string[] = [];
   for (const p of sortedHorizonPOs) {
@@ -467,12 +461,14 @@ function computeSkuWarehouseProjection(
     }
   }
 
-  // Day-by-day forward simulation with weekend adjustment (V5) — also the sawtooth series
+  // Day-by-day forward simulation with weekend adjustment (V5) — also the sawtooth
+  // series. Only credited (non-overdue) POs step the balance up — an overdue PO
+  // never appears as an arrival on the chart, matching its exclusion from cover-days.
   const { finalBalance: running, series } = simulateForwardProjection({
     startingOnHand: onHand,
     dailyDemand: demand,
     dowMultipliers,
-    openPOs,
+    openPOs: creditedHorizonPOs,
     horizonDays,
     today,
   });

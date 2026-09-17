@@ -162,7 +162,7 @@ export default async function SkuProjectionPage({
                   <span className="text-(--color-text-secondary)">{po.quantity.toLocaleString()} units</span>
                   <span className={po.isOverdue ? "text-(--color-critical)" : "text-(--color-text-secondary)"}>
                     {po.isOverdue
-                      ? `Revised ETA ${po.effectiveArrivalDate} (was ${po.originalExpectedDate}, ${po.daysOverdue}d overdue)`
+                      ? `Excluded — ${po.daysOverdue}d overdue (was due ${po.originalExpectedDate})`
                       : `Arrives ${po.effectiveArrivalDate}`}
                   </span>
                 </div>

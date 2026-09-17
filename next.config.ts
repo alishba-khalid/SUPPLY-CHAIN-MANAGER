@@ -21,6 +21,13 @@ const nextConfig: NextConfig = {
       permanent: true,
     }));
   },
+  // Default position (bottom-left) sits directly on top of the sidebar's
+  // "Collapse" control, which is docked in that same corner. Moving the dev
+  // indicator to the opposite corner is the supported fix — it renders
+  // outside the app's own DOM tree, so no in-app z-index can separate them.
+  devIndicators: {
+    position: "bottom-right",
+  },
   experimental: {
     serverActions: {
       // The smart importer is the only action that sends a large payload

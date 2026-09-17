@@ -12,6 +12,18 @@ const WEIGHTS = {
   warehouse: 0.1,
 } as const;
 
+export type HealthScoreTone = "healthy" | "warning" | "critical";
+
+/** >=80 healthy, 60-79 warning, <60 critical — shared threshold for card colour-coding and Needs Attention call-outs. */
+export const HEALTH_CRITICAL_THRESHOLD = 60;
+const HEALTH_WARNING_THRESHOLD = 80;
+
+export function healthScoreTone(score: number): HealthScoreTone {
+  if (score >= HEALTH_WARNING_THRESHOLD) return "healthy";
+  if (score >= HEALTH_CRITICAL_THRESHOLD) return "warning";
+  return "critical";
+}
+
 export function overallHealthScore(parts: {
   inventory: number;
   supplier: number;

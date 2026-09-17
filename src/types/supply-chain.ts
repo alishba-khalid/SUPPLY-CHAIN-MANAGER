@@ -156,6 +156,8 @@ export interface SupplyChainAlert {
   teaser?: string;
   suggestedQuantity?: number;
   estimatedCost?: number;
+  /** Destination page for "why is this low / what do I do" — rendered as a CTA on the alert card. */
+  link?: { href: string; label: string };
   createdAt: ISODateTime;
 }
 

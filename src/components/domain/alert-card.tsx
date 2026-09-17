@@ -88,6 +88,18 @@ export function AlertCard({
         </div>
       )}
 
+      {alert.link && (
+        <div className="flex items-center justify-between gap-3 rounded-md bg-(--color-surface-secondary) px-3 py-2 text-caption text-(--color-text-muted) border border-(--color-border)">
+          <span className="font-medium">Why this is low</span>
+          <Link
+            href={alert.link.href}
+            className="shrink-0 font-medium text-(--color-brand) hover:underline flex items-center gap-1"
+          >
+            {alert.link.label} <ArrowRight size={12} />
+          </Link>
+        </div>
+      )}
+
       {actions && <div className="flex items-center gap-2 pt-1">{actions}</div>}
     </div>
   );

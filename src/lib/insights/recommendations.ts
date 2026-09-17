@@ -51,14 +51,14 @@ export async function getRecommendations(orgId: string): Promise<Recommendation[
     entry.tiedUpValue += tiedUpValue;
     overstockBySku.set(insight.sku, entry);
   }
-  for (const [sku, { tiedUpValue }] of overstockBySku) {
+  for (const [sku, { warehouseIds, tiedUpValue }] of overstockBySku) {
     if (tiedUpValue < 500) continue; // not worth surfacing
     recommendations.push({
       id: `REC-REDUCE-${sku}`,
       category: "reduce_purchase",
       priority: tiedUpValue > 5000 ? "high" : "medium",
       title: `Reduce purchases of ${sku}`,
-      description: `Approximately $${Math.round(tiedUpValue).toLocaleString()} is tied up in excess stock.`,
+      description: `Overstocked across ${warehouseIds.length} warehouse${warehouseIds.length > 1 ? "s" : ""} — holding more than 3x the lead-time target.`,
       affectedSkus: [sku],
       estimatedImpact: `$${Math.round(tiedUpValue).toLocaleString()} tied up`,
       createdAt: now,

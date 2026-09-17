@@ -16,8 +16,13 @@ import { getWarehouses } from "./warehouses";
 import { getOrgSubscription } from "./subscription";
 import { overallHealthScore } from "@/lib/metrics/health";
 import { buildInventoryInsight, inventoryHealthScore } from "@/lib/metrics/inventory";
-import { computeSupplierPerformance, supplierHealthScore } from "@/lib/metrics/supplier";
-import { procurementHealthScore } from "@/lib/metrics/procurement";
+import { computeSupplierPerformance, supplierHealthScore, poOnTimeRate } from "@/lib/metrics/supplier";
+import {
+  procurementHealthScore,
+  procurementFulfillmentScore,
+  procurementCycleTimeScore,
+  procurementPriceStabilityScore,
+} from "@/lib/metrics/procurement";
 import { logisticsHealthScore } from "@/lib/metrics/logistics";
 import {
   capacityUtilization,
@@ -29,6 +34,7 @@ import { inventoryMovementTrend, onTimeShipmentRateTrend, poVolumeTrend, procure
 import { getAlerts } from "@/lib/insights/alerts";
 import { getRecommendations } from "@/lib/insights/recommendations";
 import { getRecentActivity } from "@/lib/insights/activity";
+import { buildHealthScoreAlerts, type WarehouseScoreDetail } from "@/lib/insights/health-alerts";
 
 export interface OverviewDashboardData {
   products: Product[];
@@ -152,19 +158,46 @@ export async function getOverviewDashboardData(orgId: string): Promise<OverviewD
   const procurement = procurementHealthScore(purchaseOrders, baselineCost);
   const logistics = logisticsHealthScore(purchaseOrders);
 
-  const warehouseScores = warehouses.map((w) => {
+  const warehouseDetails: WarehouseScoreDetail[] = warehouses.map((w) => {
     const onHand = records.filter((r) => r.warehouseId === w.id).reduce((sum, r) => sum + r.quantityOnHand, 0);
     const utilPercent = capacityUtilization(onHand, w.capacityUnits);
     const utilScore = capacityUtilizationScore(utilPercent);
     const issueScore = inventoryIssueRateScore(insights.filter((i) => i.warehouseId === w.id));
-    return warehouseHealthScore(utilScore, issueScore);
+    return { warehouse: w, utilizationPercent: utilPercent, issueRateScore: issueScore, score: warehouseHealthScore(utilScore, issueScore) };
   });
   const warehouse =
-    warehouseScores.length > 0
-      ? Math.round(warehouseScores.reduce((a, b) => a + b, 0) / warehouseScores.length)
+    warehouseDetails.length > 0
+      ? Math.round(warehouseDetails.reduce((a, b) => a + b.score, 0) / warehouseDetails.length)
       : 0;
 
   const health = overallHealthScore({ inventory, supplier, procurement, logistics, warehouse });
+
+  // Explains any critically-low score card as a "Needs Attention" entry, so
+  // a low number is never left unexplained on the dashboard.
+  const suppliersWithOtif = supplierPerformances.filter((p) => p.otifPercent !== null);
+  const worstSupplierPerf = suppliersWithOtif.length
+    ? suppliersWithOtif.reduce((worst, p) => ((p.otifPercent as number) < (worst.otifPercent as number) ? p : worst))
+    : undefined;
+  const worstSupplier = worstSupplierPerf
+    ? { supplierId: worstSupplierPerf.supplierId, name: suppliers.find((s) => s.supplierId === worstSupplierPerf.supplierId)?.name ?? worstSupplierPerf.supplierId, otifPercent: worstSupplierPerf.otifPercent as number }
+    : undefined;
+  const worstWarehouse = warehouseDetails.length
+    ? warehouseDetails.reduce((worst, w) => (w.score < worst.score ? w : worst))
+    : null;
+
+  const healthAlerts = buildHealthScoreAlerts({
+    inventory: { score: inventory, unhealthyCount: insights.filter((i) => i.status !== "healthy").length, totalCount: insights.length },
+    supplier: { score: supplier, worst: worstSupplier },
+    procurement: {
+      score: procurement,
+      fulfillment: procurementFulfillmentScore(purchaseOrders),
+      cycleTime: procurementCycleTimeScore(purchaseOrders),
+      priceStability: procurementPriceStabilityScore(purchaseOrders, baselineCost),
+    },
+    logistics: { score: logistics, onTimeRate: poOnTimeRate(purchaseOrders) },
+    warehouse: { score: warehouse, worst: worstWarehouse },
+  });
+  const allAlerts = [...healthAlerts, ...alerts];
 
   const movement = inventoryMovementTrend(transactions);
   const trends: OverviewTrends = {
@@ -182,7 +215,7 @@ export async function getOverviewDashboardData(orgId: string): Promise<OverviewD
     suppliers,
     warehouses,
     health,
-    alerts,
+    alerts: allAlerts,
     recommendations,
     trends,
     activity,
