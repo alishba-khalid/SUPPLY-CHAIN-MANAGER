@@ -82,3 +82,17 @@ forecasting-service\.venv\Scripts\python forecasting-service/notebooks/validate_
 # 3. Start the FastAPI development server
 forecasting-service\.venv\Scripts\uvicorn app.main:app --port 8000 --app-dir forecasting-service
 ```
+
+## 6. Deployment (Render)
+
+The `Dockerfile` in this directory already binds to `0.0.0.0:$PORT`, which
+is exactly what Render's Docker runtime expects — no changes needed to
+deploy it as-is. On Render:
+
+- **New Web Service** → connect this repo → **Root Directory**: `forecasting-service` → **Runtime**: Docker (uses the `Dockerfile` here).
+- Render sets `PORT` itself; don't set it manually.
+- Render also sets `RENDER_GIT_COMMIT` / `RENDER_GIT_BRANCH` automatically for a git-connected service — `GET /health` picks these up for its `commit_sha` / `commit_ref` fields with no extra config.
+
+**Environment variables to set in the Render dashboard** (Environment tab): see `.env.example` in this directory — `FORECAST_SERVICE_SECRET` (must match the web app's) and `CORS_ALLOWED_ORIGINS` (the web app's Vercel domain).
+
+**Health check**: point Render's health check path, and any external uptime monitor, at `GET /health`. It's unauthenticated (no `X-Forecast-Secret` required) and does no model work, so it's cheap to poll.

@@ -51,3 +51,8 @@ next-env.d.ts
 __pycache__
 .pytest_cache
 *.pyc
+
+# .env.example ships placeholder values only — it's the deploy-target
+# template and must stay committed even though .env* is ignored above.
+!.env.example
+!forecasting-service/.env.example

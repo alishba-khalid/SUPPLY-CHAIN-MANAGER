@@ -27,13 +27,26 @@ from app.core.metrics import calculate_all_metrics
 START_TIME = time.time()
 FORECAST_SERVICE_SECRET = os.environ.get("FORECAST_SERVICE_SECRET")
 
-# Vercel sets these automatically for a build triggered by a git push — they
-# are absent for a deploy pushed from a local directory. That absence is
-# itself a useful signal: GET /health returning null here means whatever is
-# running did NOT come from the repo, which is exactly the drift this field
-# exists to catch.
-GIT_COMMIT_SHA = os.environ.get("VERCEL_GIT_COMMIT_SHA")
-GIT_COMMIT_REF = os.environ.get("VERCEL_GIT_COMMIT_REF")
+# Vercel and Render both set their own git-metadata env vars automatically
+# for a build triggered by a git push — absent for a deploy pushed from a
+# local directory or CLI. That absence is itself a useful signal: GET
+# /health returning null here means whatever is running did NOT come from
+# the repo, which is exactly the drift this field exists to catch.
+GIT_COMMIT_SHA = os.environ.get("RENDER_GIT_COMMIT") or os.environ.get("VERCEL_GIT_COMMIT_SHA")
+GIT_COMMIT_REF = os.environ.get("RENDER_GIT_BRANCH") or os.environ.get("VERCEL_GIT_COMMIT_REF")
+
+# Comma-separated list of exact origins allowed to call this service from a
+# browser, e.g. "https://supply-chain-manager-mocha.vercel.app,http://localhost:3005".
+# Defaults to local dev only — set this in the host's env for every deployed
+# environment so the wildcard never ships to production.
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get("CORS_ALLOWED_ORIGINS", "http://localhost:3005").split(",")
+    if origin.strip()
+]
+# Optional regex for origins that vary per-deploy, e.g. Vercel preview URLs:
+# "https://supply-chain-manager-.*-alishba-khalids-projects\.vercel\.app"
+CORS_ALLOWED_ORIGIN_REGEX = os.environ.get("CORS_ALLOWED_ORIGIN_REGEX")
 
 def verify_secret(x_forecast_secret: str | None = Header(None, alias="X-Forecast-Secret")):
     if FORECAST_SERVICE_SECRET and x_forecast_secret != FORECAST_SERVICE_SECRET:
@@ -47,7 +60,8 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=CORS_ALLOWED_ORIGINS,
+    allow_origin_regex=CORS_ALLOWED_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
