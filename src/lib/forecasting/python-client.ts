@@ -38,6 +38,9 @@ export interface SeriesForecastResult {
   xyz_class: "X" | "Y" | "Z";
   policy_hint: string;
   warnings: string[];
+  /** True when this one series has no stored batch result and was computed locally instead — never set by the Python service itself. */
+  is_fallback?: boolean;
+  fallback_reason?: string;
 }
 
 export interface PortfolioSummary {
@@ -55,7 +58,12 @@ export interface ForecastResponse {
   version: string;
   summary: PortfolioSummary;
   results: SeriesForecastResult[];
+  /** @deprecated page-level flag from the old live-call path. Read per-series `is_fallback`, or the liveCount/pendingCount pair below, instead. */
   isFallback?: boolean;
+  /** Series backed by a stored batch result. */
+  liveCount: number;
+  /** Series with no stored result yet, computed via local fallback. */
+  pendingCount: number;
 }
 
 export interface BacktestFoldDetail {
@@ -84,26 +92,19 @@ export interface BacktestResponse {
   results: BacktestSeriesResult[];
 }
 
-const PYTHON_SERVICE_URL =
-  process.env.FORECAST_SERVICE_URL || process.env.FORECASTING_SERVICE_URL || "http://127.0.0.1:8000";
-const FORECAST_SERVICE_SECRET =
-  process.env.FORECAST_SERVICE_SECRET || process.env.FORECASTING_SERVICE_SECRET;
-const REQUEST_TIMEOUT_MS = 2500;
-
-// In-memory cache singleton across hot-reloads
-const globalForCache = globalThis as unknown as {
-  forecastCache?: { data: ForecastResponse; timestamp: number };
-};
-
 /**
- * Generates local fallback forecast when Python statistical microservice is unavailable.
+ * Deterministic trailing-mean forecast for series with no stored batch
+ * result. Used per-series by the stored-forecast read path (see
+ * `@/data/repositories/forecasts`), never as a whole-page substitute for a
+ * live call anymore — there is no live call left in the read path to fail.
+ * Logs every series it's invoked for, with the reason, so a growing
+ * fallback count is visible in logs rather than silent.
  */
-function buildLocalFallbackForecast(seriesList: SeriesInput[]): ForecastResponse {
+export function buildLocalFallbackForecast(seriesList: SeriesInput[], reason: string = "no stored forecast result"): ForecastResponse {
   const results: SeriesForecastResult[] = [];
   const methodDist: Record<string, number> = { "Trailing Velocity (Fallback)": seriesList.length };
   const abcDist: Record<string, number> = { A: 0, B: 0, C: 0 };
   const xyzDist: Record<string, number> = { X: 0, Y: 0, Z: 0 };
-  let sumWape = 0;
 
   for (const s of seriesList) {
     const horizon = s.horizon_days || 28;
@@ -135,13 +136,14 @@ function buildLocalFallbackForecast(seriesList: SeriesInput[]): ForecastResponse
 
     abcDist[abc] = (abcDist[abc] || 0) + 1;
     xyzDist[xyz] = (xyzDist[xyz] || 0) + 1;
-    sumWape += 0.285;
+
+    console.warn(`[Forecast] Fallback for ${s.sku}::${s.warehouse}: ${reason}`);
 
     results.push({
       sku: s.sku,
       warehouse: s.warehouse,
       method_selected: "Trailing Velocity (Fallback)",
-      method_reason: "Computed via deterministic trailing velocity buffer (Python service in offline mode).",
+      method_reason: "Computed via deterministic trailing velocity buffer (no stored batch result for this series).",
       forecast,
       accuracy: {
         wape: 0.285,
@@ -154,7 +156,9 @@ function buildLocalFallbackForecast(seriesList: SeriesInput[]): ForecastResponse
       abc_class: abc,
       xyz_class: xyz,
       policy_hint: "Standard trailing buffer review.",
-      warnings: ["Python statistical forecaster unreachable; rendered using local fallback engine."],
+      warnings: [`Local fallback: ${reason}.`],
+      is_fallback: true,
+      fallback_reason: reason,
     });
   }
 
@@ -162,6 +166,8 @@ function buildLocalFallbackForecast(seriesList: SeriesInput[]): ForecastResponse
     status: "ok",
     version: "fallback-1.0",
     isFallback: true,
+    liveCount: 0,
+    pendingCount: seriesList.length,
     summary: {
       total_series: seriesList.length,
       portfolio_wape: 0.285,
@@ -176,65 +182,10 @@ function buildLocalFallbackForecast(seriesList: SeriesInput[]): ForecastResponse
 }
 
 /**
- * Fetches batch statistical forecast from the Python FastAPI microservice.
- * Incorporates resilient timeout and instant fallback.
- */
-export async function getBatchDemandForecast(
-  seriesList: SeriesInput[],
-  forceRefresh: boolean = false
-): Promise<ForecastResponse> {
-  if (!seriesList || seriesList.length === 0) {
-    return buildLocalFallbackForecast([]);
-  }
-
-  // Cache check (10 min TTL)
-  const cached = globalForCache.forecastCache;
-  const now = Date.now();
-  if (!forceRefresh && cached && now - cached.timestamp < 10 * 60 * 1000) {
-    return cached.data;
-  }
-
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (FORECAST_SERVICE_SECRET) {
-      headers["X-Forecast-Secret"] = FORECAST_SERVICE_SECRET;
-    }
-
-    const res = await fetch(`${PYTHON_SERVICE_URL}/forecast`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ series: seriesList }),
-      signal: controller.signal,
-      cache: "no-store",
-    });
-
-    clearTimeout(timeoutId);
-
-    if (!res.ok) {
-      console.warn(`[ForecastingService] Python service returned HTTP ${res.status}. Using fallback.`);
-      return buildLocalFallbackForecast(seriesList);
-    }
-
-    const data: ForecastResponse = await res.json();
-    data.isFallback = false;
-
-    // Cache successful response
-    globalForCache.forecastCache = { data, timestamp: now };
-    return data;
-  } catch (err: unknown) {
-    console.warn("[ForecastingService] Failed to connect to Python service:", (err as Error)?.message);
-    return buildLocalFallbackForecast(seriesList);
-  }
-}
-
-/**
  * Groups trailing outbound transactions into the microservice's per-SKU,
- * per-warehouse series format. Shared by every caller of
- * `getBatchDemandForecast` so the "is the live service reachable" check
- * always uses the same real transaction history.
+ * per-warehouse series format. Shared by the batch job and every stored-
+ * forecast read (`@/data/repositories/forecasts`) so they build series keys
+ * from the same real transaction history.
  */
 export function buildSeriesInputs(
   transactions: { sku: string; warehouseId: number; direction: "IN" | "OUT"; quantity: number; date: string }[],

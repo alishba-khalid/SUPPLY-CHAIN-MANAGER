@@ -16,7 +16,7 @@ import { getWarehouses } from "@/data/repositories/warehouses";
 import { getSuppliers } from "@/data/repositories/suppliers";
 import { getPurchaseOrders } from "@/data/repositories/procurement";
 import { getSkuWarehouseProjection } from "@/lib/forecasting/demand-forecast";
-import { getBatchDemandForecast, buildSeriesInputs } from "@/lib/forecasting/python-client";
+import { hasStoredForecast } from "@/data/repositories/forecasts";
 import { requireOrgId } from "@/lib/auth";
 import { checkPageRateLimit } from "@/lib/rate-limit";
 
@@ -69,11 +69,9 @@ export default async function SkuProjectionPage({
   if (!projection) notFound();
 
   // Same shared demand math either way (see computeSkuWarehouseProjection) —
-  // this call only tells us whether the live tournament forecaster is
-  // reachable right now, for the mode badge.
-  const unitCostBySku = new Map(products.map((p) => [p.sku, p.unitCost]));
-  const skuTransactions = transactions.filter((t) => t.sku === sku && t.warehouseId === warehouseId);
-  const forecastData = await getBatchDemandForecast(buildSeriesInputs(skuTransactions, unitCostBySku));
+  // this only checks whether THIS series has a stored batch result yet, for
+  // the mode badge. No network call either way.
+  const isLive = await hasStoredForecast(orgId, sku, warehouseId);
 
   const statusLabel =
     projection.actionType === "expedite"
@@ -101,7 +99,7 @@ export default async function SkuProjectionPage({
 
       <div className="space-y-6 p-8">
         <div className="flex flex-wrap items-center gap-2">
-          <ForecastModeBadge isFallback={forecastData.isFallback ?? true} />
+          <ForecastModeBadge liveCount={isLive ? 1 : 0} totalCount={1} />
           <span className="rounded-md border border-(--color-border) bg-(--color-surface-secondary) px-2.5 py-1 text-caption font-medium text-(--color-text-secondary)">
             {statusLabel} · {projection.daysOfCoverCurrent?.toFixed(1) ?? "—"}d cover today
           </span>

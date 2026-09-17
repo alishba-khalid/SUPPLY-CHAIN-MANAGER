@@ -15,7 +15,8 @@ import { getSuppliers } from "@/data/repositories/suppliers";
 import { getPurchaseOrders } from "@/data/repositories/procurement";
 import { getOrgSubscription } from "@/data/repositories/subscription";
 import { getAllSkuWarehouseProjections, type SkuWarehouseProjection } from "@/lib/forecasting/demand-forecast";
-import { getBatchDemandForecast, buildSeriesInputs } from "@/lib/forecasting/python-client";
+import { buildSeriesInputs } from "@/lib/forecasting/python-client";
+import { getStoredForecast } from "@/data/repositories/forecasts";
 import { classifyDemandVariability, type DemandVariabilityClass } from "@/lib/metrics/inventory";
 import { requireOrgId } from "@/lib/auth";
 import { checkPageRateLimit } from "@/lib/rate-limit";
@@ -92,13 +93,14 @@ export default async function ProjectionsGridPage({
     transactions,
   });
 
-  // Same shared demand math as every tile's chart — this call only checks
-  // whether the live tournament forecaster is reachable, and (when it is)
-  // supplies its real xyz_class per series instead of the local CV estimate.
+  // Same shared demand math as every tile's chart — reads the nightly
+  // batch's stored results (no network call), and supplies the batch's
+  // real xyz_class per series where one is stored, instead of the local
+  // CV estimate.
   const unitCostBySku = new Map(products.map((p) => [p.sku, p.unitCost]));
-  const forecastData = await getBatchDemandForecast(buildSeriesInputs(transactions, unitCostBySku));
+  const forecastData = await getStoredForecast(orgId, buildSeriesInputs(transactions, unitCostBySku));
   const liveXyzBySeries = new Map(
-    forecastData.results.map((r) => [`${r.sku}::${r.warehouse}`, r.xyz_class])
+    forecastData.results.filter((r) => !r.is_fallback).map((r) => [`${r.sku}::${r.warehouse}`, r.xyz_class])
   );
 
   const abcBySeries = new Map(inventoryTable.rows.map((r) => [`${r.sku}::${r.warehouseId}`, r.abcClass]));
@@ -161,7 +163,7 @@ export default async function ProjectionsGridPage({
         ) : (
           <>
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <ForecastModeBadge isFallback={forecastData.isFallback ?? true} />
+              <ForecastModeBadge liveCount={forecastData.liveCount} totalCount={forecastData.liveCount + forecastData.pendingCount} />
               <span className="text-caption text-(--color-text-muted)">
                 {filtered.length} of {entries.length} SKU × warehouse positions
               </span>

@@ -162,3 +162,37 @@ model RateLimitBucket {
   @@map("rate_limit_buckets")
 }
 
+// Batch-computed forecasting output — the model tournament (rolling-origin
+// CV across 9 candidate models) is too slow to run on a page request (see
+// docs/metrics.md and the forecasting-service README): a nightly batch job
+// writes one row per SKU x warehouse here, and every read path (dashboard,
+// forecast accuracy, stockout projections) reads only this table. Auxiliary
+// cache table, same shape as RateLimitBucket/ImportMapping above — no FK to
+// Product/Warehouse, since a stale row for a since-deleted SKU is harmless
+// and simply won't be requested.
+model ForecastResult {
+  id             Int      @id @default(autoincrement())
+  orgId          String   @map("org_id")
+  sku            String
+  warehouseId    Int      @map("warehouse_id")
+  methodSelected String   @map("method_selected")
+  methodReason   String   @map("method_reason")
+  forecastJson   Json     @map("forecast_json")
+  wape           Float
+  mape           Float?
+  bias           Float
+  biasPct        Float    @map("bias_pct")
+  rmse           Float
+  mase           Float
+  abcClass       String   @map("abc_class")
+  xyzClass       String   @map("xyz_class")
+  policyHint     String   @map("policy_hint")
+  warningsJson   Json     @map("warnings_json")
+  computedAt     DateTime @map("computed_at")
+
+  @@unique([orgId, sku, warehouseId])
+  @@index([orgId])
+  @@index([orgId, computedAt])
+  @@map("forecast_results")
+}
+

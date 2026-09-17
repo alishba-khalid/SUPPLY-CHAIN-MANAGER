@@ -4,7 +4,8 @@ import { ForecastAccuracyClient } from "@/components/domain/forecast-accuracy-cl
 import { getInventoryTransactions } from "@/data/repositories/inventory";
 import { getProducts } from "@/data/repositories/products";
 import { getWarehouses } from "@/data/repositories/warehouses";
-import { getBatchDemandForecast, type SeriesInput } from "@/lib/forecasting/python-client";
+import { getStoredForecast, getLastForecastComputedAt } from "@/data/repositories/forecasts";
+import type { SeriesInput } from "@/lib/forecasting/python-client";
 import { requireOrgId } from "@/lib/auth";
 import { checkPageRateLimit } from "@/lib/rate-limit";
 import { Clock } from "lucide-react";
@@ -69,8 +70,12 @@ export default async function ForecastAccuracyPage() {
     };
   });
 
-  // Call the forecasting client (which connects to Python service or falls back seamlessly)
-  const forecastData = await getBatchDemandForecast(seriesList);
+  // Read the last batch's stored results — no network call, no timeout.
+  // Series without a stored row fall back individually (see getStoredForecast).
+  const [forecastData, lastComputedAt] = await Promise.all([
+    getStoredForecast(orgId, seriesList),
+    getLastForecastComputedAt(orgId),
+  ]);
 
   return (
     <div>
@@ -83,6 +88,7 @@ export default async function ForecastAccuracyPage() {
         forecastData={forecastData}
         products={products}
         warehouses={warehouses}
+        lastComputedAt={lastComputedAt ? lastComputedAt.toISOString() : null}
       />
     </div>
   );
