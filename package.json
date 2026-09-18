@@ -7,6 +7,7 @@
     "postinstall": "prisma generate",
     "build": "next build && node scripts/check-no-placeholder.mjs",
     "start": "next start",
+    "verify:live": "node scripts/check-live-placeholder.mjs",
     "lint": "eslint",
     "test": "tsx --test src/**/__tests__/*.test.ts",
     "test:verify": "tsx prisma/verify-canonical.ts",
