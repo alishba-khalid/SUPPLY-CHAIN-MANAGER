@@ -9,11 +9,18 @@ const PRODUCT_LINKS = [
   { href: "/dashboard/overview", label: "Open dashboard" },
 ];
 
+const COMPANY_LINKS = [
+  { href: "/about", label: "About" },
+  { href: "/privacy", label: "Privacy" },
+  { href: "/terms", label: "Terms" },
+  { href: "/security", label: "Security" },
+];
+
 export function MarketingFooter() {
   return (
     <footer className="border-t border-(--color-border) bg-(--color-surface)">
       <div className="mx-auto max-w-6xl px-6 py-12">
-        <div className="grid grid-cols-1 gap-8 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-8 sm:grid-cols-4">
           <div>
             <div className="flex items-center gap-2">
               <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-(--color-brand) text-white">
@@ -27,6 +34,19 @@ export function MarketingFooter() {
             <p className="text-caption font-semibold uppercase tracking-wide text-(--color-text-muted)">Product</p>
             <ul className="mt-3 space-y-2">
               {PRODUCT_LINKS.map((link) => (
+                <li key={link.href}>
+                  <Link href={link.href} className="text-body text-(--color-text-secondary) hover:text-(--color-text-primary)">
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div>
+            <p className="text-caption font-semibold uppercase tracking-wide text-(--color-text-muted)">Company</p>
+            <ul className="mt-3 space-y-2">
+              {COMPANY_LINKS.map((link) => (
                 <li key={link.href}>
                   <Link href={link.href} className="text-body text-(--color-text-secondary) hover:text-(--color-text-primary)">
                     {link.label}

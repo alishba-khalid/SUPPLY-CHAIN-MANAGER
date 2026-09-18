@@ -3,6 +3,18 @@ import type { Recommendation } from "@/types/supply-chain";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 
+/**
+ * estimatedImpact is always a cost figure today (capital tied up, spend at
+ * risk) — never a savings or recovered-value number — so it must read as
+ * red/amber, never brand teal/green. Tone follows priority severity.
+ */
+const IMPACT_TONE_CLASS: Record<Recommendation["priority"], string> = {
+  critical: "text-(--color-critical)",
+  high: "text-(--color-critical)",
+  medium: "text-(--color-warning)",
+  low: "text-(--color-warning)",
+};
+
 export function RecommendationCard({ recommendation, actions }: { recommendation: Recommendation; actions?: ReactNode }) {
   return (
     <Card className="p-4">
@@ -14,7 +26,9 @@ export function RecommendationCard({ recommendation, actions }: { recommendation
           </div>
           <p className="mt-1 text-small text-(--color-text-secondary)">{recommendation.description}</p>
           {recommendation.estimatedImpact && (
-            <p className="mt-1 text-small font-medium text-(--color-brand)">{recommendation.estimatedImpact}</p>
+            <p className={`mt-1 text-small font-medium ${IMPACT_TONE_CLASS[recommendation.priority]}`}>
+              {recommendation.estimatedImpact}
+            </p>
           )}
         </div>
       </div>

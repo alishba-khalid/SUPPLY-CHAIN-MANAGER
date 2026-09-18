@@ -8,9 +8,10 @@ import { TrendChart } from "@/components/domain/trend-chart";
 import { ActivityItem } from "@/components/domain/activity-item";
 import { LeadTimeWarningBanner } from "@/components/domain/lead-time-warning-banner";
 import { getOverviewDashboardData } from "@/data/repositories/dashboard";
-import { requireOrgId } from "@/lib/auth";
+import { requireOrgId, isDemoOrg } from "@/lib/auth";
 import { healthScoreTone } from "@/lib/metrics/health";
 import { History } from "lucide-react";
+import { currentUser } from "@clerk/nextjs/server";
 
 const HEALTH_TOOLTIPS = {
   overall:
@@ -29,6 +30,8 @@ const HEALTH_TOOLTIPS = {
 
 export default async function OverviewPage() {
   const orgId = await requireOrgId();
+  const isDemo = isDemoOrg(orgId);
+  const userName = isDemo ? "Demo Workspace" : (await currentUser())?.firstName ?? undefined;
 
   const {
     products,
@@ -44,7 +47,7 @@ export default async function OverviewPage() {
 
   return (
     <div>
-      <OverviewHeader userName="Sarah" />
+      <OverviewHeader userName={userName} />
 
       <div className="space-y-8 p-8">
         <section className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">

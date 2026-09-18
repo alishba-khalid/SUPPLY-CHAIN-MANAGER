@@ -9,7 +9,7 @@ function getGreetingForHour(hour: number): string {
   return "Good evening";
 }
 
-export function OverviewHeader({ userName = "Sarah" }: { userName?: string }) {
+export function OverviewHeader({ userName }: { userName?: string | null }) {
   const [greeting, setGreeting] = useState(() => {
     return getGreetingForHour(new Date().getHours());
   });
@@ -20,7 +20,7 @@ export function OverviewHeader({ userName = "Sarah" }: { userName?: string }) {
 
   return (
     <PageHeader
-      title={`${greeting}, ${userName}.`}
+      title={userName ? `${greeting}, ${userName}.` : `${greeting}.`}
       description="Here's what your Supply Chain Manager is watching right now."
     />
   );

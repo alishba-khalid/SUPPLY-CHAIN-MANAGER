@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronsLeft, ChevronsRight, Boxes, Globe } from "lucide-react";
+import { ChevronsLeft, ChevronsRight, Boxes } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV_ITEMS, BOTTOM_NAV_ITEMS } from "./nav-items";
 
@@ -56,7 +56,7 @@ export function Sidebar() {
         {!isCollapsed && <span className="text-body font-semibold text-(--color-text-primary)">Supply Chain Manager</span>}
       </Link>
 
-      <nav className="flex-1 space-y-0.5 overflow-y-auto p-2">
+      <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto p-2">
         {NAV_ITEMS.map((item) => {
           const active = pathname.startsWith(item.href);
           const Icon = item.icon;
@@ -96,14 +96,6 @@ export function Sidebar() {
             </Link>
           );
         })}
-        <Link
-          href="/"
-          title={isCollapsed ? "Exit to Website" : undefined}
-          className="flex items-center gap-3 rounded-md px-3 py-2 text-body font-medium text-(--color-text-secondary) transition-colors hover:bg-(--color-surface-secondary) hover:text-(--color-brand)"
-        >
-          <Globe size={18} className="shrink-0" />
-          {!isCollapsed && <span>Exit to Website</span>}
-        </Link>
         <button
           onClick={toggle}
           className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-small text-(--color-text-muted) hover:bg-(--color-surface-secondary) hover:text-(--color-text-primary)"

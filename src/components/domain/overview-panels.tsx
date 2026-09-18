@@ -173,7 +173,7 @@ export function OverviewPanels({
                   actions={
                     <>
                       <Button
-                        variant="ghost"
+                        variant="primary"
                         size="sm"
                         onClick={() =>
                           setDetail({
@@ -213,7 +213,7 @@ export function OverviewPanels({
                   actions={
                     <>
                       <Button
-                        variant="ghost"
+                        variant="primary"
                         size="sm"
                         onClick={() =>
                           setDetail({
