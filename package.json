@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev -p 3005",
     "postinstall": "prisma generate",
-    "build": "next build",
+    "build": "next build && node scripts/check-no-placeholder.mjs",
     "start": "next start",
     "lint": "eslint",
     "test": "tsx --test src/**/__tests__/*.test.ts",

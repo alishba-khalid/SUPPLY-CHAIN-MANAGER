@@ -45,10 +45,8 @@ export default function SecurityPage() {
             account/session management is handled by Clerk. We don&apos;t operate our own physical servers; all
             three providers are established infrastructure vendors we rely on rather than build ourselves.
           </p>
-          <p className="rounded-md border border-(--color-border) bg-(--color-surface-secondary) px-3 py-2 text-small text-(--color-text-muted)">
-            [PLACEHOLDER: confirm the specific hosting region(s)/country for the Vercel deployment and the Neon
-            database project, so we can state data residency precisely.]
-          </p>
+          {/* TODO: add the specific Vercel deployment region(s) and Neon project
+              region here once confirmed, for precise data-residency wording. */}
         </Section>
 
         <Section title="Encryption in transit">
@@ -69,15 +67,13 @@ export default function SecurityPage() {
         <Section title="Who can access customer data">
           <p>
             Each organization&apos;s data is logically isolated from other organizations in the database. Access to
-            the production database and infrastructure is limited to engineering staff who need it to operate and
-            support the Service, authenticated through our infrastructure providers&apos; own account controls
-            rather than shared credentials.
+            the production database and infrastructure is limited to the people who operate and support the Service,
+            authenticated through our infrastructure providers&apos; own account controls rather than shared
+            credentials. We do not sell or share your operational data with third parties.
           </p>
-          <p className="rounded-md border border-(--color-border) bg-(--color-surface-secondary) px-3 py-2 text-small text-(--color-text-muted)">
-            [PLACEHOLDER: confirm current internal access-control specifics to publish here — e.g. how many people
-            have production access, whether MFA is enforced on infrastructure accounts, and whether access is
-            logged/audited.]
-          </p>
+          {/* TODO: once there's a real team/process to describe, add specifics
+              here — headcount with production access, whether MFA is enforced
+              on infrastructure accounts, and whether access is logged/audited. */}
         </Section>
 
         <Section title="Data deletion and export">
@@ -86,12 +82,10 @@ export default function SecurityPage() {
             <a href={`mailto:${CONTACT_EMAIL}`} className="font-medium text-(--color-brand) hover:underline">
               {CONTACT_EMAIL}
             </a>
-            . Deletion removes your organization&apos;s records from the production database.
+            . We&apos;ll confirm the request and let you know once it&apos;s complete.
           </p>
-          <p className="rounded-md border border-(--color-border) bg-(--color-surface-secondary) px-3 py-2 text-small text-(--color-text-muted)">
-            [PLACEHOLDER: confirm the committed turnaround time for deletion/export requests, and whether backups are
-            purged on a delay after deletion (and if so, how long).]
-          </p>
+          {/* TODO: commit to and publish a specific turnaround SLA once decided,
+              and note whether backups are purged on a delay after deletion. */}
         </Section>
 
         <Section title="Demo environment">
@@ -110,19 +104,13 @@ export default function SecurityPage() {
             <li>Neon — database hosting</li>
             <li>Clerk — authentication and account management</li>
           </ul>
-          <p className="rounded-md border border-(--color-border) bg-(--color-surface-secondary) px-3 py-2 text-small text-(--color-text-muted)">
-            [PLACEHOLDER: update this list if/when additional subprocessors are added — e.g. an email/SMS provider
-            for alerts or a payments processor.]
-          </p>
+          {/* TODO: add to this list if/when a new subprocessor is wired up,
+              e.g. an email/SMS provider for alerts or a payments processor. */}
         </Section>
 
-        <Section title="Certifications">
-          <p className="rounded-md border border-(--color-border) bg-(--color-surface-secondary) px-3 py-2 text-small text-(--color-text-muted)">
-            [PLACEHOLDER: list any completed third-party security certifications (e.g. SOC 2 Type II, ISO 27001) here
-            once obtained. Remove this section entirely if none apply — do not state a certification status either
-            way without confirming it first.]
-          </p>
-        </Section>
+        {/* Certifications section intentionally omitted: no third-party
+            security certification (SOC 2, ISO 27001, etc.) has been confirmed.
+            Add the section back only with a verified certification to list. */}
 
         <Section title="Reporting a vulnerability">
           <p>

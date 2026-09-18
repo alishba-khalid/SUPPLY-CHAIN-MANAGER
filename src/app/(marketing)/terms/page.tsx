@@ -6,11 +6,16 @@ const TITLE = `Terms of Service | ${SITE_NAME}`;
 const DESCRIPTION = `The terms governing use of ${SITE_NAME}.`;
 const LAST_UPDATED = "September 18, 2026";
 
+// TODO: this page is unfinished — it has no Governing Law section because no
+// jurisdiction has been confirmed, and no registered legal entity/address.
+// Have counsel review before relying on it. It's deliberately noindex'd and
+// left out of sitemap.ts until the Governing Law section is restored with a
+// real jurisdiction.
 export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
   alternates: { canonical: `${SITE_URL}/terms` },
-  robots: { index: true, follow: true },
+  robots: { index: false, follow: false },
   openGraph: {
     title: TITLE,
     description: DESCRIPTION,
@@ -35,10 +40,6 @@ export default function TermsPage() {
       <p className="text-small font-medium uppercase tracking-wide text-(--color-text-muted)">Legal</p>
       <h1 className="mt-2 text-h1 text-(--color-text-primary)">Terms of Service</h1>
       <p className="mt-2 text-small text-(--color-text-muted)">Last updated: {LAST_UPDATED}</p>
-      <p className="mt-4 rounded-md border border-(--color-border) bg-(--color-surface-secondary) px-3 py-2 text-small text-(--color-text-muted)">
-        [PLACEHOLDER: this draft has not been reviewed by a lawyer. Have counsel review before relying on it,
-        and fill in the bracketed items below.]
-      </p>
 
       <div className="mt-10 space-y-10">
         <Section title="1. Acceptance of terms">
@@ -130,26 +131,19 @@ export default function TermsPage() {
           <p>
             To the maximum extent permitted by law, {SITE_NAME} will not be liable for indirect, incidental,
             special, or consequential damages, or for lost profits or data, arising from your use of the Service.
-          </p>
-          <p className="rounded-md border border-(--color-border) bg-(--color-surface-secondary) px-3 py-2 text-small text-(--color-text-muted)">
-            [PLACEHOLDER: confirm a liability cap (e.g. fees paid in the preceding 12 months) with counsel.]
-          </p>
-        </Section>
-
-        <Section title="11. Governing law">
-          <p className="rounded-md border border-(--color-border) bg-(--color-surface-secondary) px-3 py-2 text-small text-(--color-text-muted)">
-            [PLACEHOLDER: state/country whose law governs these Terms, and the venue for disputes.]
+            Our total liability for any claim arising from these Terms or the Service will not exceed the amount you
+            paid us in the 12 months before the claim arose.
           </p>
         </Section>
 
-        <Section title="12. Changes to these terms">
+        <Section title="11. Changes to these terms">
           <p>
             We may update these Terms from time to time. Material changes will be reflected by updating the
             &quot;Last updated&quot; date above.
           </p>
         </Section>
 
-        <Section title="13. Contact">
+        <Section title="12. Contact">
           <p>
             Questions about these Terms? Email{" "}
             <a href={`mailto:${CONTACT_EMAIL}`} className="font-medium text-(--color-brand) hover:underline">
@@ -157,9 +151,7 @@ export default function TermsPage() {
             </a>
             .
           </p>
-          <p className="rounded-md border border-(--color-border) bg-(--color-surface-secondary) px-3 py-2 text-small text-(--color-text-muted)">
-            [PLACEHOLDER: registered legal entity name and mailing address.]
-          </p>
+          {/* TODO: add registered legal entity name and mailing address once confirmed. */}
         </Section>
       </div>
     </div>

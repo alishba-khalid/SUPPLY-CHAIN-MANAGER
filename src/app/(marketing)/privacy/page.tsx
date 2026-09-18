@@ -90,10 +90,8 @@ export default function PrivacyPage() {
             for infrastructure and encryption details. Each organization&apos;s data is logically isolated from
             other organizations.
           </p>
-          <p className="rounded-md border border-(--color-border) bg-(--color-surface-secondary) px-3 py-2 text-small text-(--color-text-muted)">
-            [PLACEHOLDER: specific data region / country of storage — please confirm the Vercel deployment region(s)
-            and Neon project region so we can state data residency accurately.]
-          </p>
+          {/* TODO: add the specific Vercel deployment region(s) and Neon
+              project region here once confirmed. */}
         </Section>
 
         <Section title="Who we share data with">
@@ -102,10 +100,9 @@ export default function PrivacyPage() {
             Vercel (application hosting and compute), Neon (database hosting), and Clerk (authentication). We do not
             share your operational data with anyone else, except where required by law.
           </p>
-          <p className="rounded-md border border-(--color-border) bg-(--color-surface-secondary) px-3 py-2 text-small text-(--color-text-muted)">
-            [PLACEHOLDER: list any additional subprocessors once wired up — e.g. an email/SMS provider for alerts, an
-            analytics tool, or a payments processor — and keep this list in sync with the Security page.]
-          </p>
+          {/* TODO: keep this list in sync with the Security page's
+              Subprocessors section if a new one is added (e.g. an
+              email/SMS provider for alerts, or a payments processor). */}
         </Section>
 
         <Section title="Data retention and deletion">
@@ -115,12 +112,9 @@ export default function PrivacyPage() {
             <a href={`mailto:${CONTACT_EMAIL}`} className="font-medium text-(--color-brand) hover:underline">
               {CONTACT_EMAIL}
             </a>
-            .
+            . We&apos;ll confirm the request and let you know once it&apos;s complete.
           </p>
-          <p className="rounded-md border border-(--color-border) bg-(--color-surface-secondary) px-3 py-2 text-small text-(--color-text-muted)">
-            [PLACEHOLDER: confirm the turnaround time we commit to for deletion and export requests, e.g. &quot;within
-            30 days.&quot;]
-          </p>
+          {/* TODO: commit to and publish a specific turnaround SLA once decided. */}
         </Section>
 
         <Section title="Your rights">
@@ -153,10 +147,8 @@ export default function PrivacyPage() {
             </a>
             .
           </p>
-          <p className="rounded-md border border-(--color-border) bg-(--color-surface-secondary) px-3 py-2 text-small text-(--color-text-muted)">
-            [PLACEHOLDER: registered legal entity name and mailing address, and governing-law jurisdiction, to include
-            on this page.]
-          </p>
+          {/* TODO: add registered legal entity name, mailing address, and
+              governing-law jurisdiction once confirmed. */}
         </Section>
       </div>
     </div>

@@ -9,8 +9,9 @@ const PRODUCT_LINKS = [
   { href: "/dashboard/overview", label: "Open dashboard" },
 ];
 
+// /about is intentionally not linked here — it has no Founder section yet
+// (see src/app/(marketing)/about/page.tsx) and is noindex'd until it does.
 const COMPANY_LINKS = [
-  { href: "/about", label: "About" },
   { href: "/privacy", label: "Privacy" },
   { href: "/terms", label: "Terms" },
   { href: "/security", label: "Security" },
