@@ -36,7 +36,7 @@ GIT_COMMIT_SHA = os.environ.get("RENDER_GIT_COMMIT") or os.environ.get("VERCEL_G
 GIT_COMMIT_REF = os.environ.get("RENDER_GIT_BRANCH") or os.environ.get("VERCEL_GIT_COMMIT_REF")
 
 # Comma-separated list of exact origins allowed to call this service from a
-# browser, e.g. "https://supply-chain-manager-mocha.vercel.app,http://localhost:3005".
+# browser, e.g. "https://supplychainmanager.app,http://localhost:3005".
 # Defaults to local dev only — set this in the host's env for every deployed
 # environment so the wildcard never ships to production.
 CORS_ALLOWED_ORIGINS = [

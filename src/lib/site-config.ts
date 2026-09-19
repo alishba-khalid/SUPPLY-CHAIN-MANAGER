@@ -8,8 +8,12 @@
  */
 
 export const SITE_NAME = "Supply Chain Manager";
-export const SITE_URL = "https://supplychainmanager.io";
-export const CONTACT_EMAIL = "hello@supplychainmanager.io";
+// Single source of truth for the site's canonical URL. Everything that
+// needs it (canonical tags, og:url, sitemap.xml, robots.txt, structured
+// data, metadataBase) imports SITE_URL from here rather than hardcoding
+// the domain — override via NEXT_PUBLIC_SITE_URL for previews/local dev.
+export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://supplychainmanager.app";
+export const CONTACT_EMAIL = "hello@supplychainmanager.app";
 export const PRIMARY_KEYWORD = "supply chain software for distributors";
 export const TAGLINE = "Your supply chain just hired a manager.";
 
@@ -102,9 +106,11 @@ export const PRICING_TIERS: PricingTier[] = [
 ];
 
 /**
- * NEEDS REAL VALUES: brand/company name, live domain, contact email,
- * primary keyword, and pricing were not provided when this was built and
- * are placeholders written to be plausible, not fabricated as verified
- * facts. Update this file before launch — every marketing page, the
- * sitemap, robots.txt, and structured data all read from here.
+ * NEEDS REAL VALUES: brand/company name, contact email, primary keyword,
+ * and pricing were not provided when this was built and are placeholders
+ * written to be plausible, not fabricated as verified facts. SITE_URL is
+ * the one confirmed real value — supplychainmanager.app is purchased and
+ * pointed at Vercel. Update the rest of this file before launch — every
+ * marketing page, the sitemap, robots.txt, and structured data all read
+ * from here.
  */

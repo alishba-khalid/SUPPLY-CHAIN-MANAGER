@@ -1,6 +1,6 @@
 # Supply Chain Manager
 
-## [→ Live demo — no signup required](https://supply-chain-manager-mocha.vercel.app/dashboard/overview?demo=true)
+## [→ Live demo — no signup required](https://supplychainmanager.app/dashboard/overview?demo=true)
 
 Opens directly into a populated dashboard pre-loaded with a seeded 4-warehouse dataset. Nothing to create, nothing to configure. Writes (1-click orders, stock adjustments, imports) are intercepted as simulations in this mode — the canonical data stays pristine for the next visitor.
 

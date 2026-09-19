@@ -16,7 +16,7 @@
  *   LIVE_URL=https://your-domain node scripts/check-live-placeholder.mjs
  */
 const baseUrl =
-  process.argv[2] || process.env.LIVE_URL || "https://supply-chain-manager-mocha.vercel.app";
+  process.argv[2] || process.env.LIVE_URL || "https://supplychainmanager.app";
 
 const ROUTES = ["/", "/about", "/privacy", "/terms", "/security"];
 
