@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Boxes } from "lucide-react";
+import { Logo } from "@/components/Logo";
 import { SITE_NAME, CONTACT_EMAIL } from "@/lib/site-config";
 
 const PRODUCT_LINKS = [
@@ -25,7 +25,7 @@ export function MarketingFooter() {
           <div>
             <div className="flex items-center gap-2">
               <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-(--color-brand) text-white">
-                <Boxes size={16} />
+                <Logo size={16} />
               </div>
               <span className="text-body font-semibold text-(--color-text-primary)">{SITE_NAME}</span>
             </div>

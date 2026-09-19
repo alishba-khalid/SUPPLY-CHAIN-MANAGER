@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronsLeft, ChevronsRight, Boxes } from "lucide-react";
+import { ChevronsLeft, ChevronsRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Logo } from "@/components/Logo";
 import { NAV_ITEMS, BOTTOM_NAV_ITEMS } from "./nav-items";
 
 const STORAGE_KEY = "scm.sidebar.collapsed";
@@ -51,7 +52,7 @@ export function Sidebar() {
         className="flex h-14 items-center gap-2 border-b border-(--color-border) px-4 hover:bg-(--color-surface-secondary) transition-colors"
       >
         <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-(--color-brand) text-white">
-          <Boxes size={16} />
+          <Logo size={16} />
         </div>
         {!isCollapsed && <span className="text-body font-semibold text-(--color-text-primary)">Supply Chain Manager</span>}
       </Link>

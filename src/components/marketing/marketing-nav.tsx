@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Boxes, Menu, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
+import { Logo } from "@/components/Logo";
 import { SITE_NAME } from "@/lib/site-config";
 
 const LINKS = [
@@ -21,7 +22,7 @@ export function MarketingNav() {
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
         <Link href="/" className="flex items-center gap-2">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-(--color-brand) text-white">
-            <Boxes size={18} />
+            <Logo size={18} />
           </div>
           <span className="text-body font-semibold text-(--color-text-primary)">{SITE_NAME}</span>
         </Link>
