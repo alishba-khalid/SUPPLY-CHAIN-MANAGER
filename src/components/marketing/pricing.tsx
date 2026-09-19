@@ -132,7 +132,7 @@ export function Pricing() {
                   </a>
                 ) : (
                   <Link
-                    href="/dashboard/overview"
+                    href="/sign-up"
                     className={buttonVariants({
                       variant: tier.highlighted ? "primary" : "secondary",
                       size: "lg",

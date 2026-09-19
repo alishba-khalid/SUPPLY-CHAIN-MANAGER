@@ -38,6 +38,12 @@ export default clerkMiddleware(async (auth, req) => {
     const url = new URL("/select-org", req.url);
     return NextResponse.redirect(url);
   }
+}, {
+  // Without these, auth.protect()'s redirectToSignIn() falls back to
+  // Clerk's hosted Account Portal (<instance>.accounts.dev/sign-in)
+  // instead of this app's own branded /sign-in route.
+  signInUrl: "/sign-in",
+  signUpUrl: "/sign-up",
 });
 
 export const config = {

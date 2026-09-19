@@ -9,7 +9,7 @@ export function FinalCta() {
         <h2 className="text-h1 text-white">Your supply chain just hired a manager.</h2>
         <p className="mt-3 text-body-lg text-white/80">{TRIAL_DAYS}-day free trial. No credit card required.</p>
         <div className="mt-8">
-          <Link href="/dashboard/overview" className={buttonVariants({ variant: "secondary", size: "lg" })}>
+          <Link href="/sign-up" className={buttonVariants({ variant: "secondary", size: "lg" })}>
             Start free trial
           </Link>
         </div>

@@ -22,7 +22,7 @@ export function Hero() {
           </p>
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Link href="/dashboard/overview" className={buttonVariants({ variant: "primary", size: "lg", className: "w-full sm:w-auto" })}>
+            <Link href="/sign-up" className={buttonVariants({ variant: "primary", size: "lg", className: "w-full sm:w-auto" })}>
               Start free trial
               <ArrowRight size={16} />
             </Link>

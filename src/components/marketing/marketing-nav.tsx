@@ -40,7 +40,7 @@ export function MarketingNav() {
         </nav>
 
         <div className="hidden items-center gap-2 md:flex">
-          <Link href="/dashboard/profile" className={buttonVariants({ variant: "ghost", size: "md" })}>
+          <Link href="/sign-in" className={buttonVariants({ variant: "ghost", size: "md" })}>
             Sign in
           </Link>
           <Link href="/dashboard/overview" className={buttonVariants({ variant: "primary", size: "md" })}>
@@ -74,7 +74,7 @@ export function MarketingNav() {
           </nav>
           <div className="mt-3 flex flex-col gap-2 border-t border-(--color-border) pt-3">
             <Link
-              href="/dashboard/profile"
+              href="/sign-in"
               onClick={() => setOpen(false)}
               className={buttonVariants({ variant: "ghost", size: "md", className: "w-full" })}
             >
