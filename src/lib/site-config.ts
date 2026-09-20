@@ -13,7 +13,7 @@ export const SITE_NAME = "Supply Chain Manager";
 // data, metadataBase) imports SITE_URL from here rather than hardcoding
 // the domain — override via NEXT_PUBLIC_SITE_URL for previews/local dev.
 export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://supplychainmanager.app";
-export const CONTACT_EMAIL = "hello@supplychainmanager.app";
+export const CONTACT_EMAIL = "alishbakhalid76@gmail.com";
 export const PRIMARY_KEYWORD = "supply chain software for distributors";
 export const TAGLINE = "Your supply chain just hired a manager.";
 
