@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
+import { DataImportEmptyState } from "@/components/domain/data-import-empty-state";
 import { InventorySummaryCards } from "@/components/domain/inventory-summary-cards";
 import { LeadTimeWarningBanner } from "@/components/domain/lead-time-warning-banner";
 import { InventoryFilters } from "@/components/domain/inventory-filters";
@@ -94,6 +95,8 @@ export default async function InventoryPage({
     sortDir: sortDirParam,
   };
 
+  const hasData = products.length > 0 || table.rows.length > 0;
+
   return (
     <div>
       <PageHeader
@@ -103,7 +106,9 @@ export default async function InventoryPage({
       />
 
       <div className="space-y-6 p-8">
-        {!table.hasAnyTransactionHistory ? (
+        {!hasData ? (
+          <DataImportEmptyState />
+        ) : !table.hasAnyTransactionHistory ? (
           <EmptyState
             icon={<PackageSearch size={18} />}
             title="No transaction history yet."

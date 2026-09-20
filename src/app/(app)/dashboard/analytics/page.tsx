@@ -1,6 +1,7 @@
 import { PageHeader } from "@/components/ui/page-header";
 import { ChartCard } from "@/components/ui/chart-card";
 import { TrendChart } from "@/components/domain/trend-chart";
+import { DataImportEmptyState } from "@/components/domain/data-import-empty-state";
 import { getPurchaseOrders } from "@/data/repositories/procurement";
 import { getInventoryTransactions } from "@/data/repositories/inventory";
 import {
@@ -18,6 +19,8 @@ export default async function AnalyticsPage() {
     getPurchaseOrders(orgId),
     getInventoryTransactions(orgId),
   ]);
+
+  const hasData = purchaseOrders.length > 0 || transactions.length > 0;
 
   // Compute Weekly Trend Datasets
   const spendData = procurementSpendTrend(purchaseOrders);
@@ -49,35 +52,41 @@ export default async function AnalyticsPage() {
         description="Historical trends across inventory movement, procurement spend, volume, and supplier reliability."
       />
 
-      <div className="grid grid-cols-1 gap-6 p-8 md:grid-cols-2">
-        <ChartCard
-          title="Procurement Spend Trend"
-          description="Weekly spend across received purchase orders (trailing 12 weeks)"
-        >
-          <TrendChart series={spendSeries} format="currency" />
-        </ChartCard>
+      {!hasData ? (
+        <div className="p-8">
+          <DataImportEmptyState />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-6 p-8 md:grid-cols-2">
+          <ChartCard
+            title="Procurement Spend Trend"
+            description="Weekly spend across received purchase orders (trailing 12 weeks)"
+          >
+            <TrendChart series={spendSeries} format="currency" />
+          </ChartCard>
 
-        <ChartCard
-          title="On-Time Delivery Rate Trend"
-          description="Weekly percentage of purchase orders received on or before their expected date"
-        >
-          <TrendChart series={onTimeSeries} format="percent" />
-        </ChartCard>
+          <ChartCard
+            title="On-Time Delivery Rate Trend"
+            description="Weekly percentage of purchase orders received on or before their expected date"
+          >
+            <TrendChart series={onTimeSeries} format="percent" />
+          </ChartCard>
 
-        <ChartCard
-          title="Purchase Order Volume Trend"
-          description="Weekly quantity of items ordered in outbound purchasing sheets"
-        >
-          <TrendChart series={volumeSeries} format="units" />
-        </ChartCard>
+          <ChartCard
+            title="Purchase Order Volume Trend"
+            description="Weekly quantity of items ordered in outbound purchasing sheets"
+          >
+            <TrendChart series={volumeSeries} format="units" />
+          </ChartCard>
 
-        <ChartCard
-          title="Inventory Movement Trend"
-          description="Weekly inbound (IN) vs outbound (OUT) stock movement transaction volumes"
-        >
-          <TrendChart series={movementSeries} format="units" />
-        </ChartCard>
-      </div>
+          <ChartCard
+            title="Inventory Movement Trend"
+            description="Weekly inbound (IN) vs outbound (OUT) stock movement transaction volumes"
+          >
+            <TrendChart series={movementSeries} format="units" />
+          </ChartCard>
+        </div>
+      )}
     </div>
   );
 }

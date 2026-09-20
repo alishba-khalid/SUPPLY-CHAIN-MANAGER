@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, ReactNode, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { UploadCloud, Building2, ClipboardList, CreditCard } from "lucide-react";
@@ -10,21 +11,24 @@ import { cn } from "@/lib/utils";
 interface SettingsTabsProps {
   orgName: string;
   orgId: string;
-  importer: ReactNode;
+  importer?: ReactNode;
   billingView: ReactNode;
 }
 
 export function SettingsTabs({ orgName, orgId, importer, billingView }: SettingsTabsProps) {
   const searchParams = useSearchParams();
-  const initialTab = (searchParams.get("tab") as "import" | "billing" | "org") || "import";
-  const [activeTab, setActiveTab] = useState<"import" | "billing" | "org">(initialTab);
+  const router = useRouter();
+  const initialTab = (searchParams.get("tab") as "billing" | "org") || "billing";
+  const [activeTab, setActiveTab] = useState<"billing" | "org">(initialTab === "org" ? "org" : "billing");
 
   useEffect(() => {
-    const tabParam = searchParams.get("tab") as "import" | "billing" | "org" | null;
-    if (tabParam && (tabParam === "import" || tabParam === "billing" || tabParam === "org")) {
+    const tabParam = searchParams.get("tab");
+    if (tabParam === "import") {
+      router.replace("/dashboard/import");
+    } else if (tabParam === "org" || tabParam === "billing") {
       setActiveTab(tabParam);
     }
-  }, [searchParams]);
+  }, [searchParams, router]);
 
   return (
     <div className="space-y-6">
@@ -42,18 +46,13 @@ export function SettingsTabs({ orgName, orgId, importer, billingView }: Settings
           <CreditCard size={16} />
           Subscription & Billing
         </button>
-        <button
-          onClick={() => setActiveTab("import")}
-          className={cn(
-            "flex items-center gap-2 px-4 py-2.5 text-body font-medium transition-colors border-b-2 -mb-[2px]",
-            activeTab === "import"
-              ? "border-(--color-brand) text-(--color-brand)"
-              : "border-transparent text-(--color-text-secondary) hover:text-(--color-text-primary)"
-          )}
+        <Link
+          href="/dashboard/import"
+          className="flex items-center gap-2 px-4 py-2.5 text-body font-medium transition-colors border-b-2 -mb-[2px] border-transparent text-(--color-text-secondary) hover:text-(--color-text-primary)"
         >
           <UploadCloud size={16} />
           Data Import
-        </button>
+        </Link>
         <button
           onClick={() => setActiveTab("org")}
           className={cn(
@@ -71,8 +70,6 @@ export function SettingsTabs({ orgName, orgId, importer, billingView }: Settings
       {/* Tab Contents */}
       {activeTab === "billing" ? (
         billingView
-      ) : activeTab === "import" ? (
-        <Card className="p-6">{importer}</Card>
       ) : (
         <Card className="p-6 space-y-6">
           <div>

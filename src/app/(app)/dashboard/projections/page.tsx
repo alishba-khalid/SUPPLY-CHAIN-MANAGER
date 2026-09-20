@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
+import { DataImportEmptyState } from "@/components/domain/data-import-empty-state";
 import { ForecastModeBadge } from "@/components/domain/forecast-mode-badge";
 import { ProjectionFilters } from "@/components/domain/projection-filters";
 import { ProjectionGrid } from "@/components/domain/projection-grid";
@@ -157,11 +158,7 @@ export default async function ProjectionsGridPage({
 
       <div className="space-y-6 p-8">
         {entries.length === 0 ? (
-          <EmptyState
-            icon={<Waves size={18} />}
-            title="No inventory positions to project yet."
-            description="Projections are computed from transaction history and open purchase orders — import that data to see this page come alive."
-          />
+          <DataImportEmptyState />
         ) : (
           <>
             <div className="flex flex-wrap items-center justify-between gap-3">

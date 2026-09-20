@@ -1,4 +1,5 @@
 import { PageHeader } from "@/components/ui/page-header";
+import { DataImportEmptyState } from "@/components/domain/data-import-empty-state";
 import { ProcurementSummaryCards } from "@/components/domain/procurement-summary-cards";
 import { ProcurementTable } from "@/components/domain/procurement-table";
 import { ProcurementActions } from "@/components/domain/procurement-actions";
@@ -22,6 +23,8 @@ export default async function ProcurementPage() {
     getSuppliers(orgId),
   ]);
 
+  const hasData = purchaseOrders.length > 0 || products.length > 0;
+
   // Compute metrics
   const baselineCost = new Map(products.map((p) => [p.sku, p.unitCost]));
   const health = procurementHealthScore(purchaseOrders, baselineCost);
@@ -38,18 +41,24 @@ export default async function ProcurementPage() {
       />
 
       <div className="space-y-6 p-8">
-        <ProcurementSummaryCards
-          health={health}
-          cycleTimeScore={cycleTimeScore}
-          priceStability={priceStability}
-          avgCycleTime={avgCycleTime}
-        />
+        {!hasData ? (
+          <DataImportEmptyState />
+        ) : (
+          <>
+            <ProcurementSummaryCards
+              health={health}
+              cycleTimeScore={cycleTimeScore}
+              priceStability={priceStability}
+              avgCycleTime={avgCycleTime}
+            />
 
-        <ProcurementTable
-          purchaseOrders={purchaseOrders}
-          products={products}
-          suppliers={suppliers}
-        />
+            <ProcurementTable
+              purchaseOrders={purchaseOrders}
+              products={products}
+              suppliers={suppliers}
+            />
+          </>
+        )}
       </div>
     </div>
   );

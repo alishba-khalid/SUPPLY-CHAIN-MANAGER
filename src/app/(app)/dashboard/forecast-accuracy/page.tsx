@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
+import { DataImportEmptyState } from "@/components/domain/data-import-empty-state";
 import { ForecastAccuracyClient } from "@/components/domain/forecast-accuracy-client";
 import { getInventoryTransactions } from "@/data/repositories/inventory";
 import { getProducts } from "@/data/repositories/products";
@@ -34,6 +35,8 @@ export default async function ForecastAccuracyPage() {
     getProducts(orgId),
     getWarehouses(orgId),
   ]);
+
+  const hasData = products.length > 0;
 
   const productMap = new Map(products.map((p) => [p.sku, p]));
 
@@ -84,12 +87,18 @@ export default async function ForecastAccuracyPage() {
         description="Classical time series model tournament, out-of-fold cross-validation, 80% prediction intervals, and 3×3 ABC/XYZ portfolio policy segmentation."
       />
 
-      <ForecastAccuracyClient
-        forecastData={forecastData}
-        products={products}
-        warehouses={warehouses}
-        lastComputedAt={lastComputedAt ? lastComputedAt.toISOString() : null}
-      />
+      {!hasData ? (
+        <div className="p-8">
+          <DataImportEmptyState />
+        </div>
+      ) : (
+        <ForecastAccuracyClient
+          forecastData={forecastData}
+          products={products}
+          warehouses={warehouses}
+          lastComputedAt={lastComputedAt ? lastComputedAt.toISOString() : null}
+        />
+      )}
     </div>
   );
 }

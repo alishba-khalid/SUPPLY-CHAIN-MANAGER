@@ -1,4 +1,5 @@
 import {
+  UploadCloud,
   LayoutDashboard,
   Package,
   ShoppingCart,
@@ -14,6 +15,7 @@ import {
 } from "lucide-react";
 
 export const NAV_ITEMS = [
+  { href: "/dashboard/import", label: "Import Data", icon: UploadCloud },
   { href: "/dashboard/overview", label: "Overview", icon: LayoutDashboard },
   { href: "/dashboard/inventory", label: "Inventory", icon: Package },
   { href: "/dashboard/projections", label: "Projections", icon: Waves },

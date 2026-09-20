@@ -1,4 +1,5 @@
 import { PageHeader } from "@/components/ui/page-header";
+import { DataImportEmptyState } from "@/components/domain/data-import-empty-state";
 import { SuppliersSummaryCards } from "@/components/domain/suppliers-summary-cards";
 import { SuppliersTable } from "@/components/domain/suppliers-table";
 import { SuppliersActions } from "@/components/domain/suppliers-actions";
@@ -13,6 +14,8 @@ export default async function SuppliersPage() {
     getAllSupplierPerformance(orgId),
     getSupplierHealthScore(orgId),
   ]);
+
+  const hasData = suppliers.length > 0;
 
   // Compute summary numbers
   const totalSuppliers = suppliers.length;
@@ -34,17 +37,23 @@ export default async function SuppliersPage() {
       />
 
       <div className="space-y-6 p-8">
-        <SuppliersSummaryCards
-          health={health}
-          totalSuppliers={totalSuppliers}
-          totalSpend={totalSpend}
-          avgLeadTime={avgLeadTime}
-        />
+        {!hasData ? (
+          <DataImportEmptyState />
+        ) : (
+          <>
+            <SuppliersSummaryCards
+              health={health}
+              totalSuppliers={totalSuppliers}
+              totalSpend={totalSpend}
+              avgLeadTime={avgLeadTime}
+            />
 
-        <SuppliersTable
-          suppliers={suppliers}
-          performances={performances}
-        />
+            <SuppliersTable
+              suppliers={suppliers}
+              performances={performances}
+            />
+          </>
+        )}
       </div>
     </div>
   );

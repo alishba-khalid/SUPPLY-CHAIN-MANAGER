@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
 import { SmartImporter } from "@/components/domain/smart-importer/smart-importer";
 import { SettingsTabs } from "@/components/domain/settings-tabs";
@@ -7,7 +8,16 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { getOrgSubscription, getOrgQuotaUsage } from "@/data/repositories/subscription";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 
-export default async function SettingsPage() {
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ tab?: string }>;
+}) {
+  const params = searchParams ? await searchParams : undefined;
+  if (params?.tab === "import") {
+    redirect("/dashboard/import");
+  }
+
   const { orgId } = await auth();
   let orgName = "Test Organization";
   const activeOrgId = orgId || "org_test_123";
@@ -31,7 +41,7 @@ export default async function SettingsPage() {
 
   return (
     <div>
-      <PageHeader title="Settings" description="Manage subscription tiers, network limits, and import custom data." />
+      <PageHeader title="Settings" description="Manage subscription tiers and organization profile." />
       <div className="p-8">
         <Suspense fallback={<LoadingState message="Loading workspace settings..." />}>
           <SettingsTabs

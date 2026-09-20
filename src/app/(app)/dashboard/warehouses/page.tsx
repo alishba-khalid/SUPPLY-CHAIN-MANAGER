@@ -1,4 +1,5 @@
 import { PageHeader } from "@/components/ui/page-header";
+import { DataImportEmptyState } from "@/components/domain/data-import-empty-state";
 import { WarehousesSummaryCards } from "@/components/domain/warehouses-summary-cards";
 import { WarehousesTable } from "@/components/domain/warehouses-table";
 import { WarehousesActions } from "@/components/domain/warehouses-actions";
@@ -14,6 +15,8 @@ export default async function WarehousesPage() {
     getWarehouseHealthScore(orgId),
   ]);
 
+  const hasData = warehouses.length > 0;
+
   // Compute summary values
   const totalCapacity = healthRecords.reduce((acc, h) => acc + h.capacityUnits, 0);
   const onHandUnits = healthRecords.reduce((acc, h) => acc + h.onHandUnits, 0);
@@ -28,17 +31,23 @@ export default async function WarehousesPage() {
       />
 
       <div className="space-y-6 p-8">
-        <WarehousesSummaryCards
-          health={health}
-          totalCapacity={totalCapacity}
-          onHandUnits={onHandUnits}
-          spaceUtilization={spaceUtilization}
-        />
+        {!hasData ? (
+          <DataImportEmptyState />
+        ) : (
+          <>
+            <WarehousesSummaryCards
+              health={health}
+              totalCapacity={totalCapacity}
+              onHandUnits={onHandUnits}
+              spaceUtilization={spaceUtilization}
+            />
 
-        <WarehousesTable
-          warehouses={warehouses}
-          healthRecords={healthRecords}
-        />
+            <WarehousesTable
+              warehouses={warehouses}
+              healthRecords={healthRecords}
+            />
+          </>
+        )}
       </div>
     </div>
   );

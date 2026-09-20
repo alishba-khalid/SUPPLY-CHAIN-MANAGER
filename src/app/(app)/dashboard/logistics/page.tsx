@@ -1,4 +1,5 @@
 import { PageHeader } from "@/components/ui/page-header";
+import { DataImportEmptyState } from "@/components/domain/data-import-empty-state";
 import { LogisticsSummaryCards } from "@/components/domain/logistics-summary-cards";
 import { LogisticsTable } from "@/components/domain/logistics-table";
 import { LogisticsActions } from "@/components/domain/logistics-actions";
@@ -18,6 +19,8 @@ export default async function LogisticsPage() {
     getSuppliers(orgId),
     getWarehouses(orgId),
   ]);
+
+  const hasData = openPOs.length > 0 || products.length > 0;
 
   // Compute summary values
   const pendingShipments = openPOs.length;
@@ -40,18 +43,24 @@ export default async function LogisticsPage() {
       />
 
       <div className="space-y-6 p-8">
-        <LogisticsSummaryCards
-          health={health}
-          pendingShipments={pendingShipments}
-          unitsInTransit={unitsInTransit}
-          delayedShipments={delayedShipments}
-        />
+        {!hasData ? (
+          <DataImportEmptyState />
+        ) : (
+          <>
+            <LogisticsSummaryCards
+              health={health}
+              pendingShipments={pendingShipments}
+              unitsInTransit={unitsInTransit}
+              delayedShipments={delayedShipments}
+            />
 
-        <LogisticsTable
-          openPOs={openPOs}
-          products={products}
-          suppliers={suppliers}
-        />
+            <LogisticsTable
+              openPOs={openPOs}
+              products={products}
+              suppliers={suppliers}
+            />
+          </>
+        )}
       </div>
     </div>
   );

@@ -2,6 +2,7 @@ import { SectionHeader } from "@/components/ui/section-header";
 import { MetricCard } from "@/components/ui/metric-card";
 import { ChartCard } from "@/components/ui/chart-card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { DataImportEmptyState } from "@/components/domain/data-import-empty-state";
 import { OverviewPanels } from "@/components/domain/overview-panels";
 import { OverviewHeader } from "@/components/domain/overview-header";
 import { TrendChart } from "@/components/domain/trend-chart";
@@ -45,12 +46,18 @@ export default async function OverviewPage() {
     subscription,
   } = await getOverviewDashboardData(orgId);
 
+  const hasData = products.length > 0 || suppliers.length > 0 || warehouses.length > 0;
+
   return (
     <div>
       <OverviewHeader userName={userName} />
 
       <div className="space-y-8 p-8">
-        <section className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+        {!hasData ? (
+          <DataImportEmptyState />
+        ) : (
+          <>
+            <section className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
           <MetricCard
             label="Supply Chain Health"
             value={`${health.overall} / 100`}
@@ -146,6 +153,8 @@ export default async function OverviewPage() {
             </div>
           )}
         </section>
+          </>
+        )}
       </div>
     </div>
   );
