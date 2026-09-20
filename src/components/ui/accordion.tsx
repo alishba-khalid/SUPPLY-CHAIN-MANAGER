@@ -40,8 +40,10 @@ export function Accordion({ items }: { items: AccordionItem[] }) {
               id={panelId}
               role="region"
               aria-labelledby={buttonId}
-              hidden={!open}
-              className="px-5 pb-4 text-body text-(--color-text-secondary)"
+              className={cn(
+                "px-5 pb-4 text-body text-(--color-text-secondary)",
+                !open && "hidden"
+              )}
             >
               {item.answer}
             </div>
