@@ -1,12 +1,28 @@
 import type { MetadataRoute } from "next";
 import { SITE_URL } from "@/lib/site-config";
+import { COMPETITORS } from "@/lib/competitors-data";
 
-// /about and /terms are deliberately excluded — both are noindex'd because
-// they're missing content a business decision still needs to fill in
-// (About: Founder section; Terms: Governing Law section). Add them back
-// here once that content ships and their `robots.index` flips back to true.
 export default function sitemap(): MetadataRoute.Sitemap {
   const lastModified = new Date();
+  
+  const competitorEntries: MetadataRoute.Sitemap = Object.keys(COMPETITORS).map((slug) => ({
+    url: `${SITE_URL}/vs/${slug}`,
+    lastModified,
+    changeFrequency: "monthly",
+    priority: 0.8,
+  }));
+
+  const featureEntries: MetadataRoute.Sitemap = [
+    "demand-forecasting",
+    "supplier-scorecards",
+    "purchase-orders",
+  ].map((feature) => ({
+    url: `${SITE_URL}/features/${feature}`,
+    lastModified,
+    changeFrequency: "monthly",
+    priority: 0.8,
+  }));
+
   return [
     {
       url: SITE_URL,
@@ -14,6 +30,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "weekly",
       priority: 1,
     },
+    ...competitorEntries,
+    ...featureEntries,
     {
       url: `${SITE_URL}/about`,
       lastModified,
