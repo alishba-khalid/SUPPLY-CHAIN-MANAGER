@@ -29,7 +29,7 @@ export function MorningBriefing() {
 
       <div className="mt-8 flex items-center justify-center gap-2 text-small text-(--color-text-secondary)">
         <Sparkles size={16} className="text-(--color-brand)" />
-        <span>In-app briefing included on all plans · Growth plans add automated 6:00 AM email & WhatsApp alerts.</span>
+        <span>In-app briefing included on all plans.</span>
       </div>
     </section>
   );

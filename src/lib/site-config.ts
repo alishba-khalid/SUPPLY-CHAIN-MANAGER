@@ -63,7 +63,7 @@ export const PRICING_TIERS: PricingTier[] = [
       "10 team seats",
       "Demand forecasting & safety stock",
       "1-Click Suggested Purchase Orders",
-      "Email & WhatsApp alerts",
+      "Email & WhatsApp alerts (coming soon)",
       "PO Send to Supplier with PDF",
       "500 AI Manager queries / mo",
     ],

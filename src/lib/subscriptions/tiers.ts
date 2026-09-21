@@ -40,7 +40,7 @@ export const PLAN_DEFINITIONS: Record<PlanTier, PlanDefinition> = {
       "Deterministic Demand Forecasting",
       "Calculated Reorder Points & Safety Stock",
       "1-Click Suggested Purchase Orders",
-      "Email & WhatsApp Instant Notifications",
+      "Email & WhatsApp Instant Notifications (coming soon)",
       "PO Send to Supplier with PDF Export",
       "REST API (Read-Only)",
       "500 AI Manager queries / month",
