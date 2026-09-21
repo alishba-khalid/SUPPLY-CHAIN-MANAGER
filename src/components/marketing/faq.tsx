@@ -3,46 +3,38 @@ import { TRIAL_DAYS } from "@/lib/site-config";
 
 export const FAQ_ITEMS: AccordionItem[] = [
   {
-    question: "What data do I need to start?",
+    question: "What is Supply Chain Manager?",
     answer:
-      "Your product catalog, current inventory by warehouse, supplier list with lead times, and recent purchase order and sales history. The more transaction history you bring, the more accurate the demand and reorder calculations are from day one.",
+      "Inventory and purchasing software for distributors and wholesalers. Every morning it reviews your inventory, suppliers, and open purchase orders across every warehouse, and surfaces the decisions that need a human call — a reorder, a supplier issue, excess stock to clear. You approve everything it recommends.",
   },
   {
-    question: "Does it work with my existing ERP or spreadsheets?",
+    question: "Who's it for?",
     answer:
-      "Yes. We map your existing product, warehouse, supplier, and order data into the dashboard during onboarding — you don't need to change how you run operations to get started.",
+      "Small and growing distributors and wholesalers — typically hundreds to thousands of SKUs, multiple suppliers, and inventory currently tracked in Excel or a patchwork of spreadsheets. It's inventory software for distributors who've outgrown that, not a full ERP — no ERP required to get started.",
   },
   {
-    question: "How long does setup take?",
+    question: "Is it just an inventory system?",
     answer:
-      "Most distributors are looking at real numbers within an afternoon. Full accuracy on demand-driven reorder points builds up over your first 90 days of transaction history.",
+      "It's more than a running total of what's on the shelf. It reads your inventory, purchase order, and supplier data and turns it into reorder points, safety stock levels, and a prioritized list of the decisions that actually need you today.",
   },
   {
-    question: "How is my data secured?",
+    question: "How does it decide what to reorder?",
     answer:
-      "Your data is encrypted in transit and at rest, and isolated per company — nothing is shared across customers. Enterprise plans add SSO and role-based access.",
+      "Reorder points and suggested order quantities come from your trailing 90-day demand per SKU per warehouse, combined with your supplier's actual lead time — real reorder point software, not a fixed formula you maintain by hand. When stock drops toward that point, a suggested purchase order — quantity, supplier, and cost — is ready for your approval.",
   },
   {
-    question: "How many users can I add?",
+    question: "How does Supply Chain Health work?",
     answer:
-      "Starter and Growth plans include multiple users at no extra cost; Enterprise plans support unlimited users with role-based permissions.",
+      "It's a single 0–100 score built from five weighted components: inventory (30%), suppliers (20%), procurement (20%), logistics (20%), and warehouses (10%). 80 and up is healthy, 60–79 needs attention, below 60 is critical — and each component is visible on its own, so you can see exactly what's dragging the score down. Supplier performance tracking (on-time-in-full delivery, weighted by spend) feeds directly into it.",
   },
   {
-    question: "What happens after the trial?",
-    answer: `After ${TRIAL_DAYS} days, you choose a plan to continue. If you don't, your account moves to read-only and no charges are made automatically.`,
-  },
-  {
-    question: "What happens when I hit my plan's limit?",
+    question: "Does it buy inventory automatically?",
     answer:
-      "We'll let you know before you hit a warehouse or SKU limit. You can upgrade at any time — nothing shuts off automatically.",
+      "No — you approve every action. It recommends a specific purchase order, a supplier review, or a warehouse transfer, and explains why. Nothing happens until you approve it.",
   },
   {
-    question: "Can I change plans later?",
-    answer: "Yes. Upgrade or downgrade whenever your operation changes — the difference is prorated on your next invoice.",
-  },
-  {
-    question: "Do I need a card to start the trial?",
-    answer: `No. The ${TRIAL_DAYS}-day trial starts without payment details — you only enter billing information if you decide to continue.`,
+    question: "How does the trial work?",
+    answer: `${TRIAL_DAYS} days, no credit card required. You can also try the live demo with no signup at all — it's preloaded with a sample dataset so you can see real stockout prevention and reorder recommendations before connecting your own data. When you're ready, you choose a plan from Settings — there's no automatic billing, and nothing on your account changes when the trial period ends.`,
   },
 ];
 

@@ -1,48 +1,35 @@
-import { Package, ShoppingCart, Truck, Ship, Warehouse, BarChart3, Sparkles } from "lucide-react";
+import { Package, ShoppingCart, Truck, Banknote, Warehouse } from "lucide-react";
 import { Card } from "@/components/ui/card";
 
 const FEATURES = [
   {
     icon: Package,
-    heading: "Inventory that flags itself",
+    heading: "Know when you're about to run out.",
     description:
-      "Days of stock, safety stock, and reorder points are calculated from real trailing-90-day demand per SKU per warehouse — not a manually entered forecast.",
+      "Reorder points and safety stock, calculated from real trailing-90-day demand per SKU per warehouse — the reorder point software behind every low-stock alert, built for stockout prevention, not a guess.",
   },
   {
     icon: ShoppingCart,
-    heading: "Procurement you can audit",
+    heading: "Know what to buy.",
     description:
-      "Every purchase order's fulfillment rate, cycle time, and price variance against baseline cost, rolled up into one procurement health score.",
+      "Every stockout risk comes with a ready-to-approve purchase order — quantity, supplier, and cost calculated for you.",
   },
   {
     icon: Truck,
-    heading: "Suppliers scored on OTIF",
+    heading: "Know which suppliers need attention.",
     description:
-      "On-time-in-full delivery performance calculated from actual purchase order history, weighted by how much you actually spend with each supplier.",
+      "On-time-in-full delivery tracked from real purchase order history — supplier performance tracking weighted by how much you actually spend with each one.",
   },
   {
-    icon: Ship,
-    heading: "Logistics before it's a fire",
+    icon: Banknote,
+    heading: "Know where your cash is trapped.",
     description:
-      "Inbound and outbound shipments tracked against expected delivery dates, so a delayed shipment shows up as a live alert, not a customer complaint.",
+      "Overstocked positions are flagged with the exact capital tied up, so slow-moving inventory stops quietly eating your cash.",
   },
   {
     icon: Warehouse,
-    heading: "Warehouses under or over capacity",
-    description:
-      "Capacity utilization scored per warehouse alongside its inventory issue rate, so you catch a space problem before it becomes a lease decision.",
-  },
-  {
-    icon: BarChart3,
-    heading: "Trends across every domain",
-    description:
-      "Procurement spend, on-time rate, order volume, and inventory movement charted week over week from the same dataset every other page reads.",
-  },
-  {
-    icon: Sparkles,
-    heading: "An AI Manager that shows its work",
-    description:
-      "Ask a plain-language question and get an answer, the evidence behind it, and a recommendation — grounded in the same data as the rest of the dashboard.",
+    heading: "See every warehouse in one view.",
+    description: "Inventory, capacity, and issue rates for every facility, side by side — no separate spreadsheet per location.",
   },
 ];
 
@@ -52,8 +39,8 @@ export function FeaturesGrid() {
       <div className="mx-auto max-w-2xl text-center">
         <h2 className="text-h1 text-(--color-text-primary)">The job description</h2>
         <p className="mt-3 text-body-lg text-(--color-text-secondary)">
-          Seven things it watches so you don&apos;t have to. Every module reads from the same live
-          dataset — nothing to reconcile.
+          Five questions distributors ask every morning, answered by inventory software built for
+          distributors and wholesalers — not a bolted-on module of a general ERP.
         </p>
       </div>
 

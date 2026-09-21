@@ -1,9 +1,13 @@
 import type { Metadata } from "next";
 import { Hero } from "@/components/marketing/hero";
+import { DailyReview } from "@/components/marketing/daily-review";
+import { OutgrewExcel } from "@/components/marketing/outgrew-excel";
+import { RecommendsYouDecide } from "@/components/marketing/recommends-you-decide";
 import { StatStrip } from "@/components/marketing/stat-strip";
 import { MorningBriefing } from "@/components/marketing/morning-briefing";
 import { Problem } from "@/components/marketing/problem";
 import { FeaturesGrid } from "@/components/marketing/features-grid";
+import { BuiltForDistributors } from "@/components/marketing/built-for-distributors";
 import { Qualifier } from "@/components/marketing/qualifier";
 import { HowItWorks } from "@/components/marketing/how-it-works";
 import { AiSpotlight } from "@/components/marketing/ai-spotlight";
@@ -43,10 +47,14 @@ export default function MarketingHomePage() {
     <>
       <StructuredData />
       <Hero />
+      <DailyReview />
+      <OutgrewExcel />
+      <RecommendsYouDecide />
       <StatStrip />
       <MorningBriefing />
       <Problem />
       <FeaturesGrid />
+      <BuiltForDistributors />
       <Qualifier />
       <HowItWorks />
       <ProofSection />
