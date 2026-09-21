@@ -1,37 +1,20 @@
+import { Zap } from "lucide-react";
 import { MetricCard } from "@/components/ui/metric-card";
-import { AlertCard } from "@/components/domain/alert-card";
-import { RecommendationCard } from "@/components/domain/recommendation-card";
-import type { Recommendation, SupplyChainAlert } from "@/types/supply-chain";
+import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
 import { SITE_URL } from "@/lib/site-config";
 
 const DISPLAY_HOST = SITE_URL.replace(/^https?:\/\//, "");
 
-const EXAMPLE_ALERT: SupplyChainAlert = {
-  id: "example-alt-inv-sku-1015",
-  category: "inventory",
-  severity: "critical",
-  title: "SKU-1015 at NDC — 3 days of cover",
-  description: "Below reorder point. Supplier lead time is 7 days.",
-  sku: "SKU-1015",
-  warehouseId: 1,
-  teaser: "Growth plans would order 2,400 units from SUP-005 today — upgrade to generate this PO.",
-  suggestedQuantity: 2400,
-  estimatedCost: 18480,
-  createdAt: "2026-08-24T00:00:00Z",
-};
-
-const EXAMPLE_RECOMMENDATION: Recommendation = {
-  id: "example-rec-sku-1001",
-  category: "reduce_purchase",
-  priority: "high",
-  title: "Reduce purchases of SKU-1001",
-  description: "$41,529 tied up. Healthy range is ~35 days for current demand of 13.6 units/day.",
-  affectedSkus: ["SKU-1001"],
-  estimatedImpact: "$41,529 excess capital",
-  createdAt: "2026-08-24T00:00:00Z",
-};
-
-/** An illustrative snapshot of the dashboard, framed like a browser window — showing a business where the manager caught critical stockout risk and excess capital. */
+/**
+ * A static, illustrative snapshot of the dashboard's Overview page — not
+ * live data. Mirrors the real Recommended Actions flow: the "Create PO"
+ * action shown here is the actual 1-Click Suggested Purchase Order feature
+ * (see suggested-po-modal.tsx / createPoFromSuggestionAction), the one
+ * recommendation category with a genuine one-click action today. The
+ * buttons are inert (span, not button) since this card is a picture of the
+ * product, not the product itself.
+ */
 export function DashboardPreview() {
   return (
     <div className="overflow-hidden rounded-xl border border-(--color-border) bg-(--color-surface) shadow-lg">
@@ -52,17 +35,52 @@ export function DashboardPreview() {
         </div>
 
         <div>
-          <p className="mb-1.5 text-caption font-bold uppercase tracking-wider text-(--color-text-secondary)">
-            Needs Attention (Urgent)
-          </p>
-          <AlertCard alert={EXAMPLE_ALERT} isStarter={false} />
-        </div>
+          <div className="mb-1.5 flex items-center justify-between">
+            <p className="text-caption font-bold uppercase tracking-wider text-(--color-text-secondary)">
+              Recommended Actions
+            </p>
+            <Badge tone="critical">1 critical</Badge>
+          </div>
 
-        <div>
-          <p className="mb-1.5 text-caption font-bold uppercase tracking-wider text-(--color-text-secondary)">
-            Recommended Actions
-          </p>
-          <RecommendationCard recommendation={EXAMPLE_RECOMMENDATION} />
+          <div className="rounded-lg border border-(--color-brand)/30 bg-(--color-surface) p-4 shadow-sm">
+            <div className="flex items-center gap-2">
+              <Badge tone="critical">Critical</Badge>
+              <span className="text-caption font-mono text-(--color-text-muted)">SKU-1015 · NDC</span>
+            </div>
+
+            <dl className="mt-3 space-y-2.5">
+              <div>
+                <dt className="text-caption font-bold uppercase tracking-wide text-(--color-critical)">Problem</dt>
+                <dd className="mt-0.5 text-body font-medium text-(--color-text-primary)">
+                  3 days of cover left — below reorder point.
+                </dd>
+              </div>
+              <div>
+                <dt className="text-caption font-bold uppercase tracking-wide text-(--color-text-muted)">Why</dt>
+                <dd className="mt-0.5 text-small text-(--color-text-secondary)">
+                  Selling ~10 units/day, and supplier Orion Electronics&apos; (SUP-004) lead time is 12
+                  days — longer than the stock you have left.
+                </dd>
+              </div>
+              <div>
+                <dt className="text-caption font-bold uppercase tracking-wide text-(--color-brand)">
+                  Recommendation
+                </dt>
+                <dd className="mt-0.5 text-small text-(--color-text-secondary)">
+                  Order 150 units from SUP-004 today (~$1,230).
+                </dd>
+              </div>
+            </dl>
+
+            <div className="mt-4 flex items-center gap-2">
+              <span className={buttonVariants({ variant: "primary", size: "sm" })}>
+                <Zap size={12} /> Create PO
+              </span>
+              <span className={buttonVariants({ variant: "ghost", size: "sm" })}>Details</span>
+            </div>
+          </div>
+
+          <p className="mt-2 text-caption text-(--color-text-muted)">+2 more recommendations waiting on you</p>
         </div>
       </div>
     </div>

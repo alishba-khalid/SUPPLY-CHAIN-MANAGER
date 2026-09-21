@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useUser } from "@clerk/nextjs";
 import { Menu, X } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { Logo } from "@/components/Logo";
@@ -16,6 +17,12 @@ const LINKS = [
 
 export function MarketingNav() {
   const [open, setOpen] = useState(false);
+  // `isSignedIn` is `undefined` until Clerk loads client-side — defaulting
+  // that to "signed out" keeps this page statically prerenderable (no
+  // server auth() call) and avoids a blank CTA slot on first paint, at the
+  // cost of a brief flash to "Open dashboard" for the signed-in minority
+  // landing back on the marketing site.
+  const { isSignedIn } = useUser();
 
   return (
     <header className="sticky top-0 z-40 border-b border-(--color-border) bg-(--color-surface)/95 backdrop-blur">
@@ -40,12 +47,20 @@ export function MarketingNav() {
         </nav>
 
         <div className="hidden items-center gap-2 md:flex">
-          <Link href="/sign-in" className={buttonVariants({ variant: "ghost", size: "md" })}>
-            Sign in
-          </Link>
-          <Link href="/dashboard/overview" className={buttonVariants({ variant: "primary", size: "md" })}>
-            Open dashboard
-          </Link>
+          {isSignedIn ? (
+            <Link href="/dashboard/overview" className={buttonVariants({ variant: "primary", size: "md" })}>
+              Open dashboard
+            </Link>
+          ) : (
+            <>
+              <Link href="/sign-in" className={buttonVariants({ variant: "ghost", size: "md" })}>
+                Sign in
+              </Link>
+              <Link href="/sign-up" className={buttonVariants({ variant: "primary", size: "md" })}>
+                Start trial
+              </Link>
+            </>
+          )}
         </div>
 
         <button
@@ -73,20 +88,32 @@ export function MarketingNav() {
             ))}
           </nav>
           <div className="mt-3 flex flex-col gap-2 border-t border-(--color-border) pt-3">
-            <Link
-              href="/sign-in"
-              onClick={() => setOpen(false)}
-              className={buttonVariants({ variant: "ghost", size: "md", className: "w-full" })}
-            >
-              Sign in
-            </Link>
-            <Link
-              href="/dashboard/overview"
-              onClick={() => setOpen(false)}
-              className={buttonVariants({ variant: "primary", size: "md", className: "w-full" })}
-            >
-              Open dashboard
-            </Link>
+            {isSignedIn ? (
+              <Link
+                href="/dashboard/overview"
+                onClick={() => setOpen(false)}
+                className={buttonVariants({ variant: "primary", size: "md", className: "w-full" })}
+              >
+                Open dashboard
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href="/sign-in"
+                  onClick={() => setOpen(false)}
+                  className={buttonVariants({ variant: "ghost", size: "md", className: "w-full" })}
+                >
+                  Sign in
+                </Link>
+                <Link
+                  href="/sign-up"
+                  onClick={() => setOpen(false)}
+                  className={buttonVariants({ variant: "primary", size: "md", className: "w-full" })}
+                >
+                  Start trial
+                </Link>
+              </>
+            )}
           </div>
         </div>
       )}

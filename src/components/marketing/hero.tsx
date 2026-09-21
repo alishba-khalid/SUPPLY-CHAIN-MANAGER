@@ -16,14 +16,14 @@ export function Hero() {
             You&apos;re not buying software. You&apos;re hiring a manager.
           </h1>
           <p className="mt-5 text-body-lg text-(--color-text-secondary)">
-            Every morning it reviews inventory, suppliers, purchase orders and shipments across every
-            warehouse — then hands you the short list of decisions that actually matter today. You
-            approve every one. It never acts on its own.
+            Your digital supply chain manager for inventory, purchasing, suppliers and warehouses.
+            Every morning it reviews your operations and gives you a short list of the decisions
+            that matter today — right on your dashboard. You approve every action.
           </p>
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Link href="/sign-up" className={buttonVariants({ variant: "primary", size: "lg", className: "w-full sm:w-auto" })}>
-              Start free trial
+              Start {TRIAL_DAYS}-day trial
               <ArrowRight size={16} />
             </Link>
             <Link href="/dashboard/overview?demo=true" className={buttonVariants({ variant: "secondary", size: "lg", className: "w-full sm:w-auto" })}>
