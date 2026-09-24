@@ -98,6 +98,18 @@ export interface ProductDetailConflict {
   selectedIndex: number;
 }
 
+/**
+ * A sheet has rows of this kind but lacks a column they require, so none of
+ * them can be imported without inventing values. The user maps a column or
+ * skips them.
+ */
+export interface BlockedRecords {
+  sheetName: string;
+  entity: "purchase_order" | "transaction";
+  missingColumns: string[];
+  rows: number;
+}
+
 /** The same SKU at the same warehouse appears on more than one stock row. */
 export interface DuplicateStockPosition {
   sku: string;
@@ -129,7 +141,8 @@ export interface ExtractedProduct {
   sku: string;
   name: string;
   category: string;
-  unitCost: number;
+  /** null = not in the file. Never defaulted: an existing product keeps its cost, a new one is refused. */
+  unitCost: number | null;
   supplierId: string;
   supplierName?: string;
   /** Only mentioned (by ID / code / SKU), never described: created if missing, never used to update an existing record. */
@@ -179,6 +192,8 @@ export interface ExtractionPreview {
   skuConflicts: SkuSupplierConflict[];
   productConflicts: ProductDetailConflict[];
   duplicateStockPositions: DuplicateStockPosition[];
+  /** Records not imported because a required column is missing from the sheet (e.g. no PO quantity column). */
+  blockedRecords: BlockedRecords[];
   rejectedRows: RejectedRowRecord[];
   missingLeadTimeCount: number;
   missingCapacityCount: number;

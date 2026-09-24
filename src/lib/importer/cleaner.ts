@@ -69,11 +69,23 @@ const MONTH_NAMES_MAP: Record<string, number> = {
 };
 
 /**
+ * Builds a UTC date only if it really exists. Date.UTC silently rolls over
+ * impossible dates (2026-02-30 → 2 Mar, month 13 → next January, 31/31 →
+ * two years later); an importer must reject those, not store a different day.
+ */
+function exactUtcDate(year: number, monthIndex: number, day: number): Date | null {
+  if (monthIndex < 0 || monthIndex > 11 || day < 1 || day > 31) return null;
+  const d = new Date(Date.UTC(year, monthIndex, day));
+  return d.getUTCFullYear() === year && d.getUTCMonth() === monthIndex && d.getUTCDate() === day ? d : null;
+}
+
+/**
  * Parses multi-format date strings cleanly:
  * - Excel serial number (e.g. 46174 -> 2026-06-01)
  * - ISO format (2026-06-01)
  * - DD-MMM-YYYY or DD-MMM-YY (01-Jun-2026)
  * - Slash/Hyphen numeric dates (DD/MM/YYYY vs MM/DD/YYYY)
+ * Impossible dates (30 Feb, month 13) return null — never a rolled-over day.
  */
 export function cleanDateValue(
   val: unknown,
@@ -114,7 +126,7 @@ export function cleanDateValue(
     if (year < 100) year += 2000;
     const month = MONTH_NAMES_MAP[monthStr];
     if (month !== undefined) {
-      return new Date(Date.UTC(year, month, day));
+      return exactUtcDate(year, month, day);
     }
   }
 
@@ -126,7 +138,7 @@ export function cleanDateValue(
     let year = parseInt(mmmFirstMatch[3], 10);
     if (year < 100) year += 2000;
     if (month !== undefined) {
-      return new Date(Date.UTC(year, month, day));
+      return exactUtcDate(year, month, day);
     }
   }
 
@@ -136,7 +148,7 @@ export function cleanDateValue(
     const year = parseInt(isoMatch[1], 10);
     const month = parseInt(isoMatch[2], 10) - 1;
     const day = parseInt(isoMatch[3], 10);
-    return new Date(Date.UTC(year, month, day));
+    return exactUtcDate(year, month, day);
   }
 
   // Check numeric slash/hyphen dates: XX/YY/ZZZZ
@@ -170,7 +182,7 @@ export function cleanDateValue(
       }
     }
 
-    return new Date(Date.UTC(year, month, day));
+    return exactUtcDate(year, month, day);
   }
 
   // Fallback to standard JS Date parsing

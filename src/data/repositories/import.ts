@@ -1,49 +1,22 @@
 import { prisma } from "@/lib/prisma";
+import { parseTemplateRows, type TemplateRejectedRow, type TemplateType } from "@/lib/importer/template-rows";
 
-function getField(row: Record<string, unknown>, ...keys: string[]): unknown {
-  for (const k of keys) {
-    if (row[k] !== undefined && row[k] !== "") return row[k];
-  }
-  // Case-insensitive, stripped spacing/punctuation match
-  const rowKeys = Object.keys(row);
-  for (const k of keys) {
-    const normKey = k.toLowerCase().replace(/[\s_\-()]/g, "");
-    const found = rowKeys.find((rk) => rk.toLowerCase().replace(/[\s_\-()]/g, "") === normKey);
-    if (found && row[found] !== undefined && row[found] !== "") {
-      return row[found];
-    }
-  }
-  return undefined;
-}
-
-export function parseDateValue(value: unknown): Date {
-  if (!value) return new Date();
-  if (value instanceof Date) return isNaN(value.getTime()) ? new Date() : value;
-  if (typeof value === "number") {
-    // Excel serial date (days since 1899-12-30)
-    return new Date(Math.round((value - 25569) * 86400 * 1000));
-  }
-  const str = String(value).trim();
-  if (!str) return new Date();
-
-  // If numeric string like "46174.2084"
-  if (/^\d+(\.\d+)?$/.test(str)) {
-    const num = Number(str);
-    if (num > 20000 && num < 70000) {
-      return new Date(Math.round((num - 25569) * 86400 * 1000));
-    }
-  }
-
-  const parsed = new Date(str);
-  return isNaN(parsed.getTime()) ? new Date() : parsed;
-}
-
+/**
+ * 6-file template import. Rows with a blank or invalid required value are
+ * rejected with "Row N, column X: reason" and nothing is written for them;
+ * the valid rows are written in one transaction. No value is invented (a
+ * blank quantity never becomes 0, a blank date never becomes today) — see
+ * src/lib/importer/template-rows.ts.
+ */
 export async function importData(
   orgId: string,
-  type: "warehouses" | "suppliers" | "products" | "inventory" | "purchase_orders" | "transactions",
+  type: TemplateType,
   rows: Record<string, unknown>[],
-  options: { clearExisting: boolean }
-) {
+  options: { clearExisting: boolean; firstRowNumber?: number }
+): Promise<{ success: true; count: number; rejected: TemplateRejectedRow[] } | { success: false; error: string; rejected: TemplateRejectedRow[] }> {
+  const firstRowNumber = options.firstRowNumber ?? 2;
+  const rejected: TemplateRejectedRow[] = [];
+
   try {
     return await prisma.$transaction(
       async (tx) => {
@@ -73,67 +46,48 @@ export async function importData(
         let count = 0;
 
         if (type === "warehouses") {
-          for (const row of rows) {
-            const code = String(getField(row, "Warehouse Code", "code", "warehouse_code", "warehouseCode") || "").trim();
-            const name = String(getField(row, "Name", "name", "warehouse_name", "warehouseName") || "").trim();
-            const capacityUnits = Number(getField(row, "Capacity (Units)", "capacityUnits", "capacity_units", "capacity") || 0);
-
-            if (!code || !name) continue;
-
+          const parsed = parseTemplateRows("warehouses", rows, firstRowNumber);
+          rejected.push(...parsed.rejected);
+          for (const { record: w } of parsed.records) {
             await tx.warehouse.upsert({
-              where: { orgId_code: { orgId, code } },
-              create: { orgId, code, name, capacityUnits },
-              update: { name, capacityUnits },
+              where: { orgId_code: { orgId, code: w.code } },
+              create: { orgId, ...w },
+              update: { name: w.name, capacityUnits: w.capacityUnits },
             });
             count++;
           }
         } else if (type === "suppliers") {
-          for (const row of rows) {
-            const supplierId = String(getField(row, "Supplier ID", "supplierId", "supplier_id", "id", "vendor_id") || "").trim();
-            const name = String(getField(row, "Name", "name", "supplier_name", "vendor_name") || "").trim();
-            const rawLeadTime = getField(row, "Lead Time (Days)", "leadTimeDays", "lead_time_days", "lead_time", "leadTime");
-            const leadTimeMissing = !rawLeadTime;
-            const leadTimeDays = Number(rawLeadTime || 14);
-            const email = String(getField(row, "Email", "email", "supplier_email", "contact_email") || "").trim();
-
-            if (!supplierId || !name) continue;
-
+          const parsed = parseTemplateRows("suppliers", rows, firstRowNumber);
+          rejected.push(...parsed.rejected);
+          for (const { record: s } of parsed.records) {
             await tx.supplier.upsert({
-              where: { orgId_supplierId: { orgId, supplierId } },
-              create: { orgId, supplierId, name, leadTimeDays, leadTimeMissing, email },
-              update: { name, leadTimeDays, leadTimeMissing, email },
+              where: { orgId_supplierId: { orgId, supplierId: s.supplierId } },
+              create: { orgId, ...s },
+              update: { name: s.name, leadTimeDays: s.leadTimeDays, leadTimeMissing: s.leadTimeMissing, email: s.email },
             });
             count++;
           }
         } else if (type === "products") {
+          const parsed = parseTemplateRows("products", rows, firstRowNumber);
+          rejected.push(...parsed.rejected);
           // Preload suppliers for O(1) lookup
-          const existingSuppliers = await tx.supplier.findMany({
-            where: { orgId },
-            select: { supplierId: true },
-          });
+          const existingSuppliers = await tx.supplier.findMany({ where: { orgId }, select: { supplierId: true } });
           const supplierSet = new Set(existingSuppliers.map((s) => s.supplierId));
 
-          for (const row of rows) {
-            const sku = String(getField(row, "SKU", "sku", "item_code", "product_code", "product_sku") || "").trim();
-            const name = String(getField(row, "Name", "name", "product_name", "item_name") || "").trim();
-            const category = String(getField(row, "Category", "category", "product_category") || "general").trim();
-            const unitCost = Number(getField(row, "Unit Cost", "unitCost", "unit_cost", "cost", "price") || 0);
-            const supplierId = String(getField(row, "Supplier ID", "supplierId", "supplier_id", "vendor_id") || "").trim();
-
-            if (!sku || !name || !supplierId) continue;
-
-            if (!supplierSet.has(supplierId)) {
-              throw new Error(`Supplier with ID '${supplierId}' does not exist. Please import Suppliers before Products.`);
+          for (const { record: p } of parsed.records) {
+            if (!supplierSet.has(p.supplierId)) {
+              throw new Error(`Supplier with ID '${p.supplierId}' does not exist. Please import Suppliers before Products.`);
             }
-
             await tx.product.upsert({
-              where: { orgId_sku: { orgId, sku } },
-              create: { orgId, sku, name, category, unitCost, supplierId },
-              update: { name, category, unitCost, supplierId },
+              where: { orgId_sku: { orgId, sku: p.sku } },
+              create: { orgId, ...p },
+              update: { name: p.name, category: p.category, unitCost: p.unitCost, supplierId: p.supplierId },
             });
             count++;
           }
         } else if (type === "inventory") {
+          const parsed = parseTemplateRows("inventory", rows, firstRowNumber);
+          rejected.push(...parsed.rejected);
           // Preload products & warehouses for O(1) in-memory lookup
           const [products, warehouses] = await Promise.all([
             tx.product.findMany({ where: { orgId }, select: { sku: true } }),
@@ -142,29 +96,24 @@ export async function importData(
           const productSet = new Set(products.map((p) => p.sku));
           const warehouseMap = new Map(warehouses.map((w) => [w.code, w.id]));
 
-          for (const row of rows) {
-            const sku = String(getField(row, "SKU", "sku", "item_code", "product_sku") || "").trim();
-            const warehouseCode = String(getField(row, "Warehouse Code", "warehouseCode", "warehouse_code", "code") || "").trim();
-            const quantityOnHand = Number(getField(row, "Quantity On Hand", "quantityOnHand", "quantity_on_hand", "quantity", "on_hand", "onHand") || 0);
-
-            if (!sku || !warehouseCode) continue;
-
-            if (!productSet.has(sku)) {
-              throw new Error(`Product SKU '${sku}' does not exist. Please import Products before Inventory.`);
+          for (const { record: inv } of parsed.records) {
+            if (!productSet.has(inv.sku)) {
+              throw new Error(`Product SKU '${inv.sku}' does not exist. Please import Products before Inventory.`);
             }
-            const warehouseId = warehouseMap.get(warehouseCode);
+            const warehouseId = warehouseMap.get(inv.warehouseCode);
             if (!warehouseId) {
-              throw new Error(`Warehouse code '${warehouseCode}' does not exist. Please import Warehouses before Inventory.`);
+              throw new Error(`Warehouse code '${inv.warehouseCode}' does not exist. Please import Warehouses before Inventory.`);
             }
-
             await tx.inventory.upsert({
-              where: { orgId_sku_warehouseId: { orgId, sku, warehouseId } },
-              create: { orgId, sku, warehouseId, quantityOnHand },
-              update: { quantityOnHand },
+              where: { orgId_sku_warehouseId: { orgId, sku: inv.sku, warehouseId } },
+              create: { orgId, sku: inv.sku, warehouseId, quantityOnHand: inv.quantityOnHand },
+              update: { quantityOnHand: inv.quantityOnHand },
             });
             count++;
           }
         } else if (type === "purchase_orders") {
+          const parsed = parseTemplateRows("purchase_orders", rows, firstRowNumber);
+          rejected.push(...parsed.rejected);
           // Preload products & suppliers for fast lookup
           const [products, suppliers] = await Promise.all([
             tx.product.findMany({ where: { orgId }, select: { sku: true } }),
@@ -173,39 +122,24 @@ export async function importData(
           const productSet = new Set(products.map((p) => p.sku));
           const supplierSet = new Set(suppliers.map((s) => s.supplierId));
 
-          for (const row of rows) {
-            const poNumber = String(getField(row, "PO Number", "poNumber", "po_number", "po", "order_number") || "").trim();
-            const supplierId = String(getField(row, "Supplier ID", "supplierId", "supplier_id", "vendor_id") || "").trim();
-            const sku = String(getField(row, "SKU", "sku", "item_code", "product_sku") || "").trim();
-            const quantity = Number(getField(row, "Quantity", "quantity", "qty", "ordered_quantity") || 0);
-            const unitPrice = Number(getField(row, "Unit Price", "unitPrice", "unit_price", "price", "cost") || 0);
-
-            const rawOrderDate = getField(row, "Order Date", "orderDate", "order_date", "date");
-            const orderDate = parseDateValue(rawOrderDate);
-
-            const rawExpectedDate = getField(row, "Expected Date", "expectedDate", "expected_date", "expected_delivery");
-            const expectedDate = parseDateValue(rawExpectedDate);
-
-            const rawReceivedDate = getField(row, "Received Date", "receivedDate", "received_date", "actual_delivery");
-            const receivedDate = rawReceivedDate ? parseDateValue(rawReceivedDate) : null;
-
-            if (!poNumber || !supplierId || !sku) continue;
-
-            if (!productSet.has(sku)) {
-              throw new Error(`Product SKU '${sku}' does not exist. Please import Products before Purchase Orders.`);
+          for (const { record: po } of parsed.records) {
+            if (!productSet.has(po.sku)) {
+              throw new Error(`Product SKU '${po.sku}' does not exist. Please import Products before Purchase Orders.`);
             }
-            if (!supplierSet.has(supplierId)) {
-              throw new Error(`Supplier '${supplierId}' does not exist. Please import Suppliers before Purchase Orders.`);
+            if (!supplierSet.has(po.supplierId)) {
+              throw new Error(`Supplier '${po.supplierId}' does not exist. Please import Suppliers before Purchase Orders.`);
             }
-
+            const { poNumber, ...fields } = po;
             await tx.purchaseOrder.upsert({
               where: { orgId_poNumber: { orgId, poNumber } },
-              create: { orgId, poNumber, supplierId, sku, quantity, unitPrice, orderDate, expectedDate, receivedDate },
-              update: { supplierId, sku, quantity, unitPrice, orderDate, expectedDate, receivedDate },
+              create: { orgId, poNumber, ...fields },
+              update: fields,
             });
             count++;
           }
         } else if (type === "transactions") {
+          const parsed = parseTemplateRows("transactions", rows, firstRowNumber);
+          rejected.push(...parsed.rejected);
           // Preload products & warehouses in memory — enables importing thousands of rows in milliseconds
           const [products, warehouses] = await Promise.all([
             tx.product.findMany({ where: { orgId }, select: { sku: true } }),
@@ -215,54 +149,31 @@ export async function importData(
           const warehouseMap = new Map(warehouses.map((w) => [w.code, w.id]));
 
           const insertData: { orgId: string; sku: string; warehouseId: number; quantity: number; direction: "IN" | "OUT"; date: Date }[] = [];
-
-          for (const row of rows) {
-            const sku = String(getField(row, "SKU", "sku", "item_code", "product_sku") || "").trim();
-            const warehouseCode = String(getField(row, "Warehouse Code", "warehouseCode", "warehouse_code", "code") || "").trim();
-            const quantity = Number(getField(row, "Quantity", "quantity", "qty") || 0);
-            const rawDir = String(getField(row, "Direction", "direction", "type", "movement") || "").trim().toUpperCase();
-            const direction = rawDir === "IN" || rawDir === "INBOUND" ? "IN" : rawDir === "OUT" || rawDir === "OUTBOUND" ? "OUT" : null;
-
-            const rawDate = getField(row, "Date", "date", "transaction_date", "created_at");
-            const date = parseDateValue(rawDate);
-
-            if (!sku || !warehouseCode || !direction) continue;
-
-            if (!productSet.has(sku)) {
-              throw new Error(`Product SKU '${sku}' does not exist. Please import Products before Transactions.`);
+          for (const { record: t } of parsed.records) {
+            if (!productSet.has(t.sku)) {
+              throw new Error(`Product SKU '${t.sku}' does not exist. Please import Products before Transactions.`);
             }
-            const warehouseId = warehouseMap.get(warehouseCode);
+            const warehouseId = warehouseMap.get(t.warehouseCode);
             if (!warehouseId) {
-              throw new Error(`Warehouse code '${warehouseCode}' does not exist. Please import Warehouses before Transactions.`);
+              throw new Error(`Warehouse code '${t.warehouseCode}' does not exist. Please import Warehouses before Transactions.`);
             }
-
-            insertData.push({
-              orgId,
-              sku,
-              warehouseId,
-              quantity,
-              direction,
-              date,
-            });
+            insertData.push({ orgId, sku: t.sku, warehouseId, quantity: t.quantity, direction: t.direction, date: t.date });
           }
 
-          if (insertData.length > 0) {
-            // Bulk insert in chunks of 1000 for high stability & speed
-            const CHUNK_SIZE = 1000;
-            for (let i = 0; i < insertData.length; i += CHUNK_SIZE) {
-              const chunk = insertData.slice(i, i + CHUNK_SIZE);
-              await tx.transaction.createMany({ data: chunk });
-            }
-            count = insertData.length;
+          // Bulk insert in chunks of 1000 for high stability & speed
+          const CHUNK_SIZE = 1000;
+          for (let i = 0; i < insertData.length; i += CHUNK_SIZE) {
+            await tx.transaction.createMany({ data: insertData.slice(i, i + CHUNK_SIZE) });
           }
+          count = insertData.length;
         }
 
-        return { success: true, count };
+        return { success: true as const, count, rejected };
       },
       { timeout: 60000 } // 60-second transaction budget for large multi-thousand datasets
     );
   } catch (error) {
     console.error("Import error details:", error);
-    return { success: false, error: error instanceof Error ? error.message : "Unknown error occurred" };
+    return { success: false, error: error instanceof Error ? error.message : "Unknown error occurred", rejected };
   }
 }

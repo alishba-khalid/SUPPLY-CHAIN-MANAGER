@@ -3,6 +3,8 @@
 import { useState, useTransition, useMemo } from "react";
 import * as XLSX from "xlsx";
 import { importDataAction } from "@/app/actions/import";
+import { RejectedRowsNotice } from "@/components/domain/rejected-rows-notice";
+import type { TemplateRejectedRow } from "@/lib/importer/template-rows";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -70,6 +72,7 @@ export function DataImporter() {
   const [parsedRows, setParsedRows] = useState<Record<string, unknown>[]>([]);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [importResult, setImportResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [rejectedRows, setRejectedRows] = useState<TemplateRejectedRow[]>([]);
   const [clearExisting, setClearExisting] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [isDragging, setIsDragging] = useState(false);
@@ -172,6 +175,8 @@ export function DataImporter() {
       try {
         const BATCH_SIZE = 500;
         let totalCount = 0;
+        const rejected: TemplateRejectedRow[] = [];
+        setRejectedRows([]);
 
         for (let i = 0; i < parsedRows.length; i += BATCH_SIZE) {
           const batch = parsedRows.slice(i, i + BATCH_SIZE);
@@ -185,9 +190,12 @@ export function DataImporter() {
 
           const res = await importDataAction(importType, batch, {
             clearExisting: isFirstBatch ? clearExisting : false,
+            firstRowNumber: i + 2, // header is row 1
           });
+          if ("rejected" in res && Array.isArray(res.rejected)) rejected.push(...res.rejected);
 
           if (!res.success) {
+            setRejectedRows(rejected);
             setImportResult({
               success: false,
               message: "error" in res ? res.error : "Import failed",
@@ -201,9 +209,12 @@ export function DataImporter() {
           }
         }
 
+        setRejectedRows(rejected);
         setImportResult({
           success: true,
-          message: `Successfully saved and imported ${totalCount} records into ${config.label}!`,
+          message: rejected.length
+            ? `Saved ${totalCount} records into ${config.label}. ${rejected.length} rows were rejected (see below).`
+            : `Successfully saved and imported ${totalCount} records into ${config.label}!`,
         });
         setParsedRows([]);
         setFile(null);
@@ -338,6 +349,8 @@ export function DataImporter() {
           <div>{validationError}</div>
         </div>
       )}
+
+      <RejectedRowsNotice rows={rejectedRows} fileLabel={config.label} />
 
       {importResult && (
         <div

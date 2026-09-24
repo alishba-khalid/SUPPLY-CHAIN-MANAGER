@@ -502,6 +502,7 @@ export function SmartImporter() {
               setCurrentStep("mapping");
             }
           }}
+          onGoToMapping={() => setCurrentStep("mapping")}
           isCommitting={upload !== null}
         />
       ) : currentStep === "summary" && importResult ? (

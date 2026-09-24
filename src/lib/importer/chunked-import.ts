@@ -251,7 +251,9 @@ export function validateRow(row: StagedRow): Problem | null {
         () => checkText(d, "sku", true),
         () => checkText(d, "name", true),
         () => checkText(d, "category", false),
-        () => checkNumber(d, "unitCost", { min: 0 }),
+        // null = the file has no cost: allowed, never defaulted (the commit
+        // keeps an existing product's cost and refuses to create one without).
+        () => (d.unitCost === null ? null : checkNumber(d, "unitCost", { min: 0 })),
         () => checkText(d, "supplierId", true)
       );
       break;

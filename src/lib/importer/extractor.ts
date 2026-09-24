@@ -15,6 +15,7 @@ import type {
   SkuDuplicateResolution,
   ProductDetailConflict,
   DuplicateStockPosition,
+  BlockedRecords,
 } from "./types";
 import { cleanString, cleanNumericValue, cleanDateValue, detectColumnDateFormat } from "./cleaner";
 import { buildEntityMergeGroups, normalizeEntityForMatching, type MergeCandidate } from "./deduplicator";
@@ -30,6 +31,12 @@ export interface ExtractionOptions {
 
 const DEFAULT_WAREHOUSE_CODE = "WH-DEFAULT";
 const UNASSIGNED_SUP_ID = "SUP-UNASSIGNED";
+
+// A sheet with any of these columns is a purchase-order / transaction sheet
+// and must have all the required ones (received date may be blank: open PO).
+const PO_FIELDS: CanonicalFieldId[] = ["po_number", "po_quantity", "po_unit_price", "order_date", "expected_date", "received_date"];
+const PO_REQUIRED: CanonicalFieldId[] = ["po_number", "po_quantity", "po_unit_price", "order_date", "expected_date"];
+const TX_FIELDS: CanonicalFieldId[] = ["transaction_qty", "transaction_direction", "transaction_date"];
 
 /** A supplier or warehouse as written on a row: by ID / code when present, else by name. */
 type EntityRef = { id: string } | { name: string };
@@ -103,6 +110,7 @@ export function extractEntitiesFromWorkbook(
   const rawTransactionsList: { sku: string; warehouse: EntityRef; quantity: number; direction: "IN" | "OUT"; date: Date }[] = [];
 
   const rejectedRows: RejectedRowRecord[] = [];
+  const blockedRecords: BlockedRecords[] = [];
 
   let defaultWarehouseNeeded = false;
   let totalRowsProcessed = 0;
@@ -126,6 +134,16 @@ export function extractEntitiesFromWorkbook(
     if (hasInventoryCol && !hasWarehouseCol) {
       defaultWarehouseNeeded = true;
     }
+
+    // A sheet with purchase-order / transaction columns must have every column
+    // those records need. Nothing is ever borrowed or defaulted (no stock as
+    // PO quantity, no "today" as a date): the records are blocked instead and
+    // the preview asks the user to map a column or skip them.
+    const mappedFields = new Set(colToField.values());
+    const missingPoColumns = PO_FIELDS.some((f) => mappedFields.has(f)) ? PO_REQUIRED.filter((f) => !mappedFields.has(f)) : [];
+    const missingTxColumns = TX_FIELDS.some((f) => mappedFields.has(f)) ? TX_FIELDS.filter((f) => !mappedFields.has(f)) : [];
+    let blockedPoRows = 0;
+    let blockedTxRows = 0;
 
     // Collect all date values in sheet for global date format detection
     const dateValues: unknown[] = [];
@@ -175,9 +193,14 @@ export function extractEntitiesFromWorkbook(
       let transDirection: "IN" | "OUT" | null = null;
       let transDate: Date | null = null;
 
+      // Which cells were filled in, and with what — so "blank" and "invalid"
+      // can be told apart in row-level messages.
+      const rawByField = new Map<CanonicalFieldId, unknown>();
+
       for (const [colIdx, fieldId] of colToField.entries()) {
         const rawVal = row[colIdx];
         if (rawVal === null || rawVal === undefined || String(rawVal).trim() === "") continue;
+        rawByField.set(fieldId, rawVal);
 
         switch (fieldId) {
           case "sku":
@@ -250,8 +273,66 @@ export function extractEntitiesFromWorkbook(
       }
 
       const rowNumber = rIdx + sheet.headerRowIndex + 2;
-      const isPoRow = Boolean(poNumber || (orderDate && expectedDate));
-      const isTxRow = transQty !== null && transDirection !== null && transDate !== null;
+
+      // ---- Validate first; a row with any problem is rejected whole and
+      //      nothing from it is written. No value is ever invented. ----
+      const problems = new Set<string>();
+      const problem = (column: string, reason: string) => problems.add(`column "${column}": ${reason}`);
+      const has = (f: CanonicalFieldId) => rawByField.has(f);
+      const shown = (f: CanonicalFieldId) => JSON.stringify(String(rawByField.get(f)));
+
+      // Purchase order on this row? (If the sheet lacks a required PO column,
+      // the PO part is blocked for the whole sheet and reported separately.)
+      const poIntent = PO_FIELDS.some(has);
+      if (poIntent && missingPoColumns.length > 0) blockedPoRows++;
+      const isPoRow = poIntent && missingPoColumns.length === 0;
+      if (isPoRow) {
+        if (!poNumber) problem("po_number", "is empty — every purchase order needs its own PO number (none is generated)");
+        if (!sku) problem("sku", "is empty — required to know what was ordered");
+        if (!has("po_quantity")) problem("po_quantity", "is empty — required (stock on hand is never used instead)");
+        else if (poQty === null || poQty <= 0 || !Number.isInteger(poQty)) problem("po_quantity", `${shown("po_quantity")} is not a positive whole number`);
+        if (!has("po_unit_price")) problem("po_unit_price", "is empty — required (the product cost is never used instead)");
+        else if (poPrice === null || poPrice < 0) problem("po_unit_price", `${shown("po_unit_price")} is not a valid price`);
+        if (!has("order_date")) problem("order_date", "is empty, required for lead-time tracking");
+        else if (!orderDate) problem("order_date", `${shown("order_date")} is not a valid date`);
+        if (!has("expected_date")) problem("expected_date", "is empty, required for supplier OTIF");
+        else if (!expectedDate) problem("expected_date", `${shown("expected_date")} is not a valid date`);
+        if (has("received_date") && !receivedDate) {
+          problem("received_date", `${shown("received_date")} is not a valid date (leave it blank for an open PO)`);
+        }
+      }
+
+      // Stock movement on this row?
+      const txIntent = TX_FIELDS.some(has);
+      if (txIntent && missingTxColumns.length > 0) blockedTxRows++;
+      const isTxRow = txIntent && missingTxColumns.length === 0;
+      if (isTxRow) {
+        if (!sku) problem("sku", "is empty — required to know what moved");
+        if (!has("transaction_qty")) problem("transaction_qty", "is empty — required for demand history");
+        else if (transQty === null || transQty <= 0) problem("transaction_qty", `${shown("transaction_qty")} is not a positive quantity`);
+        if (!has("transaction_direction")) problem("transaction_direction", "is empty — must be IN or OUT");
+        else if (!transDirection) problem("transaction_direction", `${shown("transaction_direction")} must be IN or OUT`);
+        if (!has("transaction_date")) problem("transaction_date", "is empty, required for demand history");
+        else if (!transDate) problem("transaction_date", `${shown("transaction_date")} is not a valid date`);
+      }
+
+      // A product needs its own SKU — none is generated.
+      if (!sku && productName) problem("sku", "is empty — every product needs its own SKU (none is generated)");
+
+      // A stock row needs a real quantity: unknown stock is not zero stock.
+      const stockIntent = hasInventoryCol && Boolean(sku) && !isTxRow && Boolean(warehouseCode || warehouseName || !hasWarehouseCol);
+      if (stockIntent && (!qtyFoundInRow || quantityOnHand === null)) {
+        problem(
+          "quantity_on_hand",
+          has("quantity_on_hand") ? `${shown("quantity_on_hand")} is not a number — unknown stock is not zero stock` : "is empty — unknown stock is not zero stock"
+        );
+      }
+
+      if (problems.size > 0) {
+        rejectedRows.push({ sheetName: sheet.name, rowIndex: rowNumber, rawRow: rowObj, reason: `Row ${rowNumber}, ${[...problems].join("; ")}` });
+        continue;
+      }
+
       const tier = isPoRow || isTxRow ? 1 : 0; // index into the [product rows, PO/transaction rows] lists
 
       // 1. Warehouse — identified by code when the row has one.
@@ -290,8 +371,8 @@ export function extractEntitiesFromWorkbook(
         supplierRef = { name: supplierName };
       }
 
-      if (sku || productName) {
-        const finalSku = sku || `SKU-AUTO-${products.size + 1}`;
+      if (sku) {
+        const finalSku = sku;
 
         // 3. Product details: add, never overwrite.
         const acc: ProductAccumulator = products.get(finalSku) ?? {
@@ -311,36 +392,24 @@ export function extractEntitiesFromWorkbook(
         }
         products.set(finalSku, acc);
 
-        // 4. Stock position. A blank quantity is rejected only on a row that
-        //    is meant to be a stock row (it names a warehouse, or the sheet has
-        //    no warehouse column) — not on PO / transaction / catalog rows of
-        //    an all-in-one file that simply leave the quantity blank.
-        if (hasInventoryCol) {
-          const stockIntent = !isTxRow && (warehouseRef !== null || !hasWarehouseCol);
-          if (qtyFoundInRow && quantityOnHand !== null) {
-            rawInventoryList.push({ sku: finalSku, warehouse: warehouseRef ?? { id: DEFAULT_WAREHOUSE_CODE }, quantity: quantityOnHand });
-          } else if (stockIntent) {
-            // I5.2: Blank quantity -> rejected with reason, NOT zero stock
-            rejectedRows.push({
-              sheetName: sheet.name,
-              rowIndex: rowNumber,
-              rawRow: rowObj,
-              reason: "Blank or invalid on-hand quantity. Unknown stock is not zero stock.",
-            });
-          }
+        // 4. Stock position (a blank / invalid quantity was rejected above).
+        //    PO / transaction / catalog rows of an all-in-one file simply have
+        //    no quantity and add no stock.
+        if (hasInventoryCol && qtyFoundInRow && quantityOnHand !== null) {
+          rawInventoryList.push({ sku: finalSku, warehouse: warehouseRef ?? { id: DEFAULT_WAREHOUSE_CODE }, quantity: quantityOnHand });
         }
 
-        // 5. Purchase order
+        // 5. Purchase order — every field validated above, nothing defaulted.
         if (isPoRow) {
           rawPurchaseOrdersList.push({
-            poNumber: poNumber || `PO-${rawPurchaseOrdersList.length + 8001}`,
+            poNumber: poNumber!,
             sku: finalSku,
             supplier: supplierRef,
-            quantity: poQty || quantityOnHand || 100,
-            unitPrice: poPrice || unitCost || 0.0,
-            orderDate: orderDate || new Date(),
-            expectedDate: expectedDate || new Date(Date.now() + 14 * 86400 * 1000),
-            receivedDate: receivedDate || null,
+            quantity: poQty!,
+            unitPrice: poPrice!,
+            orderDate: orderDate!,
+            expectedDate: expectedDate!,
+            receivedDate,
           });
         }
 
@@ -361,9 +430,16 @@ export function extractEntitiesFromWorkbook(
           sheetName: sheet.name,
           rowIndex: rowNumber,
           rawRow: rowObj,
-          reason: "Row contains no SKU or Product Name.",
+          reason: `Row ${rowNumber}, column "sku": is empty and the row has nothing else to import.`,
         });
       }
+    }
+
+    if (blockedPoRows > 0) {
+      blockedRecords.push({ sheetName: sheet.name, entity: "purchase_order", missingColumns: missingPoColumns, rows: blockedPoRows });
+    }
+    if (blockedTxRows > 0) {
+      blockedRecords.push({ sheetName: sheet.name, entity: "transaction", missingColumns: missingTxColumns, rows: blockedTxRows });
     }
   }
 
@@ -395,7 +471,9 @@ export function extractEntitiesFromWorkbook(
       capacityUnits: w.capacity ?? 0,
       ...(referenceOnly ? { referenceOnly } : {}),
     });
-    if (!w.capacity && !referenceOnly) missingCapacityCount++;
+    // Counted even when only named on stock rows: if it's new, it is created
+    // with the capacity placeholder, and the preview says so.
+    if (!w.capacity) missingCapacityCount++;
   }
   const usedWarehouseCodes = new Set(finalWarehouses.map((w) => w.code));
   let whSeq = 1;
@@ -513,7 +591,9 @@ export function extractEntitiesFromWorkbook(
   for (const acc of products.values()) {
     const name = choose(acc.sku, "name", acc.names) ?? acc.sku;
     const category = choose(acc.sku, "category", acc.categories) ?? "General";
-    const unitCost = choose(acc.sku, "unitCost", acc.costs) ?? 0;
+    // Never defaulted: null means the file has no cost for this SKU (an
+    // existing product keeps its cost; a new one is refused at commit).
+    const unitCost = choose(acc.sku, "unitCost", acc.costs) ?? null;
 
     const supplierRows = acc.suppliers[0].length > 0 ? acc.suppliers[0] : acc.suppliers[1];
     const supplierIds = [...new Set(supplierRows.map((s) => resolveSupplier(s.ref)))];
@@ -572,22 +652,25 @@ export function extractEntitiesFromWorkbook(
   // Purchase orders & transactions
   // ---------------------------------------------------------------------------
   const iso = (d: Date) => d.toISOString().slice(0, 10);
-  const finalPOs: ExtractedPurchaseOrder[] = rawPurchaseOrdersList
-    .filter((po) => po.poNumber)
-    .map((po) => ({
-      poNumber: po.poNumber!,
-      supplierId: resolveSupplier(po.supplier),
-      sku: po.sku,
-      quantity: po.quantity || 100,
-      unitPrice: po.unitPrice || 0.0,
-      orderDate: po.orderDate ? iso(po.orderDate) : iso(new Date()),
-      expectedDate: po.expectedDate ? iso(po.expectedDate) : iso(new Date(Date.now() + 14 * 86400 * 1000)),
-      receivedDate: po.receivedDate ? iso(po.receivedDate) : null,
-    }));
+  // Every field below was validated per row; nothing is defaulted here.
+  const finalPOs: ExtractedPurchaseOrder[] = rawPurchaseOrdersList.map((po) => ({
+    poNumber: po.poNumber!,
+    supplierId: resolveSupplier(po.supplier),
+    sku: po.sku,
+    quantity: po.quantity!,
+    unitPrice: po.unitPrice!,
+    orderDate: iso(po.orderDate!),
+    expectedDate: iso(po.expectedDate!),
+    receivedDate: po.receivedDate ? iso(po.receivedDate) : null,
+  }));
 
-  const finalTransactions: ExtractedTransaction[] = rawTransactionsList
-    .filter((t) => t.quantity)
-    .map((t) => ({ sku: t.sku, warehouseCode: resolveWarehouse(t.warehouse), quantity: t.quantity, direction: t.direction, date: iso(t.date) }));
+  const finalTransactions: ExtractedTransaction[] = rawTransactionsList.map((t) => ({
+    sku: t.sku,
+    warehouseCode: resolveWarehouse(t.warehouse),
+    quantity: t.quantity,
+    direction: t.direction,
+    date: iso(t.date),
+  }));
 
   // Placeholder warehouse / supplier only when something actually points at them.
   const needsDefaultWarehouse =
@@ -627,6 +710,7 @@ export function extractEntitiesFromWorkbook(
     skuConflicts,
     productConflicts,
     duplicateStockPositions,
+    blockedRecords,
     rejectedRows,
     missingLeadTimeCount,
     missingCapacityCount,

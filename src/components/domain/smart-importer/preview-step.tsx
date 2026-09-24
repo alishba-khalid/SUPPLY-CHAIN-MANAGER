@@ -34,19 +34,36 @@ interface PreviewStepProps {
   preview: ExtractionPreview;
   onCommitImport: (clearExisting: boolean) => void;
   onBack: () => void;
+  onGoToMapping: () => void;
   isCommitting: boolean;
 }
 
 type EntityTab = "warehouses" | "suppliers" | "products" | "inventory" | "purchaseOrders" | "transactions";
 
+const COLUMN_LABELS: Record<string, string> = {
+  po_number: "PO number",
+  po_quantity: "PO quantity",
+  po_unit_price: "PO unit price",
+  order_date: "order date",
+  expected_date: "expected date",
+  transaction_qty: "transaction quantity",
+  transaction_direction: "direction (IN / OUT)",
+  transaction_date: "transaction date",
+};
+
 export function PreviewStep({
   preview,
   onCommitImport,
   onBack,
+  onGoToMapping,
   isCommitting,
 }: PreviewStepProps) {
   const [activeTab, setActiveTab] = useState<EntityTab>("products");
   const [clearExisting, setClearExisting] = useState(false);
+  // Records blocked by a missing column need an explicit decision: map the
+  // column, or skip them. Nothing is imported with an invented value.
+  const [skipBlocked, setSkipBlocked] = useState(false);
+  const needsBlockedDecision = preview.blockedRecords.length > 0 && !skipBlocked;
 
   function downloadRejectedRowsCsv() {
     if (preview.rejectedRows.length === 0) return;
@@ -238,12 +255,14 @@ export function PreviewStep({
             )}
             {preview.missingCapacityCount > 0 && (
               <li>
-                <strong>{preview.missingCapacityCount} warehouse(s)</strong> imported without capacity limits — defaulting to 0.
+                <strong>{preview.missingCapacityCount} warehouse(s)</strong> have no capacity in the file. Any that are new will be saved
+                with a placeholder of 50,000 units — set the real capacity on the Warehouses page. Existing warehouses keep theirs.
               </li>
             )}
             {preview.generatedIdsCount > 0 && (
               <li>
-                <strong>{preview.generatedIdsCount} entity code(s) / ID(s)</strong> were automatically generated from names.
+                <strong>{preview.generatedIdsCount} supplier / warehouse ID(s)</strong> were generated because the file only had
+                names. PO numbers and SKUs are never generated.
               </li>
             )}
           </ul>
@@ -256,7 +275,9 @@ export function PreviewStep({
           <div className="flex items-center gap-2.5 text-small">
             <AlertCircle size={18} className="shrink-0" />
             <span>
-              <strong>{preview.rejectedRows.length} rows excluded:</strong> Blank stock values or unresolvable keys were safely skipped (never imported as 0 stock).
+              <strong>{preview.rejectedRows.length} rows excluded:</strong> a required value was blank or invalid, so nothing from
+              those rows will be imported (no value is ever filled in for you). The CSV lists each one as &quot;Row N, column X:
+              reason&quot;.
             </span>
           </div>
           <Button
@@ -269,6 +290,36 @@ export function PreviewStep({
           </Button>
         </div>
       )}
+
+      {/* Records blocked by a missing column: map it or skip them */}
+      {preview.blockedRecords.map((b) => {
+        const what = b.entity === "purchase_order" ? "purchase-order" : "transaction";
+        const missing = b.missingColumns.map((c) => COLUMN_LABELS[c] ?? c).join(", ");
+        return (
+          <div
+            key={`${b.sheetName}-${b.entity}`}
+            className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-small text-amber-900 dark:text-amber-200"
+          >
+            <span>
+              <strong>
+                {missing} column{b.missingColumns.length > 1 ? "s" : ""} not found — {b.rows.toLocaleString()} {what} rows blocked
+              </strong>{" "}
+              in &quot;{b.sheetName}&quot;.{" "}
+              {skipBlocked ? "Skipped: these will not be imported." : "Map the column, or skip these records and import the rest."}
+            </span>
+            {!skipBlocked && (
+              <div className="flex gap-2 shrink-0">
+                <Button variant="secondary" size="sm" onClick={onGoToMapping}>
+                  Map a column
+                </Button>
+                <Button variant="secondary" size="sm" onClick={() => setSkipBlocked(true)}>
+                  Skip {b.entity === "purchase_order" ? "purchase orders" : "transactions"}
+                </Button>
+              </div>
+            )}
+          </div>
+        );
+      })}
 
       {/* Entity Table Data Sample */}
       <Card className="overflow-hidden border border-(--color-border) bg-(--color-surface)">
@@ -352,7 +403,9 @@ export function PreviewStep({
                     <td className="px-4 py-2.5">
                       <Badge tone="neutral">{p.category}</Badge>
                     </td>
-                    <td className="px-4 py-2.5 font-mono">${p.unitCost.toFixed(2)}</td>
+                    <td className="px-4 py-2.5 font-mono">
+                      {p.unitCost === null ? <span title="No cost in the file: an existing product keeps its cost">—</span> : `$${p.unitCost.toFixed(2)}`}
+                    </td>
                     <td className="px-4 py-2.5 font-mono text-xs">{p.supplierId}</td>
                   </tr>
                 ))}
@@ -458,7 +511,8 @@ export function PreviewStep({
           </Button>
           <Button
             onClick={() => onCommitImport(clearExisting)}
-            disabled={isCommitting}
+            disabled={isCommitting || needsBlockedDecision}
+            title={needsBlockedDecision ? "Map the missing column or skip the blocked records first" : undefined}
             className="gap-2 bg-(--color-brand) text-white hover:opacity-90 px-6 py-2.5"
           >
             <Upload size={18} />

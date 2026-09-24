@@ -42,6 +42,9 @@ const STUCK_COMMIT_MS = 6 * 60 * 1000;
 // Leaves margin inside the pages' maxDuration (300s) for the response.
 const COMMIT_TX_TIMEOUT_MS = 270_000;
 const MAX_ERRORS_SHOWN = 5;
+// The only placeholder record an import may create: a clearly labelled
+// supplier for products / POs whose rows name no supplier.
+const UNASSIGNED_SUPPLIER_ID = "SUP-UNASSIGNED";
 const EXPIRED = "This upload has expired or was cancelled. Please start the import again.";
 
 export const ZERO_COUNTS: ImportCounts = {
@@ -265,12 +268,21 @@ function staged(entity: ImportEntity, columns: string): string {
  */
 export function referenceCheckSql(clearExisting: boolean): string {
   const ref = (ord: number, entity: ImportEntity, column: string, target: ImportEntity, key: string) =>
-    `SELECT ${ord} AS ord, '${entity}' AS entity, '${column}' AS col, '${target}' AS t, c.chunk_index, x._row, x.${key} AS v
+    `SELECT ${ord} AS ord, '${entity}' AS entity, '${column}' AS col, '${target}' AS t, c.chunk_index, x._row, x.${key} AS v, 'ref' AS kind
      FROM ${staged(entity, `${key} text`)}`;
+  // Only records the file actually describes count as "known": a supplier or
+  // SKU it merely mentions must already exist in the workspace (creating one
+  // would invent its name, lead time or cost). Exceptions: the labelled
+  // "Unassigned Supplier" for products / POs that name no supplier, and a
+  // warehouse named only on stock rows (created under that name — see the
+  // warehouse statement).
+  const described = `AND NOT COALESCE(x."referenceOnly", false)`;
   return `WITH known AS (
   SELECT 'warehouse' AS t, x.code AS k FROM ${staged("warehouse", "code text")}
-  UNION SELECT 'supplier', x."supplierId" FROM ${staged("supplier", `"supplierId" text`)}
-  UNION SELECT 'product', x.sku FROM ${staged("product", "sku text")}
+  UNION SELECT 'supplier', x."supplierId" FROM ${staged("supplier", `"supplierId" text, "referenceOnly" boolean`)}
+    AND (NOT COALESCE(x."referenceOnly", false) OR x."supplierId" = '${UNASSIGNED_SUPPLIER_ID}')
+  UNION SELECT 'product', x.sku FROM ${staged("product", `sku text, "unitCost" numeric, "referenceOnly" boolean`)} ${described}
+    AND x."unitCost" IS NOT NULL
   ${
     clearExisting
       ? ""
@@ -288,11 +300,19 @@ export function referenceCheckSql(clearExisting: boolean): string {
   UNION ALL ${ref(7, "transaction", "warehouse", "warehouse", `"warehouseCode"`)}
 ), missing AS (
   SELECT t, v AS k FROM refs EXCEPT SELECT t, k FROM known
+), problems AS (
+  SELECT r.* FROM refs r JOIN missing m ON m.t = r.t AND m.k = r.v
+  UNION ALL
+  -- A product row without a cost can update an existing product (its cost is
+  -- kept) but cannot create a new one: no cost is ever filled in.
+  SELECT 0, 'product', 'unit_cost', 'product', c.chunk_index, x._row, x.sku, 'nocost'
+  FROM ${staged("product", `sku text, "unitCost" numeric, "referenceOnly" boolean`)} ${described}
+    AND x."unitCost" IS NULL
+    ${clearExisting ? "" : `AND NOT EXISTS (SELECT 1 FROM products p WHERE p.org_id = $1 AND p.sku = x.sku)`}
 ), bad AS (
-  SELECT r.*, row_number() OVER (ORDER BY r.ord, r._row) AS rn, count(*) OVER () AS total
-  FROM refs r JOIN missing m ON m.t = r.t AND m.k = r.v
+  SELECT p.*, row_number() OVER (ORDER BY p.ord, p._row) AS rn, count(*) OVER () AS total FROM problems p
 )
-SELECT entity, col, t AS target, chunk_index AS "chunkIndex", _row AS "rowNumber", v AS value, total
+SELECT entity, col, t AS target, chunk_index AS "chunkIndex", _row AS "rowNumber", v AS value, kind, total
 FROM bad WHERE rn <= ${MAX_ERRORS_SHOWN} ORDER BY rn`;
 }
 
@@ -323,6 +343,10 @@ export const COMMIT_STATEMENTS: { step: ImportEntity; sql: string }[] = [
 INSERT INTO warehouses (org_id, code, name, capacity_units)
 SELECT $1, src.code, src.name, COALESCE(NULLIF(src.cap, 0), 50000) FROM src
 WHERE NOT EXISTS (SELECT 1 FROM upd WHERE upd.code = src.code)
+-- A warehouse only named on stock rows (e.g. a "Godown" column) is created
+-- if missing under that name — it is never used to update an existing one.
+-- Its capacity is the same listed 50,000 placeholder as any warehouse the
+-- file gives no capacity for (the preview says so).
 ON CONFLICT (org_id, code) DO NOTHING`,
   },
   {
@@ -341,22 +365,25 @@ ON CONFLICT (org_id, code) DO NOTHING`,
 INSERT INTO suppliers (org_id, supplier_id, name, lead_time_days, lead_time_missing, email)
 SELECT $1, src.sid, src.name, COALESCE(NULLIF(src.lead, 0), 14), src.missing, src.email FROM src
 WHERE NOT EXISTS (SELECT 1 FROM upd WHERE upd.supplier_id = src.sid)
-  -- A supplier the file only mentions by ID is created only when a product
-  -- being newly created (or updated from a product row), or a purchase order,
-  -- actually points at it — e.g. an inventory-only file must not add an
-  -- "Unassigned Supplier" when all its SKUs already exist.
+  -- A supplier the file only mentions by ID is never created (it must already
+  -- exist). The one placeholder allowed is the labelled "Unassigned
+  -- Supplier", and only when a product row or PO in this file points at it.
   AND (
     NOT src.ref_only
-    OR EXISTS (
-      SELECT 1 FROM import_staged_chunks c2
-        CROSS JOIN LATERAL jsonb_to_recordset(c2.payload->'product') AS p(sku text, "supplierId" text, "referenceOnly" boolean)
-      WHERE c2.org_id = $1 AND c2.session_id = $2 AND p."supplierId" = src.sid
-        AND (NOT COALESCE(p."referenceOnly", false) OR NOT EXISTS (SELECT 1 FROM products e WHERE e.org_id = $1 AND e.sku = p.sku))
-    )
-    OR EXISTS (
-      SELECT 1 FROM import_staged_chunks c3
-        CROSS JOIN LATERAL jsonb_to_recordset(c3.payload->'purchase_order') AS o("supplierId" text)
-      WHERE c3.org_id = $1 AND c3.session_id = $2 AND o."supplierId" = src.sid
+    OR (
+      src.sid = '${UNASSIGNED_SUPPLIER_ID}'
+      AND (
+        EXISTS (
+          SELECT 1 FROM import_staged_chunks c2
+            CROSS JOIN LATERAL jsonb_to_recordset(c2.payload->'product') AS p("supplierId" text, "referenceOnly" boolean)
+          WHERE c2.org_id = $1 AND c2.session_id = $2 AND p."supplierId" = src.sid AND NOT COALESCE(p."referenceOnly", false)
+        )
+        OR EXISTS (
+          SELECT 1 FROM import_staged_chunks c3
+            CROSS JOIN LATERAL jsonb_to_recordset(c3.payload->'purchase_order') AS o("supplierId" text)
+          WHERE c3.org_id = $1 AND c3.session_id = $2 AND o."supplierId" = src.sid
+        )
+      )
     )
   )
 ON CONFLICT (org_id, supplier_id) DO NOTHING`,
@@ -369,7 +396,8 @@ ON CONFLICT (org_id, supplier_id) DO NOTHING`,
   FROM ${staged("product", `sku text, name text, category text, "unitCost" numeric, "supplierId" text, "referenceOnly" boolean`)}
   ORDER BY x.sku, x._row DESC
 ), upd AS (
-  UPDATE products p SET name = src.name, unit_cost = src.cost, supplier_id = src.sid,
+  -- No cost in the file keeps the existing cost; it is never set to 0.
+  UPDATE products p SET name = src.name, unit_cost = COALESCE(src.cost, p.unit_cost), supplier_id = src.sid,
     category = COALESCE(src.category, p.category)
   FROM src WHERE p.org_id = $1 AND p.sku = src.sku AND NOT src.ref_only
   RETURNING p.sku
@@ -377,6 +405,9 @@ ON CONFLICT (org_id, supplier_id) DO NOTHING`,
 INSERT INTO products (org_id, sku, name, category, unit_cost, supplier_id)
 SELECT $1, src.sku, src.name, COALESCE(src.category, 'General'), src.cost, src.sid FROM src
 WHERE NOT EXISTS (SELECT 1 FROM upd WHERE upd.sku = src.sku)
+  -- Never create a product the file only mentions, or one without a cost
+  -- (validation already refused the import if such a product was new).
+  AND NOT src.ref_only AND src.cost IS NOT NULL
 ON CONFLICT (org_id, sku) DO NOTHING`,
   },
   {
@@ -481,7 +512,7 @@ export async function commitImportSession(
       async (tx) => {
         await onStep("validate");
         const bad = await tx.$queryRawUnsafe<
-          { entity: ImportEntity; col: string; target: ImportEntity; chunkIndex: number; rowNumber: number; value: string; total: bigint }[]
+          { entity: ImportEntity; col: string; target: ImportEntity; chunkIndex: number; rowNumber: number; value: string; kind: "ref" | "nocost"; total: bigint }[]
         >(referenceCheckSql(session.clearExisting), orgId, sessionId);
         if (bad.length > 0) return { refErrors: formatReferenceErrors(bad, session.clearExisting, session.totalChunks) };
 
@@ -533,7 +564,7 @@ export async function commitImportSession(
 }
 
 function formatReferenceErrors(
-  bad: { entity: ImportEntity; col: string; target: ImportEntity; chunkIndex: number; rowNumber: number; value: string; total: bigint }[],
+  bad: { entity: ImportEntity; col: string; target: ImportEntity; chunkIndex: number; rowNumber: number; value: string; kind: "ref" | "nocost"; total: bigint }[],
   clearExisting: boolean,
   totalChunks: number
 ): string[] {
@@ -544,11 +575,14 @@ function formatReferenceErrors(
       entity: r.entity,
       rowNumber: r.rowNumber,
       column: r.col,
-      problem: `"${r.value}" is not one of the ${ENTITY_LABELS[r.target]} in this file${clearExisting ? "" : " or your workspace"}.`,
+      problem:
+        r.kind === "nocost"
+          ? `is empty — ${r.value} is new${clearExisting ? "" : " to your workspace"}, so its unit cost is required (none is filled in for you).`
+          : `"${r.value}" is not one of the ${ENTITY_LABELS[r.target]} in this file${clearExisting ? "" : " or your workspace"}.`,
     })
   );
   const total = Number(bad[0].total);
-  if (total > errors.length) errors.push(`…and ${(total - errors.length).toLocaleString("en-US")} more rows with missing references.`);
+  if (total > errors.length) errors.push(`…and ${(total - errors.length).toLocaleString("en-US")} more rows with the same kind of problem.`);
   return errors;
 }
 

@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { LoadingState } from "@/components/ui/loading-state";
 import { importDataAction } from "@/app/actions/import";
+import { RejectedRowsNotice } from "@/components/domain/rejected-rows-notice";
+import type { TemplateRejectedRow } from "@/lib/importer/template-rows";
 import { Download, Upload, AlertCircle, CheckCircle2, FileSpreadsheet } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -73,6 +75,7 @@ export function SectionImportModal({
   const [parsedRows, setParsedRows] = useState<Record<string, unknown>[]>([]);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [importResult, setImportResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [rejectedRows, setRejectedRows] = useState<TemplateRejectedRow[]>([]);
   const [clearExisting, setClearExisting] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [isDragging, setIsDragging] = useState(false);
@@ -157,6 +160,8 @@ export function SectionImportModal({
       try {
         const BATCH_SIZE = 500;
         let totalCount = 0;
+        const rejected: TemplateRejectedRow[] = [];
+        setRejectedRows([]);
 
         for (let i = 0; i < parsedRows.length; i += BATCH_SIZE) {
           const batch = parsedRows.slice(i, i + BATCH_SIZE);
@@ -170,9 +175,12 @@ export function SectionImportModal({
 
           const res = await importDataAction(type, batch, {
             clearExisting: isFirstBatch ? clearExisting : false,
+            firstRowNumber: i + 2, // header is row 1
           });
+          if ("rejected" in res && Array.isArray(res.rejected)) rejected.push(...res.rejected);
 
           if (!res.success) {
+            setRejectedRows(rejected);
             setImportResult({
               success: false,
               message: "error" in res ? res.error : "Import failed",
@@ -186,9 +194,12 @@ export function SectionImportModal({
           }
         }
 
+        setRejectedRows(rejected);
         setImportResult({
           success: true,
-          message: `Successfully saved ${totalCount} records into ${config.label}!`,
+          message: rejected.length
+            ? `Saved ${totalCount} records into ${config.label}. ${rejected.length} rows were rejected (see below).`
+            : `Successfully saved ${totalCount} records into ${config.label}!`,
         });
         setParsedRows([]);
         setFile(null);
@@ -285,7 +296,9 @@ export function SectionImportModal({
           </div>
         )}
 
-        {importResult && (
+        <RejectedRowsNotice rows={rejectedRows} fileLabel={config.label} />
+
+      {importResult && (
           <div
             className={cn(
               "flex items-center justify-between gap-2 rounded-lg border p-3 text-small",

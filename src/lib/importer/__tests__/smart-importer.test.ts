@@ -148,8 +148,11 @@ describe("Smart Data Importer Test Suite (S1-S8, I1-I7)", () => {
     const delta = preview.suppliers.find((s) => s.name === "Delta Components LLC");
     assert.ok(delta, "Delta Components LLC should be the canonical supplier name");
 
-    // Verify Products extracted
-    assert.ok(preview.products.length >= 5, `Expected at least 5 products, got ${preview.products.length}`);
+    // Verify Products extracted. Rows with unusable stock (SKU-1004 "N/A",
+    // SKU-1005 "-", SKU-1007 blank) are rejected whole — nothing from them is
+    // imported — so 4 of the 7 SKUs come through (was ">= 5" when a rejected
+    // row's product was still imported).
+    assert.ok(preview.products.length >= 4, `Expected at least 4 products, got ${preview.products.length}`);
     const p1 = preview.products.find((p) => p.sku === "SKU-1001");
     assert.ok(p1, "SKU-1001 must exist");
     assert.strictEqual(p1.unitCost, 1450);
@@ -157,8 +160,13 @@ describe("Smart Data Importer Test Suite (S1-S8, I1-I7)", () => {
     // Verify Inventory balances extracted
     assert.ok(preview.inventory.length >= 3, `Expected at least 3 inventory positions, got ${preview.inventory.length}`);
 
-    // Verify Purchase Orders extracted
-    assert.ok(preview.purchaseOrders.length >= 3, `Expected at least 3 POs, got ${preview.purchaseOrders.length}`);
+    // Purchase orders: this sheet has PO numbers and dates but no PO quantity
+    // or PO price column. They used to be built from the stock quantity and
+    // the product rate; now nothing is borrowed — the POs are blocked and the
+    // preview asks the user to map a column or skip them.
+    assert.strictEqual(preview.purchaseOrders.length, 0, "no PO may be built from borrowed values");
+    const blocked = preview.blockedRecords.find((b) => b.entity === "purchase_order");
+    assert.deepStrictEqual(blocked?.missingColumns, ["po_quantity", "po_unit_price"]);
 
     // I5.1: Verify SKU Supplier Conflict detected for SKU-1002
     const conflict = preview.skuConflicts.find((c) => c.sku === "SKU-1002");
@@ -167,7 +175,7 @@ describe("Smart Data Importer Test Suite (S1-S8, I1-I7)", () => {
 
     // I5.2: Verify blank quantity row (SKU-1007) is placed in rejectedRows
     const blankRejected = preview.rejectedRows.find((r) =>
-      r.reason.includes("Blank or invalid on-hand quantity")
+      r.reason.includes('column "quantity_on_hand": is empty — unknown stock is not zero stock')
     );
     assert.ok(blankRejected, "Blank quantity row must be placed in rejectedRows");
   });

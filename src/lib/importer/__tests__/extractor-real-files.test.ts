@@ -181,23 +181,36 @@ describe("d. messy workbook (repo fixture; messy_acme_workbook.xlsx not availabl
   });
 
   test("vendor typos are flagged for merge but NOT merged; same-name variants are merged and listed", () => {
+    // Repo workbook: "delta comp." is on a valid row (SKU-1003). Its other
+    // variants ("DELTA COMPONENTS", "Apex Ind") sit on rows rejected for
+    // unusable stock, so nothing from those rows reaches the merge step.
     const p = extractBuffer(buf());
     const similar = p.mergeGroups.filter((g) => g.matchKind === "similar");
-    const typos = similar.flatMap((g) => g.variants.map((v) => v.originalName));
-    assert.ok(typos.includes("delta comp."), "'delta comp.' must be flagged");
-    assert.ok(typos.includes("Apex Ind"), "'Apex Ind' must be flagged");
+    assert.ok(similar.flatMap((g) => g.variants.map((v) => v.originalName)).includes("delta comp."), "'delta comp.' must be flagged");
     assert.ok(similar.every((g) => !g.isConfirmed), "suggestions must not be pre-ticked");
     assert.ok(p.suppliers.some((s) => s.name === "delta comp."), "not merged unless the user ticks it");
-    assert.ok(p.suppliers.some((s) => s.name === "Apex Ind"));
-
-    const same = p.mergeGroups.find((g) => g.matchKind === "same-name" && g.variants.some((v) => v.originalName === "DELTA COMPONENTS"));
-    assert.ok(same?.isConfirmed, "'DELTA COMPONENTS' is clearly the same as 'Delta Components LLC' and is listed");
 
     // Ticking the suggestion merges it.
     const ticked = p.mergeGroups.map((g) => (g.variants.some((v) => v.originalName === "delta comp.") ? { ...g, isConfirmed: true } : g));
     const merged = extractBuffer(buf(), { mergeGroups: ticked });
     assert.ok(!merged.suppliers.some((s) => s.name === "delta comp."));
     assert.strictEqual(merged.products.find((x) => x.sku === "SKU-1003")?.supplierId, "SUP-001");
+
+    // Same-name variants and a second typo, on valid rows.
+    const sheet = [
+      "SKU,Product Name,Supplier Name,Warehouse,Quantity On Hand,Unit Cost",
+      "A-1,Valve,Delta Components LLC,Main,10,5",
+      "A-2,Gasket,DELTA COMPONENTS,Main,4,2",
+      "A-3,Shaft,Apex Industrial Pvt Ltd,Main,7,9",
+      "A-4,Seal,Apex Ind,Main,3,1",
+    ].join("\n");
+    const q = extractBuffer(Buffer.from(sheet));
+    const same = q.mergeGroups.find((g) => g.matchKind === "same-name" && g.variants.some((v) => v.originalName === "DELTA COMPONENTS"));
+    assert.ok(same?.isConfirmed, "'DELTA COMPONENTS' is clearly the same as 'Delta Components LLC': pre-ticked and listed");
+    const apex = q.mergeGroups.find((g) => g.variants.some((v) => v.originalName === "Apex Ind"));
+    assert.strictEqual(apex?.matchKind, "similar");
+    assert.strictEqual(apex?.isConfirmed, false, "'Apex Ind' is only a suggestion");
+    assert.ok(q.suppliers.some((s) => s.name === "Apex Ind"), "not merged unless ticked");
   });
 
   test("duplicate SKU + location is reported, and both sum and keep-last are honoured", () => {

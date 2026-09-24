@@ -409,6 +409,69 @@ describe("chunked import — database", { skip: TEST_DB ? false : "set TEST_DATA
     assert.strictEqual(stock?.quantityOnHand, full.inventory[0].quantityOnHand + 1, "the stock rows themselves were applied");
   });
 
+  test("a product without a cost: an existing one keeps its cost, a new one is refused with its row number", async () => {
+    const orgId = org("nocost");
+    const full = buildImportPayload(REGRESSION_4817);
+    assert.ok((await helpers.importPayloadDirect(orgId, full, true)).ok);
+    const before = await prisma.product.findFirst({ where: { orgId, sku: full.products[0].sku } });
+
+    // Existing SKU, renamed, no cost in the file: name updates, cost is kept (never 0).
+    const renamed = { ...full, products: [{ ...full.products[0], name: "Renamed", unitCost: null }], inventory: [], purchaseOrders: [], transactions: [] };
+    const ok = await helpers.importPayloadDirect(orgId, renamed, false);
+    assert.ok(ok.ok, ok.ok ? "" : ok.error);
+    const after = await prisma.product.findFirst({ where: { orgId, sku: full.products[0].sku } });
+    assert.strictEqual(after?.name, "Renamed");
+    assert.strictEqual(after?.unitCost.toString(), before?.unitCost.toString(), "cost kept");
+
+    // New SKU with no cost: refused, nothing written.
+    const countBefore = await prisma.product.count({ where: { orgId } });
+    const fresh = { ...renamed, products: [{ ...full.products[0], sku: "SKU-NEW-NOCOST", unitCost: null }] };
+    const refused = await helpers.importPayloadDirect(orgId, fresh, false);
+    assert.strictEqual(refused.ok, false);
+    assert.match(refused.ok ? "" : refused.error, /products row 1, column "unit_cost": is empty — SKU-NEW-NOCOST is new to your workspace/);
+    assert.strictEqual(await prisma.product.count({ where: { orgId } }), countBefore);
+  });
+
+  test("a SKU the file only mentions is never created (no placeholder product)", async () => {
+    const orgId = org("mention");
+    const full = buildImportPayload(REGRESSION_4817);
+    assert.ok((await helpers.importPayloadDirect(orgId, full, true)).ok);
+    const stock = {
+      warehouses: [{ code: full.warehouses[0].code, name: full.warehouses[0].code, capacityUnits: 0, referenceOnly: true }],
+      suppliers: [],
+      products: [{ sku: "SKU-NOT-IN-WORKSPACE", name: "SKU-NOT-IN-WORKSPACE", category: "General", unitCost: null, supplierId: "SUP-UNASSIGNED", referenceOnly: true }],
+      inventory: [{ sku: "SKU-NOT-IN-WORKSPACE", warehouseCode: full.warehouses[0].code, quantityOnHand: 5 }],
+      purchaseOrders: [],
+      transactions: [],
+    };
+    const res = await helpers.importPayloadDirect(orgId, stock, false);
+    assert.strictEqual(res.ok, false);
+    assert.match(res.ok ? "" : res.error, /stock positions row 1, column "sku": "SKU-NOT-IN-WORKSPACE" is not one of the products/);
+    assert.strictEqual(await prisma.product.count({ where: { orgId, sku: "SKU-NOT-IN-WORKSPACE" } }), 0);
+  });
+
+  test("template mode: valid rows are written, rows with a blank quantity or missing date are not", async () => {
+    const orgId = org("template");
+    const { importData } = await import("@/data/repositories/import");
+    const run = async (type: Parameters<typeof importData>[1], rows: Record<string, unknown>[]) => {
+      const r = await importData(orgId, type, rows, { clearExisting: false });
+      assert.ok(r.success, r.success ? "" : r.error);
+      return r;
+    };
+    await run("warehouses", [{ "Warehouse Code": "NDC", Name: "Main", "Capacity (Units)": "1000" }]);
+    await run("suppliers", [{ "Supplier ID": "SUP-1", Name: "Delta", "Lead Time (Days)": "7", Email: "d@x.io" }]);
+    await run("products", [{ SKU: "SKU-1", Name: "Valve", Category: "x", "Unit Cost": "3", "Supplier ID": "SUP-1" }]);
+    const pos = await run("purchase_orders", [
+      { "PO Number": "PO-1", "Supplier ID": "SUP-1", SKU: "SKU-1", Quantity: "10", "Unit Price": "3", "Order Date": "2026-07-01", "Expected Date": "2026-07-10", "Received Date": "" },
+      { "PO Number": "PO-2", "Supplier ID": "SUP-1", SKU: "SKU-1", Quantity: "", "Unit Price": "3", "Order Date": "2026-07-01", "Expected Date": "2026-07-10", "Received Date": "" },
+      { "PO Number": "PO-3", "Supplier ID": "SUP-1", SKU: "SKU-1", Quantity: "5", "Unit Price": "3", "Order Date": "2026-07-01", "Expected Date": "", "Received Date": "" },
+    ]);
+    assert.strictEqual(pos.count, 1);
+    assert.deepStrictEqual(pos.rejected.map((r) => r.row), [3, 4]);
+    const saved = await prisma.purchaseOrder.findMany({ where: { orgId }, select: { poNumber: true, quantity: true, receivedDate: true } });
+    assert.deepStrictEqual(saved, [{ poNumber: "PO-1", quantity: 10, receivedDate: null }], "no PO with quantity 0 or a made-up date");
+  });
+
   test("a row pointing at an unknown product fails with its row number, nothing written", async () => {
     const orgId = org("badref");
     const payload = buildImportPayload(REGRESSION_4817);
