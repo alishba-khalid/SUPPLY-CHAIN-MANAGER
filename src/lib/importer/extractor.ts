@@ -13,19 +13,68 @@ import type {
   FuzzyMergeGroup,
   SkuSupplierConflict,
   SkuDuplicateResolution,
+  ProductDetailConflict,
+  DuplicateStockPosition,
 } from "./types";
 import { cleanString, cleanNumericValue, cleanDateValue, detectColumnDateFormat } from "./cleaner";
-import { clusterFuzzyEntities, normalizeEntityForMatching } from "./deduplicator";
+import { buildEntityMergeGroups, normalizeEntityForMatching, type MergeCandidate } from "./deduplicator";
 
 export interface ExtractionOptions {
   mergeGroups?: FuzzyMergeGroup[];
-  skuSupplierResolutions?: Record<string, string>; // sku -> chosen supplier
+  skuSupplierResolutions?: Record<string, string>; // sku -> chosen supplier ID
   skuDuplicateResolution?: SkuDuplicateResolution; // "sum" | "last"
+  /** `${sku}|${field}` -> index of the chosen option in ProductDetailConflict.options */
+  productConflictResolutions?: Record<string, number>;
   dateAmbiguityPreference?: "DD/MM" | "MM/DD";
+}
+
+const DEFAULT_WAREHOUSE_CODE = "WH-DEFAULT";
+const UNASSIGNED_SUP_ID = "SUP-UNASSIGNED";
+
+/** A supplier or warehouse as written on a row: by ID / code when present, else by name. */
+type EntityRef = { id: string } | { name: string };
+
+interface Candidate<T> {
+  value: T;
+  sheetName: string;
+  rowNumber: number;
+}
+
+/**
+ * Per-SKU product details collected across every row that mentions the SKU,
+ * split into [product rows, PO / transaction rows]. Values are only ever
+ * added, never overwritten: the final value is chosen at the end, and two
+ * rows with different details become a ProductDetailConflict instead of a
+ * silent overwrite.
+ */
+interface ProductAccumulator {
+  sku: string;
+  names: [Candidate<string>[], Candidate<string>[]];
+  categories: [Candidate<string>[], Candidate<string>[]];
+  costs: [Candidate<number>[], Candidate<number>[]];
+  suppliers: [
+    { ref: EntityRef; sheetName: string; rowNumber: number }[],
+    { ref: EntityRef; sheetName: string; rowNumber: number }[],
+  ];
+}
+
+function addDistinct<T>(list: Candidate<T>[], c: Candidate<T>) {
+  if (!list.some((x) => x.value === c.value)) list.push(c);
 }
 
 /**
  * Extracts all six entities in strict dependency order from parsed workbook sheets and mappings.
+ *
+ * Identity rules (a file of ID-only purchase orders used to have every
+ * supplier fuzzy-merged into one, and product rows were overwritten by every
+ * later row mentioning the same SKU):
+ * - A supplier / warehouse with an ID or code is identified by that ID alone;
+ *   different IDs are never merged.
+ * - Name-only variants merge automatically only when clearly the same (case,
+ *   punctuation, legal suffix) and are still listed for review; similar names
+ *   are suggestions the user must tick.
+ * - Product details come from the first row that has them and are never
+ *   overwritten; differing details are reported as conflicts.
  */
 export function extractEntitiesFromWorkbook(
   sheets: RawParsedSheet[],
@@ -34,15 +83,26 @@ export function extractEntitiesFromWorkbook(
 ): ExtractionPreview {
   const mappingMap = new Map(mappings.map((m) => [m.sheetName, m]));
 
-  const rawWarehousesMap = new Map<string, { originalName: string; code?: string; capacity?: number; rowCount: number }>();
-  const rawSuppliersMap = new Map<string, { originalName: string; supplierId?: string; leadTime?: number; email?: string; rowCount: number }>();
-  const rawProductsMap = new Map<string, { sku: string; name: string; category?: string; unitCost?: number; rawSupplier?: string; rawSupplierId?: string }>();
-  const rawInventoryList: { sku: string; rawWarehouse: string; quantity: number | null; rowIndex: number; sheetName: string; fullRow: Record<string, unknown> }[] = [];
-  const rawPurchaseOrdersList: { poNumber?: string; sku?: string; rawSupplier?: string; quantity?: number; unitPrice?: number; orderDate?: Date | null; expectedDate?: Date | null; receivedDate?: Date | null }[] = [];
-  const rawTransactionsList: { sku?: string; rawWarehouse?: string; quantity?: number; direction?: "IN" | "OUT"; date?: Date | null }[] = [];
+  const suppliersById = new Map<string, { id: string; name?: string; leadTime?: number; email?: string; rowCount: number }>();
+  const suppliersByName = new Map<string, { name: string; leadTime?: number; email?: string; rowCount: number }>();
+  const warehousesById = new Map<string, { code: string; name?: string; capacity?: number; rowCount: number }>();
+  const warehousesByName = new Map<string, { name: string; capacity?: number; rowCount: number }>();
+
+  const products = new Map<string, ProductAccumulator>();
+  const rawInventoryList: { sku: string; warehouse: EntityRef; quantity: number }[] = [];
+  const rawPurchaseOrdersList: {
+    poNumber?: string;
+    sku: string;
+    supplier: EntityRef | null;
+    quantity?: number;
+    unitPrice?: number;
+    orderDate?: Date | null;
+    expectedDate?: Date | null;
+    receivedDate?: Date | null;
+  }[] = [];
+  const rawTransactionsList: { sku: string; warehouse: EntityRef; quantity: number; direction: "IN" | "OUT"; date: Date }[] = [];
 
   const rejectedRows: RejectedRowRecord[] = [];
-  const skuToSuppliersMap = new Map<string, { productName: string; suppliers: Set<string> }>();
 
   let defaultWarehouseNeeded = false;
   let totalRowsProcessed = 0;
@@ -189,78 +249,93 @@ export function extractEntitiesFromWorkbook(
         }
       }
 
-      // 1. Warehouse collection
-      const finalWh = warehouseCode || warehouseName || (hasInventoryCol && !hasWarehouseCol ? "WH-DEFAULT" : null);
-      if (finalWh) {
-        const normWh = normalizeEntityForMatching(finalWh);
-        const existing = rawWarehousesMap.get(normWh) || { originalName: finalWh, rowCount: 0 };
-        existing.rowCount += 1;
-        if (warehouseCapacity) existing.capacity = warehouseCapacity;
-        if (warehouseCode) existing.code = warehouseCode;
-        rawWarehousesMap.set(normWh, existing);
+      const rowNumber = rIdx + sheet.headerRowIndex + 2;
+      const isPoRow = Boolean(poNumber || (orderDate && expectedDate));
+      const isTxRow = transQty !== null && transDirection !== null && transDate !== null;
+      const tier = isPoRow || isTxRow ? 1 : 0; // index into the [product rows, PO/transaction rows] lists
+
+      // 1. Warehouse — identified by code when the row has one.
+      let warehouseRef: EntityRef | null = null;
+      if (warehouseCode) {
+        const w = warehousesById.get(warehouseCode) ?? { code: warehouseCode, rowCount: 0 };
+        w.rowCount++;
+        if (warehouseName && !w.name) w.name = warehouseName;
+        if (warehouseCapacity && !w.capacity) w.capacity = warehouseCapacity;
+        warehousesById.set(warehouseCode, w);
+        warehouseRef = { id: warehouseCode };
+      } else if (warehouseName) {
+        const w = warehousesByName.get(warehouseName) ?? { name: warehouseName, rowCount: 0 };
+        w.rowCount++;
+        if (warehouseCapacity && !w.capacity) w.capacity = warehouseCapacity;
+        warehousesByName.set(warehouseName, w);
+        warehouseRef = { name: warehouseName };
       }
 
-      // 2. Supplier collection
-      const finalSupplier = supplierName || supplierId;
-      if (finalSupplier) {
-        const normSup = normalizeEntityForMatching(finalSupplier);
-        const existing = rawSuppliersMap.get(normSup) || { originalName: finalSupplier, rowCount: 0 };
-        existing.rowCount += 1;
-        if (leadTime && leadTime > 0) existing.leadTime = leadTime;
-        if (supplierEmail) existing.email = supplierEmail;
-        if (supplierId) existing.supplierId = supplierId;
-        rawSuppliersMap.set(normSup, existing);
+      // 2. Supplier — identified by Supplier ID when the row has one.
+      let supplierRef: EntityRef | null = null;
+      if (supplierId) {
+        const s = suppliersById.get(supplierId) ?? { id: supplierId, rowCount: 0 };
+        s.rowCount++;
+        if (supplierName && !s.name) s.name = supplierName;
+        if (leadTime && leadTime > 0 && !s.leadTime) s.leadTime = leadTime;
+        if (supplierEmail && !s.email) s.email = supplierEmail;
+        suppliersById.set(supplierId, s);
+        supplierRef = { id: supplierId };
+      } else if (supplierName) {
+        const s = suppliersByName.get(supplierName) ?? { name: supplierName, rowCount: 0 };
+        s.rowCount++;
+        if (leadTime && leadTime > 0 && !s.leadTime) s.leadTime = leadTime;
+        if (supplierEmail && !s.email) s.email = supplierEmail;
+        suppliersByName.set(supplierName, s);
+        supplierRef = { name: supplierName };
       }
 
-      // 3. Product collection & validation
       if (sku || productName) {
-        const finalSku = sku || `SKU-AUTO-${rawProductsMap.size + 1}`;
-        const finalName = productName || finalSku;
+        const finalSku = sku || `SKU-AUTO-${products.size + 1}`;
 
-        if (finalSupplier) {
-          if (!skuToSuppliersMap.has(finalSku)) {
-            skuToSuppliersMap.set(finalSku, { productName: finalName, suppliers: new Set() });
-          }
-          skuToSuppliersMap.get(finalSku)!.suppliers.add(finalSupplier);
-        }
-
-        rawProductsMap.set(finalSku, {
+        // 3. Product details: add, never overwrite.
+        const acc: ProductAccumulator = products.get(finalSku) ?? {
           sku: finalSku,
-          name: finalName,
-          category: category || "General",
-          unitCost: unitCost !== null && unitCost >= 0 ? unitCost : 0.0,
-          rawSupplier: finalSupplier || undefined,
-          rawSupplierId: supplierId || undefined,
-        });
+          names: [[], []],
+          categories: [[], []],
+          costs: [[], []],
+          suppliers: [[], []],
+        };
+        const at = { sheetName: sheet.name, rowNumber };
+        if (productName) addDistinct(acc.names[tier], { value: productName, ...at });
+        if (category) addDistinct(acc.categories[tier], { value: category, ...at });
+        if (unitCost !== null && unitCost >= 0) addDistinct(acc.costs[tier], { value: unitCost, ...at });
+        if (supplierRef) {
+          const key = JSON.stringify(supplierRef);
+          if (!acc.suppliers[tier].some((x) => JSON.stringify(x.ref) === key)) acc.suppliers[tier].push({ ref: supplierRef, ...at });
+        }
+        products.set(finalSku, acc);
 
-        // 4. Inventory balance collection
+        // 4. Stock position. A blank quantity is rejected only on a row that
+        //    is meant to be a stock row (it names a warehouse, or the sheet has
+        //    no warehouse column) — not on PO / transaction / catalog rows of
+        //    an all-in-one file that simply leave the quantity blank.
         if (hasInventoryCol) {
-          if (!qtyFoundInRow || quantityOnHand === null) {
-            // I5.2: Blank quantity -> land in rejected rows with reason, NOT zero stock
+          const stockIntent = !isTxRow && (warehouseRef !== null || !hasWarehouseCol);
+          if (qtyFoundInRow && quantityOnHand !== null) {
+            rawInventoryList.push({ sku: finalSku, warehouse: warehouseRef ?? { id: DEFAULT_WAREHOUSE_CODE }, quantity: quantityOnHand });
+          } else if (stockIntent) {
+            // I5.2: Blank quantity -> rejected with reason, NOT zero stock
             rejectedRows.push({
               sheetName: sheet.name,
-              rowIndex: rIdx + sheet.headerRowIndex + 2,
+              rowIndex: rowNumber,
               rawRow: rowObj,
               reason: "Blank or invalid on-hand quantity. Unknown stock is not zero stock.",
             });
-          } else {
-            rawInventoryList.push({
-              sku: finalSku,
-              rawWarehouse: finalWh || "WH-DEFAULT",
-              quantity: quantityOnHand,
-              rowIndex: rIdx + sheet.headerRowIndex + 2,
-              sheetName: sheet.name,
-              fullRow: rowObj,
-            });
           }
         }
 
-        // 5. Purchase Order collection
-        if (poNumber || (orderDate && expectedDate)) {
+        // 5. Purchase order
+        if (isPoRow) {
           rawPurchaseOrdersList.push({
             poNumber: poNumber || `PO-${rawPurchaseOrdersList.length + 8001}`,
             sku: finalSku,
-            rawSupplier: finalSupplier || undefined,
+            supplier: supplierRef,
             quantity: poQty || quantityOnHand || 100,
             unitPrice: poPrice || unitCost || 0.0,
             orderDate: orderDate || new Date(),
@@ -269,21 +344,22 @@ export function extractEntitiesFromWorkbook(
           });
         }
 
-        // 6. Transaction collection
-        if (transQty !== null && transDirection && transDate) {
+        // 6. Transaction
+        if (isTxRow) {
           rawTransactionsList.push({
             sku: finalSku,
-            rawWarehouse: finalWh || "WH-DEFAULT",
-            quantity: transQty,
-            direction: transDirection,
-            date: transDate,
+            warehouse: warehouseRef ?? { id: DEFAULT_WAREHOUSE_CODE },
+            quantity: transQty!,
+            direction: transDirection!,
+            date: transDate!,
           });
         }
-      } else if (hasInventoryCol && !sku && !productName) {
-        // Completely invalid row missing both SKU and Product Name
+      } else if (hasInventoryCol && !warehouseRef && !supplierRef) {
+        // Nothing usable on the row at all. Warehouse-only and supplier-only
+        // rows of an all-in-one file are valid and are not rejected.
         rejectedRows.push({
           sheetName: sheet.name,
-          rowIndex: rIdx + sheet.headerRowIndex + 2,
+          rowIndex: rowNumber,
           rawRow: rowObj,
           reason: "Row contains no SKU or Product Name.",
         });
@@ -291,140 +367,240 @@ export function extractEntitiesFromWorkbook(
     }
   }
 
-  // Deduplicate and cluster suppliers & warehouses
-  const supplierClusterCandidates = Array.from(rawSuppliersMap.values()).map((s) => ({
-    originalName: s.originalName,
-    rowCount: s.rowCount,
-  }));
-  const warehouseClusterCandidates = Array.from(rawWarehousesMap.values()).map((w) => ({
-    originalName: w.originalName,
-    rowCount: w.rowCount,
-  }));
+  const activeMergeGroups = options.mergeGroups;
 
-  const generatedMergeGroups = [
-    ...clusterFuzzyEntities(supplierClusterCandidates, "supplier", 0.85),
-    ...clusterFuzzyEntities(warehouseClusterCandidates, "warehouse", 0.85),
+  // ---------------------------------------------------------------------------
+  // Warehouses
+  // ---------------------------------------------------------------------------
+  const warehouseCandidates: MergeCandidate[] = [
+    ...[...warehousesById.values()].map((w) => ({ originalName: w.name || w.code, rowCount: w.rowCount, entityId: w.code })),
+    ...[...warehousesByName.values()].map((w) => ({ originalName: w.name, rowCount: w.rowCount })),
   ];
+  const warehouseGroups = buildEntityMergeGroups(warehouseCandidates, "warehouse");
+  const warehouseResolver = entityResolver(
+    warehouseCandidates,
+    (activeMergeGroups ?? warehouseGroups).filter((g) => g.entityType === "warehouse")
+  );
 
-  // Merge group lookup
-  const activeMergeGroups = options.mergeGroups || generatedMergeGroups;
-  const supplierNameAliasMap = new Map<string, string>();
-  const warehouseNameAliasMap = new Map<string, string>();
-
-  for (const mg of activeMergeGroups) {
-    if (!mg.isConfirmed) continue;
-    for (const v of mg.variants) {
-      if (mg.entityType === "supplier") {
-        supplierNameAliasMap.set(normalizeEntityForMatching(v.originalName), mg.canonicalName);
-      } else {
-        warehouseNameAliasMap.set(normalizeEntityForMatching(v.originalName), mg.canonicalName);
-      }
-    }
-  }
-
-  // --- ENTITY BUILDER 1: Warehouses ---
   const finalWarehouses: ExtractedWarehouse[] = [];
-  const warehouseCodeMap = new Map<string, string>(); // normName -> code
-  let whSeq = 1;
+  const warehouseCodeByName = new Map<string, string>(); // canonical name-only warehouse -> generated code
   let missingCapacityCount = 0;
-
-  for (const [normName, whData] of rawWarehousesMap.entries()) {
-    const canonicalName = warehouseNameAliasMap.get(normName) || whData.originalName;
-    const canonNorm = normalizeEntityForMatching(canonicalName);
-
-    if (warehouseCodeMap.has(canonNorm)) {
-      warehouseCodeMap.set(normName, warehouseCodeMap.get(canonNorm)!);
-      continue;
-    }
-
-    let code = whData.code || "";
-    let isAutoGeneratedCode = false;
-    if (!code) {
-      if (canonicalName === "WH-DEFAULT") {
-        code = "WH-DEFAULT";
-      } else {
-        code = `WH-${whSeq.toString().padStart(2, "0")}`;
-        isAutoGeneratedCode = true;
-        whSeq++;
-      }
-    }
-
-    const capacity = whData.capacity ?? 0;
-    if (capacity === 0) {
-      missingCapacityCount++;
-    }
-
-    warehouseCodeMap.set(canonNorm, code);
-    warehouseCodeMap.set(normName, code);
-
+  for (const w of warehousesById.values()) {
+    // Only a code on stock / transaction rows: create it if missing, never
+    // rename an existing warehouse to its code.
+    const referenceOnly = !w.name && !w.capacity;
     finalWarehouses.push({
-      code,
-      name: canonicalName === "WH-DEFAULT" ? "Primary Facility (Default)" : canonicalName,
-      capacityUnits: capacity,
-      isAutoGeneratedCode,
+      code: w.code,
+      name: w.name || w.code,
+      capacityUnits: w.capacity ?? 0,
+      ...(referenceOnly ? { referenceOnly } : {}),
     });
+    if (!w.capacity && !referenceOnly) missingCapacityCount++;
   }
-
-  if (finalWarehouses.length === 0 || defaultWarehouseNeeded) {
-    if (!finalWarehouses.some((w) => w.code === "WH-DEFAULT")) {
-      finalWarehouses.push({
-        code: "WH-DEFAULT",
-        name: "Primary Facility (Default)",
-        capacityUnits: 0,
-        isAutoGeneratedCode: true,
-      });
-      missingCapacityCount++;
-    }
+  const usedWarehouseCodes = new Set(finalWarehouses.map((w) => w.code));
+  let whSeq = 1;
+  const nextWarehouseCode = () => {
+    let code: string;
+    do code = `WH-${String(whSeq++).padStart(2, "0")}`;
+    while (usedWarehouseCodes.has(code));
+    usedWarehouseCodes.add(code);
+    return code;
+  };
+  for (const w of warehousesByName.values()) {
+    const target = warehouseResolver(w.name);
+    if (target.id || warehouseCodeByName.has(target.name)) continue; // merged into another warehouse
+    const code = nextWarehouseCode();
+    warehouseCodeByName.set(target.name, code);
+    const capacity = warehousesByName.get(target.name)?.capacity ?? w.capacity ?? 0;
+    finalWarehouses.push({ code, name: target.name, capacityUnits: capacity, isAutoGeneratedCode: true });
+    if (!capacity) missingCapacityCount++;
   }
+  const resolveWarehouse = (ref: EntityRef): string => {
+    if ("id" in ref) return ref.id;
+    const target = warehouseResolver(ref.name);
+    return target.id ?? warehouseCodeByName.get(target.name) ?? DEFAULT_WAREHOUSE_CODE;
+  };
 
-  // --- ENTITY BUILDER 2: Suppliers ---
+  // ---------------------------------------------------------------------------
+  // Suppliers
+  // ---------------------------------------------------------------------------
+  const supplierCandidates: MergeCandidate[] = [
+    ...[...suppliersById.values()].map((s) => ({ originalName: s.name || s.id, rowCount: s.rowCount, entityId: s.id })),
+    ...[...suppliersByName.values()].map((s) => ({ originalName: s.name, rowCount: s.rowCount })),
+  ];
+  const supplierGroups = buildEntityMergeGroups(supplierCandidates, "supplier");
+  const supplierResolver = entityResolver(
+    supplierCandidates,
+    (activeMergeGroups ?? supplierGroups).filter((g) => g.entityType === "supplier")
+  );
+
   const finalSuppliers: ExtractedSupplier[] = [];
-  const supplierIdMap = new Map<string, string>(); // normName -> supplierId
-  let supSeq = 1;
+  const supplierIdByName = new Map<string, string>(); // canonical name-only supplier -> generated ID
   let missingLeadTimeCount = 0;
-
-  for (const [normName, supData] of rawSuppliersMap.entries()) {
-    const canonicalName = supplierNameAliasMap.get(normName) || supData.originalName;
-    const canonNorm = normalizeEntityForMatching(canonicalName);
-
-    if (supplierIdMap.has(canonNorm)) {
-      supplierIdMap.set(normName, supplierIdMap.get(canonNorm)!);
-      continue;
-    }
-
-    let supplierId = supData.supplierId || "";
-    let isAutoGeneratedId = false;
-    if (!supplierId) {
-      supplierId = `SUP-${supSeq.toString().padStart(3, "0")}`;
-      isAutoGeneratedId = true;
-      supSeq++;
-    }
-
-    const leadTimeDays = supData.leadTime || 14;
-    const leadTimeMissing = !supData.leadTime;
-    if (leadTimeMissing) {
-      missingLeadTimeCount++;
-    }
-
-    const cleanDomain = canonNorm.replace(/\s+/g, "").slice(0, 15);
-    const email = supData.email || `contact@${cleanDomain || "supplier"}.com`;
-
-    supplierIdMap.set(canonNorm, supplierId);
-    supplierIdMap.set(normName, supplierId);
-
+  const contactEmail = (name: string, email?: string) =>
+    email || `contact@${normalizeEntityForMatching(name).replace(/\s+/g, "").slice(0, 15) || "supplier"}.com`;
+  for (const s of suppliersById.values()) {
+    const name = s.name || s.id;
+    // Only an ID on product / PO rows: create it if missing, never overwrite
+    // an existing supplier's name, lead time or email with placeholders.
+    const referenceOnly = !s.name && !s.leadTime && !s.email;
     finalSuppliers.push({
+      supplierId: s.id,
+      name,
+      leadTimeDays: s.leadTime || 14,
+      email: contactEmail(name, s.email),
+      leadTimeMissing: !s.leadTime,
+      ...(referenceOnly ? { referenceOnly } : {}),
+    });
+    if (!s.leadTime && !referenceOnly) missingLeadTimeCount++;
+  }
+  const usedSupplierIds = new Set(finalSuppliers.map((s) => s.supplierId));
+  let supSeq = 1;
+  const nextSupplierId = () => {
+    let id: string;
+    do id = `SUP-${String(supSeq++).padStart(3, "0")}`;
+    while (usedSupplierIds.has(id));
+    usedSupplierIds.add(id);
+    return id;
+  };
+  for (const s of suppliersByName.values()) {
+    const target = supplierResolver(s.name);
+    if (target.id || supplierIdByName.has(target.name)) continue; // merged into another supplier
+    const canonical = suppliersByName.get(target.name) ?? s;
+    const id = nextSupplierId();
+    supplierIdByName.set(target.name, id);
+    finalSuppliers.push({
+      supplierId: id,
+      name: target.name,
+      leadTimeDays: canonical.leadTime || 14,
+      email: contactEmail(target.name, canonical.email),
+      isAutoGeneratedId: true,
+      leadTimeMissing: !canonical.leadTime,
+    });
+    if (!canonical.leadTime) missingLeadTimeCount++;
+  }
+  const resolveSupplier = (ref: EntityRef | null): string => {
+    if (!ref) return UNASSIGNED_SUP_ID;
+    if ("id" in ref) return ref.id;
+    const target = supplierResolver(ref.name);
+    return target.id ?? supplierIdByName.get(target.name) ?? UNASSIGNED_SUP_ID;
+  };
+  const supplierLabel = (id: string) => {
+    const s = finalSuppliers.find((x) => x.supplierId === id);
+    return s ? (s.name === id ? id : `${s.name} (${id})`) : id;
+  };
+
+  // ---------------------------------------------------------------------------
+  // Products — choose, never overwrite
+  // ---------------------------------------------------------------------------
+  const productConflicts: ProductDetailConflict[] = [];
+  const skuConflicts: SkuSupplierConflict[] = [];
+  const choose = <T extends string | number>(
+    sku: string,
+    field: ProductDetailConflict["field"],
+    tiers: [Candidate<T>[], Candidate<T>[]]
+  ): T | undefined => {
+    const candidates = tiers[0].length > 0 ? tiers[0] : tiers[1]; // product rows win over PO / transaction rows
+    if (candidates.length === 0) return undefined;
+    if (candidates.length === 1) return candidates[0].value;
+    const chosen = options.productConflictResolutions?.[`${sku}|${field}`];
+    const selectedIndex = chosen !== undefined && chosen >= 0 && chosen < candidates.length ? chosen : 0;
+    productConflicts.push({ sku, field, options: candidates.map((o) => ({ ...o })), selectedIndex });
+    return candidates[selectedIndex].value;
+  };
+
+  const finalProducts: ExtractedProduct[] = [];
+  for (const acc of products.values()) {
+    const name = choose(acc.sku, "name", acc.names) ?? acc.sku;
+    const category = choose(acc.sku, "category", acc.categories) ?? "General";
+    const unitCost = choose(acc.sku, "unitCost", acc.costs) ?? 0;
+
+    const supplierRows = acc.suppliers[0].length > 0 ? acc.suppliers[0] : acc.suppliers[1];
+    const supplierIds = [...new Set(supplierRows.map((s) => resolveSupplier(s.ref)))];
+    let supplierId = supplierIds[0] ?? UNASSIGNED_SUP_ID;
+    if (supplierIds.length > 1) {
+      const chosen = options.skuSupplierResolutions?.[acc.sku];
+      supplierId = chosen && supplierIds.includes(chosen) ? chosen : supplierIds[0];
+      skuConflicts.push({
+        sku: acc.sku,
+        productName: name,
+        suppliers: supplierIds,
+        selectedSupplier: supplierId,
+        supplierLabels: Object.fromEntries(supplierIds.map((id) => [id, supplierLabel(id)])),
+      });
+    }
+    // No product row and no name anywhere — the SKU is only mentioned on
+    // stock / PO / transaction rows. Create it if missing (with the best
+    // guesses above), never overwrite an existing product with them.
+    const referenceOnly =
+      acc.names[0].length + acc.names[1].length + acc.categories[0].length + acc.categories[1].length === 0 &&
+      acc.costs[0].length === 0 &&
+      acc.suppliers[0].length === 0;
+    finalProducts.push({
+      sku: acc.sku,
+      name,
+      category,
+      unitCost,
       supplierId,
-      name: canonicalName,
-      leadTimeDays,
-      email,
-      isAutoGeneratedId,
-      leadTimeMissing,
+      supplierName: supplierLabel(supplierId),
+      ...(referenceOnly ? { referenceOnly } : {}),
     });
   }
 
-  // Ensure Unassigned supplier exists for unlinked products
-  const UNASSIGNED_SUP_ID = "SUP-UNASSIGNED";
-  if (!finalSuppliers.some((s) => s.supplierId === UNASSIGNED_SUP_ID)) {
+  // ---------------------------------------------------------------------------
+  // Stock positions — duplicates are reported; the user picks sum or keep-last
+  // ---------------------------------------------------------------------------
+  const resolution = options.skuDuplicateResolution || "sum";
+  const inventoryByKey = new Map<string, { item: ExtractedInventory; quantities: number[] }>();
+  for (const row of rawInventoryList) {
+    const warehouseCode = resolveWarehouse(row.warehouse);
+    const key = `${row.sku}::${warehouseCode}`;
+    const existing = inventoryByKey.get(key);
+    if (existing) {
+      existing.quantities.push(row.quantity);
+      existing.item.quantityOnHand = resolution === "sum" ? existing.item.quantityOnHand + row.quantity : row.quantity;
+    } else {
+      inventoryByKey.set(key, { item: { sku: row.sku, warehouseCode, quantityOnHand: row.quantity }, quantities: [row.quantity] });
+    }
+  }
+  const finalInventory = [...inventoryByKey.values()].map((v) => v.item);
+  const duplicateStockPositions: DuplicateStockPosition[] = [...inventoryByKey.values()]
+    .filter((v) => v.quantities.length > 1)
+    .map((v) => ({ sku: v.item.sku, warehouseCode: v.item.warehouseCode, quantities: v.quantities }));
+
+  // ---------------------------------------------------------------------------
+  // Purchase orders & transactions
+  // ---------------------------------------------------------------------------
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+  const finalPOs: ExtractedPurchaseOrder[] = rawPurchaseOrdersList
+    .filter((po) => po.poNumber)
+    .map((po) => ({
+      poNumber: po.poNumber!,
+      supplierId: resolveSupplier(po.supplier),
+      sku: po.sku,
+      quantity: po.quantity || 100,
+      unitPrice: po.unitPrice || 0.0,
+      orderDate: po.orderDate ? iso(po.orderDate) : iso(new Date()),
+      expectedDate: po.expectedDate ? iso(po.expectedDate) : iso(new Date(Date.now() + 14 * 86400 * 1000)),
+      receivedDate: po.receivedDate ? iso(po.receivedDate) : null,
+    }));
+
+  const finalTransactions: ExtractedTransaction[] = rawTransactionsList
+    .filter((t) => t.quantity)
+    .map((t) => ({ sku: t.sku, warehouseCode: resolveWarehouse(t.warehouse), quantity: t.quantity, direction: t.direction, date: iso(t.date) }));
+
+  // Placeholder warehouse / supplier only when something actually points at them.
+  const needsDefaultWarehouse =
+    defaultWarehouseNeeded ||
+    finalInventory.some((i) => i.warehouseCode === DEFAULT_WAREHOUSE_CODE) ||
+    finalTransactions.some((t) => t.warehouseCode === DEFAULT_WAREHOUSE_CODE);
+  if (needsDefaultWarehouse && !finalWarehouses.some((w) => w.code === DEFAULT_WAREHOUSE_CODE)) {
+    finalWarehouses.push({ code: DEFAULT_WAREHOUSE_CODE, name: "Primary Facility (Default)", capacityUnits: 0, isAutoGeneratedCode: true });
+    missingCapacityCount++;
+  }
+  const needsUnassigned =
+    finalProducts.some((p) => p.supplierId === UNASSIGNED_SUP_ID) || finalPOs.some((po) => po.supplierId === UNASSIGNED_SUP_ID);
+  if (needsUnassigned && !finalSuppliers.some((s) => s.supplierId === UNASSIGNED_SUP_ID)) {
     finalSuppliers.push({
       supplierId: UNASSIGNED_SUP_ID,
       name: "Unassigned Supplier",
@@ -432,122 +608,13 @@ export function extractEntitiesFromWorkbook(
       email: "unassigned@company.internal",
       isAutoGeneratedId: true,
       leadTimeMissing: true,
-    });
-  }
-
-  // Detect SKU Supplier Conflicts (I5.1)
-  const skuConflicts: SkuSupplierConflict[] = [];
-  for (const [sku, info] of skuToSuppliersMap.entries()) {
-    const uniqueSuppliers = Array.from(info.suppliers);
-    if (uniqueSuppliers.length > 1) {
-      const selected = options.skuSupplierResolutions?.[sku] || uniqueSuppliers[0];
-      skuConflicts.push({
-        sku,
-        productName: info.productName,
-        suppliers: uniqueSuppliers,
-        selectedSupplier: selected,
-      });
-    }
-  }
-
-  // --- ENTITY BUILDER 3: Products ---
-  const finalProducts: ExtractedProduct[] = [];
-  for (const p of rawProductsMap.values()) {
-    let resolvedSupplierName = p.rawSupplier;
-    if (p.sku && options.skuSupplierResolutions?.[p.sku]) {
-      resolvedSupplierName = options.skuSupplierResolutions[p.sku];
-    }
-
-    let supplierId = UNASSIGNED_SUP_ID;
-    if (p.rawSupplierId) {
-      supplierId = p.rawSupplierId;
-    } else if (resolvedSupplierName) {
-      const canonSup = supplierNameAliasMap.get(normalizeEntityForMatching(resolvedSupplierName)) || resolvedSupplierName;
-      supplierId = supplierIdMap.get(normalizeEntityForMatching(canonSup)) || UNASSIGNED_SUP_ID;
-    }
-
-    finalProducts.push({
-      sku: p.sku,
-      name: p.name,
-      category: p.category || "General",
-      unitCost: p.unitCost || 0.0,
-      supplierId,
-      supplierName: resolvedSupplierName || "Unassigned",
-    });
-  }
-
-  // --- ENTITY BUILDER 4: Inventory Balances (with SKU deduplication I4 / S4.4) ---
-  const inventoryKeyMap = new Map<string, ExtractedInventory>();
-  const resolution = options.skuDuplicateResolution || "sum";
-
-  for (const item of rawInventoryList) {
-    if (item.quantity === null) continue;
-
-    const normWh = normalizeEntityForMatching(item.rawWarehouse);
-    const whCode = warehouseCodeMap.get(normWh) || "WH-DEFAULT";
-    const key = `${item.sku}::${whCode}`;
-
-    if (inventoryKeyMap.has(key)) {
-      const existing = inventoryKeyMap.get(key)!;
-      if (resolution === "sum") {
-        existing.quantityOnHand += item.quantity;
-      } else {
-        existing.quantityOnHand = item.quantity;
-      }
-    } else {
-      inventoryKeyMap.set(key, {
-        sku: item.sku,
-        warehouseCode: whCode,
-        quantityOnHand: item.quantity,
-      });
-    }
-  }
-
-  const finalInventory = Array.from(inventoryKeyMap.values());
-
-  // --- ENTITY BUILDER 5: Purchase Orders ---
-  const finalPOs: ExtractedPurchaseOrder[] = [];
-  for (const po of rawPurchaseOrdersList) {
-    if (!po.sku || !po.poNumber) continue;
-
-    let supId = UNASSIGNED_SUP_ID;
-    if (po.rawSupplier) {
-      const canonSup = supplierNameAliasMap.get(normalizeEntityForMatching(po.rawSupplier)) || po.rawSupplier;
-      supId = supplierIdMap.get(normalizeEntityForMatching(canonSup)) || UNASSIGNED_SUP_ID;
-    }
-
-    finalPOs.push({
-      poNumber: po.poNumber,
-      supplierId: supId,
-      sku: po.sku,
-      quantity: po.quantity || 100,
-      unitPrice: po.unitPrice || 0.0,
-      orderDate: po.orderDate ? po.orderDate.toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
-      expectedDate: po.expectedDate ? po.expectedDate.toISOString().slice(0, 10) : new Date(Date.now() + 14 * 86400 * 1000).toISOString().slice(0, 10),
-      receivedDate: po.receivedDate ? po.receivedDate.toISOString().slice(0, 10) : null,
-    });
-  }
-
-  // --- ENTITY BUILDER 6: Transactions ---
-  const finalTransactions: ExtractedTransaction[] = [];
-  for (const t of rawTransactionsList) {
-    if (!t.sku || !t.quantity || !t.direction || !t.date) continue;
-
-    const normWh = normalizeEntityForMatching(t.rawWarehouse || "");
-    const whCode = warehouseCodeMap.get(normWh) || "WH-DEFAULT";
-
-    finalTransactions.push({
-      sku: t.sku,
-      warehouseCode: whCode,
-      quantity: t.quantity,
-      direction: t.direction,
-      date: t.date.toISOString().slice(0, 10),
+      // A placeholder: only inserted if a new product / PO actually needs it.
+      referenceOnly: true,
     });
   }
 
   const generatedIdsCount =
-    finalWarehouses.filter((w) => w.isAutoGeneratedCode).length +
-    finalSuppliers.filter((s) => s.isAutoGeneratedId).length;
+    finalWarehouses.filter((w) => w.isAutoGeneratedCode).length + finalSuppliers.filter((s) => s.isAutoGeneratedId).length;
 
   return {
     warehouses: finalWarehouses,
@@ -556,13 +623,42 @@ export function extractEntitiesFromWorkbook(
     inventory: finalInventory,
     purchaseOrders: finalPOs,
     transactions: finalTransactions,
-    mergeGroups: generatedMergeGroups,
+    mergeGroups: activeMergeGroups ?? [...supplierGroups, ...warehouseGroups],
     skuConflicts,
+    productConflicts,
+    duplicateStockPositions,
     rejectedRows,
     missingLeadTimeCount,
     missingCapacityCount,
-    defaultWarehouseUsed: defaultWarehouseNeeded,
+    defaultWarehouseUsed: needsDefaultWarehouse,
     generatedIdsCount,
     totalRowsProcessed,
+  };
+}
+
+/**
+ * Resolves a name to its entity after the confirmed merges: returns the ID
+ * (Supplier ID / warehouse code) when the name belongs to — or was merged
+ * into — an ID-bearing entity, otherwise the canonical name-only entity.
+ * Unconfirmed (suggested) groups are never applied.
+ */
+function entityResolver(candidates: MergeCandidate[], groups: FuzzyMergeGroup[]) {
+  const idByName = new Map<string, string>();
+  const ambiguous = new Set<string>();
+  for (const c of candidates) {
+    if (!c.entityId) continue;
+    if (idByName.has(c.originalName) && idByName.get(c.originalName) !== c.entityId) ambiguous.add(c.originalName);
+    else idByName.set(c.originalName, c.entityId);
+  }
+  const alias = new Map<string, string>();
+  for (const g of groups) {
+    if (!g.isConfirmed) continue;
+    for (const v of g.variants) if (v.originalName !== g.canonicalName) alias.set(v.originalName, g.canonicalName);
+  }
+  return (name: string): { id?: string; name: string } => {
+    let current = name;
+    for (let hops = 0; hops < 5 && alias.has(current); hops++) current = alias.get(current)!;
+    const id = !ambiguous.has(current) ? idByName.get(current) : undefined;
+    return id ? { id, name: current } : { name: current };
   };
 }

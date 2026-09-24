@@ -210,3 +210,115 @@ export function clusterFuzzyEntities(
 
   return groups;
 }
+
+export interface MergeCandidate {
+  originalName: string;
+  rowCount: number;
+  /** Supplier ID / warehouse code the name came with, when the file had one. */
+  entityId?: string;
+}
+
+/**
+ * Proposes merges between name variants of the same supplier or warehouse.
+ *
+ * - Names that normalize identically (differ only in case, punctuation or a
+ *   legal suffix such as LLC / Co / Pvt Ltd) are clearly the same: grouped
+ *   and pre-confirmed — but still returned, so the review step lists every
+ *   merge and the user can split it.
+ * - Near matches (typos, abbreviations: "delta comp." vs "Delta Components")
+ *   are returned as suggestions with isConfirmed = false. They are never
+ *   applied unless the user ticks them.
+ * - Two candidates with different entity IDs (e.g. SUP-001 and SUP-002) are
+ *   never put in the same group, however similar their names look.
+ */
+export function buildEntityMergeGroups(
+  candidates: MergeCandidate[],
+  entityType: "supplier" | "warehouse",
+  threshold: number = 0.85
+): FuzzyMergeGroup[] {
+  const groups: FuzzyMergeGroup[] = [];
+  const variant = (c: MergeCandidate) => ({
+    originalName: c.originalName,
+    normalizedName: normalizeEntityForMatching(c.originalName),
+    rowCount: c.rowCount,
+    ...(c.entityId ? { entityId: c.entityId } : {}),
+  });
+  const pickCanonical = (list: MergeCandidate[]) =>
+    [...list].sort((a, b) => Number(Boolean(b.entityId)) - Number(Boolean(a.entityId)) || b.rowCount - a.rowCount)[0];
+
+  // Identical text isn't a merge: an ID-less name spelled exactly like an
+  // ID-bearing one simply refers to it (the extractor links those directly),
+  // so collapse exact duplicates before grouping and keep the ID-bearing one.
+  const byExactName = new Map<string, MergeCandidate>();
+  for (const c of candidates) {
+    const seen = byExactName.get(c.originalName);
+    if (!seen) byExactName.set(c.originalName, c);
+    else if (!seen.entityId && c.entityId) byExactName.set(c.originalName, { ...c, rowCount: c.rowCount + seen.rowCount });
+    else if (seen.entityId && c.entityId && seen.entityId !== c.entityId) byExactName.set(`${c.originalName}\u0000${c.entityId}`, c);
+    else byExactName.set(c.originalName, { ...seen, rowCount: seen.rowCount + c.rowCount });
+  }
+
+  // 1. Same-name buckets (case / punctuation / legal suffix only).
+  const buckets = new Map<string, MergeCandidate[]>();
+  for (const c of byExactName.values()) {
+    const key = normalizeEntityForMatching(c.originalName);
+    if (!key) continue;
+    (buckets.get(key) ?? buckets.set(key, []).get(key)!).push(c);
+  }
+
+  const representatives: MergeCandidate[] = [];
+  let seq = 0;
+  for (const bucket of buckets.values()) {
+    const ids = new Set(bucket.filter((c) => c.entityId).map((c) => c.entityId));
+    if (ids.size > 1) {
+      // Same name under different IDs: they stay separate entities, and any
+      // ID-less variant is ambiguous, so nothing here is merged.
+      representatives.push(...bucket);
+      continue;
+    }
+    const canonical = pickCanonical(bucket);
+    representatives.push(canonical);
+    if (bucket.length > 1) {
+      groups.push({
+        id: `merge_${entityType}_same_${++seq}`,
+        entityType,
+        canonicalName: canonical.originalName,
+        variants: [canonical, ...bucket.filter((c) => c !== canonical)].map(variant),
+        confidence: 1,
+        isConfirmed: true,
+        matchKind: "same-name",
+      });
+    }
+  }
+
+  // 2. Similar-name suggestions between buckets. Only an ID-bearing
+  //    representative may be a group's target; members are always ID-less,
+  //    so two different IDs can never meet in one group.
+  const ordered = [...representatives].sort(
+    (a, b) => Number(Boolean(b.entityId)) - Number(Boolean(a.entityId)) || b.rowCount - a.rowCount
+  );
+  const used = new Set<MergeCandidate>();
+  for (const primary of ordered) {
+    if (used.has(primary)) continue;
+    const members: { c: MergeCandidate; sim: number }[] = [];
+    for (const other of ordered) {
+      if (other === primary || used.has(other) || other.entityId) continue;
+      const sim = calculateEntitySimilarity(primary.originalName, other.originalName);
+      if (sim >= threshold) members.push({ c: other, sim });
+    }
+    if (members.length === 0) continue;
+    used.add(primary);
+    members.forEach((m) => used.add(m.c));
+    groups.push({
+      id: `merge_${entityType}_similar_${++seq}`,
+      entityType,
+      canonicalName: primary.originalName,
+      variants: [primary, ...members.map((m) => m.c)].map(variant),
+      confidence: Math.round(Math.min(...members.map((m) => m.sim)) * 100) / 100,
+      isConfirmed: false,
+      matchKind: "similar",
+    });
+  }
+
+  return groups;
+}

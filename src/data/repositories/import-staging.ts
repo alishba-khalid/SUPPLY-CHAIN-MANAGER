@@ -84,16 +84,28 @@ export async function cleanupStaleImportSessions(orgId?: string): Promise<number
 
 type ChunkSummary = { chunkIndices: number[]; rows: number; counts: Omit<ImportCounts, "transactions"> & { transactions: number } };
 
+/**
+ * Which chunks of a session arrived, how many rows, and per-entity counts
+ * ($1 = orgId, $2 = sessionId). Exported so probes can EXPLAIN exactly this SQL.
+ */
+export function chunkSummarySql(): string {
+  const len = (entity: ImportEntity) => `COALESCE(SUM(jsonb_array_length(COALESCE(payload->'${entity}', '[]'::jsonb))), 0)::int`;
+  // Warehouses / suppliers / products the file only mentions aren't "imported".
+  const described = (entity: ImportEntity) =>
+    `COALESCE(SUM((SELECT count(*) FROM jsonb_array_elements(COALESCE(payload->'${entity}', '[]'::jsonb)) e
+       WHERE NOT COALESCE((e->>'referenceOnly')::boolean, false))), 0)::int`;
+  return `SELECT array_agg(chunk_index ORDER BY chunk_index) AS chunks, COALESCE(SUM(row_count), 0)::int AS rows,
+       ${described("warehouse")} AS w, ${described("supplier")} AS s, ${described("product")} AS p,
+       ${len("inventory")} AS i, ${len("purchase_order")} AS po, ${len("transaction")} AS t
+     FROM import_staged_chunks WHERE org_id = $1 AND session_id = $2`;
+}
+
 /** One query: which chunks arrived, how many rows, and per-entity counts. */
 async function summarizeChunks(orgId: string, sessionId: string): Promise<ChunkSummary> {
-  const len = (entity: ImportEntity) => `COALESCE(SUM(jsonb_array_length(COALESCE(payload->'${entity}', '[]'::jsonb))), 0)::int`;
   const [r] = await prisma.$queryRawUnsafe<
     { chunks: number[] | null; rows: number; w: number; s: number; p: number; i: number; po: number; t: number }[]
   >(
-    `SELECT array_agg(chunk_index ORDER BY chunk_index) AS chunks, COALESCE(SUM(row_count), 0)::int AS rows,
-       ${len("warehouse")} AS w, ${len("supplier")} AS s, ${len("product")} AS p,
-       ${len("inventory")} AS i, ${len("purchase_order")} AS po, ${len("transaction")} AS t
-     FROM import_staged_chunks WHERE org_id = $1 AND session_id = $2`,
+    chunkSummarySql(),
     orgId,
     sessionId
   );
@@ -288,6 +300,8 @@ FROM bad WHERE rn <= ${MAX_ERRORS_SHOWN} ORDER BY rn`;
 // ones in ONE statement (data-modifying CTE). A blank value in the file keeps
 // the existing value instead of overwriting it with a default. Duplicate keys
 // within the file: the last row wins (DISTINCT ON ... ORDER BY _row DESC).
+// A "referenceOnly" row (the file only mentions the ID / code / SKU) is
+// inserted if missing but never used to update an existing record.
 /**
  * Every write the commit makes — one set-based statement per entity, in
  * dependency order. Exported so timing / EXPLAIN probes run exactly this SQL.
@@ -298,12 +312,12 @@ export const COMMIT_STATEMENTS: { step: ImportEntity; sql: string }[] = [
   {
     step: "warehouse",
     sql: `WITH src AS (
-  SELECT DISTINCT ON (x.code) x.code, x.name, x."capacityUnits" AS cap
-  FROM ${staged("warehouse", `code text, name text, "capacityUnits" int`)}
+  SELECT DISTINCT ON (x.code) x.code, x.name, x."capacityUnits" AS cap, COALESCE(x."referenceOnly", false) AS ref_only
+  FROM ${staged("warehouse", `code text, name text, "capacityUnits" int, "referenceOnly" boolean`)}
   ORDER BY x.code, x._row DESC
 ), upd AS (
   UPDATE warehouses w SET name = src.name, capacity_units = CASE WHEN src.cap > 0 THEN src.cap ELSE w.capacity_units END
-  FROM src WHERE w.org_id = $1 AND w.code = src.code
+  FROM src WHERE w.org_id = $1 AND w.code = src.code AND NOT src.ref_only
   RETURNING w.code
 )
 INSERT INTO warehouses (org_id, code, name, capacity_units)
@@ -315,30 +329,49 @@ ON CONFLICT (org_id, code) DO NOTHING`,
     step: "supplier",
     sql: `WITH src AS (
   SELECT DISTINCT ON (x."supplierId") x."supplierId" AS sid, x.name, x."leadTimeDays" AS lead,
-    COALESCE(x."leadTimeMissing", false) AS missing, COALESCE(x.email, '') AS email
-  FROM ${staged("supplier", `"supplierId" text, name text, "leadTimeDays" int, "leadTimeMissing" boolean, email text`)}
+    COALESCE(x."leadTimeMissing", false) AS missing, COALESCE(x.email, '') AS email, COALESCE(x."referenceOnly", false) AS ref_only
+  FROM ${staged("supplier", `"supplierId" text, name text, "leadTimeDays" int, "leadTimeMissing" boolean, email text, "referenceOnly" boolean`)}
   ORDER BY x."supplierId", x._row DESC
 ), upd AS (
   UPDATE suppliers p SET name = src.name, email = src.email, lead_time_missing = src.missing,
     lead_time_days = CASE WHEN src.lead > 0 THEN src.lead ELSE p.lead_time_days END
-  FROM src WHERE p.org_id = $1 AND p.supplier_id = src.sid
+  FROM src WHERE p.org_id = $1 AND p.supplier_id = src.sid AND NOT src.ref_only
   RETURNING p.supplier_id
 )
 INSERT INTO suppliers (org_id, supplier_id, name, lead_time_days, lead_time_missing, email)
 SELECT $1, src.sid, src.name, COALESCE(NULLIF(src.lead, 0), 14), src.missing, src.email FROM src
 WHERE NOT EXISTS (SELECT 1 FROM upd WHERE upd.supplier_id = src.sid)
+  -- A supplier the file only mentions by ID is created only when a product
+  -- being newly created (or updated from a product row), or a purchase order,
+  -- actually points at it — e.g. an inventory-only file must not add an
+  -- "Unassigned Supplier" when all its SKUs already exist.
+  AND (
+    NOT src.ref_only
+    OR EXISTS (
+      SELECT 1 FROM import_staged_chunks c2
+        CROSS JOIN LATERAL jsonb_to_recordset(c2.payload->'product') AS p(sku text, "supplierId" text, "referenceOnly" boolean)
+      WHERE c2.org_id = $1 AND c2.session_id = $2 AND p."supplierId" = src.sid
+        AND (NOT COALESCE(p."referenceOnly", false) OR NOT EXISTS (SELECT 1 FROM products e WHERE e.org_id = $1 AND e.sku = p.sku))
+    )
+    OR EXISTS (
+      SELECT 1 FROM import_staged_chunks c3
+        CROSS JOIN LATERAL jsonb_to_recordset(c3.payload->'purchase_order') AS o("supplierId" text)
+      WHERE c3.org_id = $1 AND c3.session_id = $2 AND o."supplierId" = src.sid
+    )
+  )
 ON CONFLICT (org_id, supplier_id) DO NOTHING`,
   },
   {
     step: "product",
     sql: `WITH src AS (
-  SELECT DISTINCT ON (x.sku) x.sku, x.name, NULLIF(x.category, '') AS category, x."unitCost" AS cost, x."supplierId" AS sid
-  FROM ${staged("product", `sku text, name text, category text, "unitCost" numeric, "supplierId" text`)}
+  SELECT DISTINCT ON (x.sku) x.sku, x.name, NULLIF(x.category, '') AS category, x."unitCost" AS cost, x."supplierId" AS sid,
+    COALESCE(x."referenceOnly", false) AS ref_only
+  FROM ${staged("product", `sku text, name text, category text, "unitCost" numeric, "supplierId" text, "referenceOnly" boolean`)}
   ORDER BY x.sku, x._row DESC
 ), upd AS (
   UPDATE products p SET name = src.name, unit_cost = src.cost, supplier_id = src.sid,
     category = COALESCE(src.category, p.category)
-  FROM src WHERE p.org_id = $1 AND p.sku = src.sku
+  FROM src WHERE p.org_id = $1 AND p.sku = src.sku AND NOT src.ref_only
   RETURNING p.sku
 )
 INSERT INTO products (org_id, sku, name, category, unit_cost, supplier_id)

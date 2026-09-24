@@ -233,6 +233,55 @@ export function generateSheetColumnMappings(
   headers: string[],
   sampleRows: (string | number | boolean | Date | null)[][]
 ): ColumnMappingItem[] {
+  return resolveGenericHeadersFromContext(mapHeadersIndividually(headers, sampleRows));
+}
+
+const GENERIC_NAME = new Set(["name", "description", "title"]);
+const GENERIC_QUANTITY = new Set(["quantity", "qty", "units"]);
+const GENERIC_DATE = new Set(["date"]);
+const GENERIC_PRICE = new Set(["unit price", "price", "unitprice"]);
+
+/**
+ * Generic headers ("Name", "Quantity", "Date", "Unit Price") mean different
+ * things in different files: "Name" next to a Warehouse Code is the warehouse
+ * name, "Quantity" in a sheet with PO numbers is the ordered quantity, not
+ * stock on hand. Matched in isolation they were ignored or mapped to the
+ * wrong field — silently, because both count as "confident" and the mapping
+ * step is auto-skipped. Resolve them from the other columns in the sheet.
+ */
+function resolveGenericHeadersFromContext(items: ColumnMappingItem[]): ColumnMappingItem[] {
+  const present = new Set(items.map((i) => i.canonicalField).filter(Boolean) as CanonicalFieldId[]);
+  const norm = (h: string) => h.toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+  const resolved = (item: ColumnMappingItem, field: CanonicalFieldId, context: string): ColumnMappingItem => {
+    present.add(field);
+    return { ...item, canonicalField: field, confidence: 0.95, matchReason: `Resolved from sheet context (${context})` };
+  };
+
+  return items.map((item) => {
+    const h = norm(item.rawHeader);
+    if (GENERIC_NAME.has(h)) {
+      if (present.has("sku") && !present.has("product_name")) return resolved(item, "product_name", "sheet has SKU");
+      if (present.has("supplier_id") && !present.has("supplier_name")) return resolved(item, "supplier_name", "sheet has Supplier ID");
+      if (present.has("warehouse_code") && !present.has("warehouse_name")) return resolved(item, "warehouse_name", "sheet has Warehouse Code");
+    }
+    if (GENERIC_QUANTITY.has(h)) {
+      if (present.has("po_number") && !present.has("po_quantity")) return resolved(item, "po_quantity", "sheet has PO Number");
+      if (present.has("transaction_direction") && !present.has("transaction_qty")) return resolved(item, "transaction_qty", "sheet has Direction");
+    }
+    if (GENERIC_DATE.has(h)) {
+      if (present.has("transaction_direction") && !present.has("transaction_date")) return resolved(item, "transaction_date", "sheet has Direction");
+    }
+    if (GENERIC_PRICE.has(h) && present.has("po_number") && !present.has("po_unit_price")) {
+      return resolved(item, "po_unit_price", "sheet has PO Number");
+    }
+    return item;
+  });
+}
+
+function mapHeadersIndividually(
+  headers: string[],
+  sampleRows: (string | number | boolean | Date | null)[][]
+): ColumnMappingItem[] {
   const mappedFieldsSoFar = new Set<CanonicalFieldId>();
 
   return headers.map((rawHeader, idx) => {

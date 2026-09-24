@@ -377,6 +377,38 @@ describe("chunked import — database", { skip: TEST_DB ? false : "set TEST_DATA
     assert.strictEqual(await stagedRowsFor(orgId), 0);
   });
 
+  test("a stock-only import never overwrites existing products, suppliers or warehouses", async () => {
+    const orgId = org("refonly");
+    const full = buildImportPayload(REGRESSION_4817);
+    const seeded = await helpers.importPayloadDirect(orgId, full, true);
+    assert.ok(seeded.ok, seeded.ok ? "" : seeded.error);
+    const snapshot = async () => ({
+      products: await prisma.product.findMany({ where: { orgId }, select: { sku: true, name: true, unitCost: true, supplierId: true }, orderBy: { sku: "asc" } }),
+      suppliers: await prisma.supplier.findMany({ where: { orgId }, select: { supplierId: true, name: true, leadTimeDays: true, email: true }, orderBy: { supplierId: "asc" } }),
+      warehouses: await prisma.warehouse.findMany({ where: { orgId }, select: { code: true, name: true, capacityUnits: true }, orderBy: { code: "asc" } }),
+    });
+    const before = await snapshot();
+
+    // What the extractor produces for an inventory-only file: everything
+    // except the stock rows is a reference-only placeholder.
+    const stockOnly = {
+      warehouses: full.warehouses.map((w) => ({ code: w.code, name: w.code, capacityUnits: 0, referenceOnly: true })),
+      suppliers: [{ supplierId: "SUP-UNASSIGNED", name: "Unassigned Supplier", leadTimeDays: 14, email: "unassigned@company.internal", leadTimeMissing: true, referenceOnly: true }],
+      products: full.products.map((p) => ({ sku: p.sku, name: p.sku, category: "General", unitCost: 0, supplierId: "SUP-UNASSIGNED", referenceOnly: true })),
+      inventory: full.inventory.map((i) => ({ ...i, quantityOnHand: i.quantityOnHand + 1 })),
+      purchaseOrders: [],
+      transactions: [],
+    };
+    const res = await helpers.importPayloadDirect(orgId, stockOnly, false);
+    assert.ok(res.ok, res.ok ? "" : res.error);
+
+    const after = await snapshot();
+    assert.deepStrictEqual(after, before, "names, costs, suppliers, lead times and capacities are untouched");
+    assert.strictEqual(res.counts.products, 0, "placeholders are not reported as imported products");
+    const stock = await prisma.inventory.findFirst({ where: { orgId, sku: full.inventory[0].sku } });
+    assert.strictEqual(stock?.quantityOnHand, full.inventory[0].quantityOnHand + 1, "the stock rows themselves were applied");
+  });
+
   test("a row pointing at an unknown product fails with its row number, nothing written", async () => {
     const orgId = org("badref");
     const payload = buildImportPayload(REGRESSION_4817);

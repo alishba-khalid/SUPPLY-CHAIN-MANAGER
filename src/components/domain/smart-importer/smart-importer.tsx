@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { UploadStep } from "./upload-step";
 import { MappingStep } from "./mapping-step";
-import { MergesStep } from "./merges-step";
+import { MergesStep, type MergeDecisions } from "./merges-step";
 import { PreviewStep } from "./preview-step";
 import { SummaryStep } from "./summary-step";
 import { DataImporter } from "../data-importer";
@@ -32,6 +32,9 @@ import type {
   SheetMapping,
   FuzzyMergeGroup,
   SkuSupplierConflict,
+  ProductDetailConflict,
+  DuplicateStockPosition,
+  SkuDuplicateResolution,
   ExtractionPreview,
   ImportCommitResult,
 } from "@/lib/importer/types";
@@ -43,6 +46,16 @@ const importTransport: ImportTransport = {
   commit: commitImportAction,
   cancel: cancelImportAction,
 };
+
+/** The review step is shown whenever anything was merged, suggested, conflicting or duplicated. */
+function needsReview(p: {
+  mergeGroups: unknown[];
+  skuConflicts: unknown[];
+  productConflicts: unknown[];
+  duplicateStockPositions: unknown[];
+}): boolean {
+  return p.mergeGroups.length > 0 || p.skuConflicts.length > 0 || p.productConflicts.length > 0 || p.duplicateStockPositions.length > 0;
+}
 
 export type WizardStep = "upload" | "mapping" | "merges" | "preview" | "summary";
 
@@ -61,6 +74,10 @@ export function SmartImporter() {
   const [mergeGroups, setMergeGroups] = useState<FuzzyMergeGroup[]>([]);
   const [skuConflicts, setSkuConflicts] = useState<SkuSupplierConflict[]>([]);
   const [resolvedSkuConflicts, setResolvedSkuConflicts] = useState<Record<string, string>>({});
+  const [productConflicts, setProductConflicts] = useState<ProductDetailConflict[]>([]);
+  const [productConflictResolutions, setProductConflictResolutions] = useState<Record<string, number>>({});
+  const [duplicateStockPositions, setDuplicateStockPositions] = useState<DuplicateStockPosition[]>([]);
+  const [skuDuplicateResolution, setSkuDuplicateResolution] = useState<SkuDuplicateResolution>("sum");
 
   // Preview & Result state
   const [preview, setPreview] = useState<ExtractionPreview | null>(null);
@@ -153,11 +170,11 @@ export function SmartImporter() {
         const preliminaryPreview = extractEntitiesFromWorkbook(rawSheets, initialMappings);
         setMergeGroups(preliminaryPreview.mergeGroups);
         setSkuConflicts(preliminaryPreview.skuConflicts);
+        setProductConflicts(preliminaryPreview.productConflicts);
+        setDuplicateStockPositions(preliminaryPreview.duplicateStockPositions);
         setPreview(preliminaryPreview);
 
-        const hasMergesOrConflicts =
-          preliminaryPreview.mergeGroups.length > 0 ||
-          preliminaryPreview.skuConflicts.length > 0;
+        const hasMergesOrConflicts = needsReview(preliminaryPreview);
 
         const updatedSkipped: Record<string, boolean> = {};
 
@@ -194,18 +211,21 @@ export function SmartImporter() {
     setRememberInDb(remember);
 
     // Re-extract preview with updated mappings
+    // Merge groups are regenerated for the new mapping (the old ones may name
+    // columns that no longer map); the other review choices carry over.
     const updatedPreview = extractEntitiesFromWorkbook(sheets, updatedMappings, {
-      mergeGroups,
       skuSupplierResolutions: resolvedSkuConflicts,
+      productConflictResolutions,
+      skuDuplicateResolution,
     });
 
     setMergeGroups(updatedPreview.mergeGroups);
     setSkuConflicts(updatedPreview.skuConflicts);
+    setProductConflicts(updatedPreview.productConflicts);
+    setDuplicateStockPositions(updatedPreview.duplicateStockPositions);
     setPreview(updatedPreview);
 
-    const hasMergesOrConflicts =
-      updatedPreview.mergeGroups.length > 0 ||
-      updatedPreview.skuConflicts.length > 0;
+    const hasMergesOrConflicts = needsReview(updatedPreview);
 
     if (!hasMergesOrConflicts) {
       setSkippedSteps((prev) => ({ ...prev, merges: true }));
@@ -216,18 +236,22 @@ export function SmartImporter() {
   }
 
   // STEP 3 -> STEP 4
-  function handleMergesConfirmed(
-    updatedMergeGroups: FuzzyMergeGroup[],
-    conflicts: Record<string, string>
-  ) {
-    setMergeGroups(updatedMergeGroups);
-    setResolvedSkuConflicts(conflicts);
+  function handleMergesConfirmed(decisions: MergeDecisions) {
+    setMergeGroups(decisions.mergeGroups);
+    setResolvedSkuConflicts(decisions.skuSupplierResolutions);
+    setProductConflictResolutions(decisions.productConflictResolutions);
+    setSkuDuplicateResolution(decisions.skuDuplicateResolution);
 
-    // Re-extract preview with confirmed merges and resolutions
+    // Re-extract with exactly what the user confirmed on the review step
     const updatedPreview = extractEntitiesFromWorkbook(sheets, sheetMappings, {
-      mergeGroups: updatedMergeGroups,
-      skuSupplierResolutions: conflicts,
+      mergeGroups: decisions.mergeGroups,
+      skuSupplierResolutions: decisions.skuSupplierResolutions,
+      productConflictResolutions: decisions.productConflictResolutions,
+      skuDuplicateResolution: decisions.skuDuplicateResolution,
     });
+    setSkuConflicts(updatedPreview.skuConflicts);
+    setProductConflicts(updatedPreview.productConflicts);
+    setDuplicateStockPositions(updatedPreview.duplicateStockPositions);
     setPreview(updatedPreview);
     setCurrentStep("preview");
   }
@@ -301,6 +325,10 @@ export function SmartImporter() {
     setMergeGroups([]);
     setSkuConflicts([]);
     setResolvedSkuConflicts({});
+    setProductConflicts([]);
+    setProductConflictResolutions({});
+    setDuplicateStockPositions([]);
+    setSkuDuplicateResolution("sum");
     setPreview(null);
     setImportResult(null);
     setErrorMessage(null);
@@ -457,6 +485,9 @@ export function SmartImporter() {
         <MergesStep
           mergeGroups={mergeGroups}
           skuConflicts={skuConflicts}
+          productConflicts={productConflicts}
+          duplicateStockPositions={duplicateStockPositions}
+          skuDuplicateResolution={skuDuplicateResolution}
           onConfirmMerges={handleMergesConfirmed}
           onBack={() => setCurrentStep("mapping")}
         />
@@ -465,7 +496,7 @@ export function SmartImporter() {
           preview={preview}
           onCommitImport={handleCommitImport}
           onBack={() => {
-            if (mergeGroups.length > 0 || skuConflicts.length > 0) {
+            if (mergeGroups.length > 0 || skuConflicts.length > 0 || productConflicts.length > 0 || duplicateStockPositions.length > 0) {
               setCurrentStep("merges");
             } else {
               setCurrentStep("mapping");
