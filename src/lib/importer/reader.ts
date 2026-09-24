@@ -38,7 +38,8 @@ export function readWorkbookBuffer(buffer: Buffer | ArrayBuffer | Uint8Array): R
 
     // Determine active column indices (drop completely empty columns)
     const activeColIndices: number[] = [];
-    const maxCols = Math.max(...rawMatrix.map((r) => r?.length || 0));
+    // reduce, not Math.max(...spread): spreading 100k+ rows overflows the call stack.
+    const maxCols = rawMatrix.reduce((max, r) => Math.max(max, r?.length || 0), 0);
 
     for (let c = 0; c < maxCols; c++) {
       let hasData = false;

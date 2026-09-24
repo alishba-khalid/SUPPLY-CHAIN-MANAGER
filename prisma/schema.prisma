@@ -127,11 +127,79 @@ model Transaction {
   quantity    Int
   direction   TransactionDirection
   date        DateTime             @db.Date
+  // Set only on rows written by the smart importer: a hash of the row's
+  // content plus its occurrence number among identical rows in the same
+  // file. Re-importing the same file produces the same keys, so the commit
+  // step skips them instead of duplicating the ledger — while two genuinely
+  // identical movements in one file still get distinct keys. NULL for
+  // seeded / manually created rows (Postgres treats NULLs as distinct).
+  importKey   String?              @map("import_key")
 
+  @@unique([orgId, importKey])
   @@index([orgId, sku])
   @@index([orgId, warehouseId])
   @@index([orgId, date])
   @@map("transactions")
+}
+
+// App-side settings for a Clerk organization. Clerk owns the organization
+// itself; this row only carries knobs the app needs. A missing row means
+// defaults everywhere.
+model Organization {
+  orgId                  String   @id @map("org_id")
+  // Per-org ceiling on rows per import, overriding the plan's limit in
+  // src/lib/subscriptions/tiers.ts (e.g. to give one reviewer a bigger
+  // allowance). NULL = use the plan limit.
+  importRowLimitOverride Int?     @map("import_row_limit_override")
+  createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @updatedAt @map("updated_at")
+
+  @@map("organizations")
+}
+
+// One chunked smart-import upload. The browser sends rows in chunks; they
+// land in import_staged_chunks and touch no real table until the commit step
+// moves them all in a single transaction. Sessions older than 24h are
+// deleted (chunks cascade) — see src/data/repositories/import-staging.ts.
+model ImportSession {
+  id            String   @id
+  orgId         String   @map("org_id")
+  // uploading -> committing -> committed | failed
+  status        String
+  // Content hash of the extracted rows — lets a re-selected file resume an
+  // interrupted upload instead of starting over.
+  fingerprint   String
+  totalRows     Int      @map("total_rows")
+  totalChunks   Int      @map("total_chunks")
+  clearExisting Boolean  @map("clear_existing")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  chunks ImportStagedChunk[]
+
+  @@unique([orgId, id])
+  @@index([orgId, fingerprint])
+  @@index([createdAt])
+  @@map("import_sessions")
+}
+
+// One row per uploaded chunk (≤2,000 data rows), not one row per data row:
+// a 21,586-row import writes 11 staging rows, so staging and its cleanup
+// cost almost nothing and leave no bloat behind. `payload` groups the rows by
+// entity — {"warehouse": [...], "transaction": [...]} — and every record
+// carries `_row`, its 1-based position in its entity's list (the "Row N" in
+// error messages). The commit expands them with jsonb_to_recordset.
+model ImportStagedChunk {
+  orgId      String        @map("org_id")
+  sessionId  String        @map("session_id")
+  session    ImportSession @relation(fields: [orgId, sessionId], references: [orgId, id], onDelete: Cascade)
+  chunkIndex Int           @map("chunk_index")
+  rowCount   Int           @map("row_count")
+  payload    Json
+  createdAt  DateTime      @default(now()) @map("created_at")
+
+  @@id([orgId, sessionId, chunkIndex])
+  @@map("import_staged_chunks")
 }
 
 model ImportMapping {

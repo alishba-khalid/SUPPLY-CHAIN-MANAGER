@@ -1,6 +1,10 @@
 import { PageHeader } from "@/components/ui/page-header";
 import { SmartImporter } from "@/components/domain/smart-importer/smart-importer";
 
+// The smart importer (rendered here) commits large files in one database
+// transaction via a server action — give it the full function budget.
+export const maxDuration = 300;
+
 export default function ImportPage() {
   return (
     <div>

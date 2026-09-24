@@ -1,12 +1,12 @@
 import "dotenv/config";
 import { prisma } from "@/lib/prisma";
-import { commitSmartImport } from "@/data/repositories/smart-import";
+import { importPayloadDirect } from "./import-test-helpers";
 import type { ImportCommitPayload } from "@/lib/importer/types";
 
 async function runScaleBenchmark() {
   console.log("================================================================================");
   console.log("TRUE POSTGRESQL DATABASE SCALE BENCHMARK (A1)");
-  console.log("Measuring wall-clock time from prisma.$transaction start to commit on real PostgreSQL");
+  console.log("Measuring wall-clock time for chunked staging + the single commit transaction on real PostgreSQL");
   console.log("================================================================================");
 
   const testOrgId = "org_benchmark_scale_test";
@@ -102,10 +102,10 @@ async function runScaleBenchmark() {
 
     // Phase 2: Run 1 (Fresh Inserts inside single prisma.$transaction)
     const run1Start = Date.now();
-    const res1 = await commitSmartImport(testOrgId, payload);
+    const res1 = await importPayloadDirect(testOrgId, payload, true);
     const run1InsertMs = Date.now() - run1Start;
 
-    if (!res1.success) {
+    if (!res1.ok) {
       throw new Error(`Run 1 failed: ${res1.error}`);
     }
     console.log(`[Phase B] Run 1 (Fresh Inserts Transaction Time): ${run1InsertMs} ms`);
@@ -118,10 +118,10 @@ async function runScaleBenchmark() {
       transactions: [], // Test entity upserts on existing keys
     };
     const run2Start = Date.now();
-    const res2 = await commitSmartImport(testOrgId, payloadUpdate);
+    const res2 = await importPayloadDirect(testOrgId, payloadUpdate, false);
     const run2UpdateMs = Date.now() - run2Start;
 
-    if (!res2.success) {
+    if (!res2.ok) {
       throw new Error(`Run 2 failed: ${res2.error}`);
     }
     console.log(`[Phase C] Run 2 (Entity Upsert Update Time): ${run2UpdateMs} ms`);

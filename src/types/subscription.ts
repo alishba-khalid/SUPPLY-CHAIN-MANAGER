@@ -21,6 +21,7 @@ export interface PlanDefinition {
   skuLimit: number; // -1 for unlimited
   seatLimit: number; // -1 for unlimited
   monthlyAiQueries: number; // -1 for custom/unlimited
+  importRowLimit: number; // max rows per single smart import
   features: string[];
   highlighted?: boolean;
 }

@@ -11,6 +11,7 @@ export const PLAN_DEFINITIONS: Record<PlanTier, PlanDefinition> = {
     skuLimit: 500,
     seatLimit: 3,
     monthlyAiQueries: 50,
+    importRowLimit: 100_000,
     features: [
       "1 Warehouse facility",
       "Up to 500 SKUs",
@@ -32,6 +33,7 @@ export const PLAN_DEFINITIONS: Record<PlanTier, PlanDefinition> = {
     skuLimit: 5000,
     seatLimit: 10,
     monthlyAiQueries: 500,
+    importRowLimit: 500_000,
     highlighted: true,
     features: [
       "Everything in Starter, plus:",
@@ -56,6 +58,7 @@ export const PLAN_DEFINITIONS: Record<PlanTier, PlanDefinition> = {
     skuLimit: 50000,
     seatLimit: -1, // unlimited
     monthlyAiQueries: 2000,
+    importRowLimit: 2_000_000,
     features: [
       "Everything in Growth, plus:",
       "Up to 12 Warehouses",
@@ -82,6 +85,7 @@ export const PLAN_DEFINITIONS: Record<PlanTier, PlanDefinition> = {
     skuLimit: -1, // unlimited
     seatLimit: -1, // unlimited
     monthlyAiQueries: 10000,
+    importRowLimit: 2_000_000,
     features: [
       "Everything in Professional, plus:",
       "Unlimited Warehouses & Facilities",
@@ -95,6 +99,21 @@ export const PLAN_DEFINITIONS: Record<PlanTier, PlanDefinition> = {
     ],
   },
 };
+
+// Rows per single import while an org is on the public demo or still in its
+// trial — paid plans use their own `importRowLimit` above. A per-org
+// override (organizations.import_row_limit_override) beats both.
+export const TRIAL_IMPORT_ROW_LIMIT = 50_000;
+
+export function resolveImportRowLimit(opts: {
+  plan: PlanTier;
+  isDemoOrTrial: boolean;
+  orgOverride?: number | null;
+}): number {
+  if (opts.orgOverride != null && opts.orgOverride > 0) return opts.orgOverride;
+  if (opts.isDemoOrTrial) return TRIAL_IMPORT_ROW_LIMIT;
+  return PLAN_DEFINITIONS[opts.plan].importRowLimit;
+}
 
 export const TIER_ORDER: PlanTier[] = ["starter", "growth", "professional", "enterprise"];
 

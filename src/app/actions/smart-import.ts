@@ -1,81 +1,83 @@
 "use server";
 
 import { requireOrgId, isDemoOrg } from "@/lib/auth";
-import { commitSmartImport, saveOrgImportMapping, getOrgImportMapping } from "@/data/repositories/smart-import";
-import type { ImportCommitPayload, SheetMapping, ImportCommitResult } from "@/lib/importer/types";
+import { saveOrgImportMapping, getOrgImportMapping } from "@/data/repositories/smart-import";
+import {
+  beginImportSession,
+  cancelImportSession,
+  commitImportSession,
+  getImportRowLimit,
+  getImportSessionStatus,
+  stageImportChunk,
+} from "@/data/repositories/import-staging";
+import type { BeginResult, CommitResult, StageResult, StagedRow, StatusResult } from "@/lib/importer/chunked-import";
+import type { SheetMapping } from "@/lib/importer/types";
 import { revalidatePath } from "next/cache";
 import { checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 
-const MAX_IMPORT_ROWS = 5000;
-const MAX_PAYLOAD_BYTES = 2 * 1024 * 1024; // 2MB — matches next.config.ts's serverActions.bodySizeLimit
+// Chunked import: the browser parses the file and sends rows 2,000 at a time
+// (each request well under next.config.ts's 2MB serverActions.bodySizeLimit),
+// then one commit call moves everything into the real tables in a single
+// transaction. The orgId always comes from the session, never the client.
+
 const IMPORT_PER_IP_LIMIT = 10;
 const IMPORT_PER_IP_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
 
-function totalRowCount(payload: ImportCommitPayload): number {
-  return (
-    (payload.warehouses?.length || 0) +
-    (payload.suppliers?.length || 0) +
-    (payload.products?.length || 0) +
-    (payload.inventory?.length || 0) +
-    (payload.purchaseOrders?.length || 0) +
-    (payload.transactions?.length || 0)
-  );
+export async function getImportLimitAction(): Promise<{ limit: number }> {
+  const orgId = await requireOrgId();
+  return { limit: await getImportRowLimit(orgId, isDemoOrg(orgId)) };
 }
 
-export async function commitSmartImportAction(payload: ImportCommitPayload): Promise<ImportCommitResult> {
+export async function beginImportAction(input: {
+  fingerprint: string;
+  totalRows: number;
+  totalChunks: number;
+  clearExisting: boolean;
+}): Promise<BeginResult> {
   const orgId = await requireOrgId();
+  const rowLimit = await getImportRowLimit(orgId, isDemoOrg(orgId));
 
-  // Server-side enforcement of the same 5,000-row cap the UI shows, plus a
-  // byte-size cap (a payload can stay under the row cap while still being
-  // huge via oversized field values) — the UI checks alone don't stop a
-  // request crafted to call this action directly. Both checked before the
-  // demo no-op so oversized payloads are rejected, not silently "succeeded".
-  const rowCount = totalRowCount(payload);
-  const payloadBytes = Buffer.byteLength(JSON.stringify(payload), "utf8");
-  if (rowCount > MAX_IMPORT_ROWS || payloadBytes > MAX_PAYLOAD_BYTES) {
-    return {
-      success: false,
-      importedCounts: { warehouses: 0, suppliers: 0, products: 0, inventory: 0, purchaseOrders: 0, transactions: 0 },
-      missingLeadTimeCount: 0,
-      missingCapacityCount: 0,
-      error:
-        rowCount > MAX_IMPORT_ROWS
-          ? `Import limited to ${MAX_IMPORT_ROWS.toLocaleString()} rows per file. This file has ${rowCount.toLocaleString()} rows.`
-          : `Import payload too large (${(payloadBytes / (1024 * 1024)).toFixed(1)}MB, limit ${(MAX_PAYLOAD_BYTES / (1024 * 1024)).toFixed(0)}MB).`,
-    };
-  }
-
+  // Rate-limit whole imports (one begin each), not chunks — a large file is
+  // hundreds of chunk calls by design.
   const ip = await getRequestIp();
   const rateLimit = await checkRateLimit(`import:ip:${ip}`, IMPORT_PER_IP_LIMIT, IMPORT_PER_IP_WINDOW_MS);
   if (!rateLimit.allowed) {
-    return {
-      success: false,
-      importedCounts: { warehouses: 0, suppliers: 0, products: 0, inventory: 0, purchaseOrders: 0, transactions: 0 },
-      missingLeadTimeCount: 0,
-      missingCapacityCount: 0,
-      error: "Too many import attempts — please wait a few minutes and try again.",
-    };
+    return { ok: false, error: "Too many import attempts — please wait a few minutes and try again." };
   }
 
-  if (isDemoOrg(orgId)) {
-    return {
-      success: true,
-      importedCounts: {
-        warehouses: payload.warehouses?.length || 0,
-        suppliers: payload.suppliers?.length || 0,
-        products: payload.products?.length || 0,
-        inventory: payload.inventory?.length || 0,
-        purchaseOrders: payload.purchaseOrders?.length || 0,
-        transactions: payload.transactions?.length || 0,
-      },
-      missingLeadTimeCount: 0,
-      missingCapacityCount: 0,
-    };
-  }
+  return beginImportSession(orgId, {
+    fingerprint: input.fingerprint,
+    totalRows: input.totalRows,
+    totalChunks: input.totalChunks,
+    clearExisting: Boolean(input.clearExisting),
+    rowLimit,
+  });
+}
 
-  const res = await commitSmartImport(orgId, payload);
+export async function stageImportChunkAction(sessionId: string, chunkIndex: number, rows: StagedRow[]): Promise<StageResult> {
+  const orgId = await requireOrgId();
+  return stageImportChunk(orgId, sessionId, chunkIndex, rows);
+}
 
-  if (res.success) {
+export async function getImportStatusAction(sessionId: string): Promise<StatusResult> {
+  const orgId = await requireOrgId();
+  return getImportSessionStatus(orgId, sessionId);
+}
+
+export async function cancelImportAction(sessionId: string): Promise<void> {
+  const orgId = await requireOrgId();
+  await cancelImportSession(orgId, sessionId);
+}
+
+export async function commitImportAction(sessionId: string): Promise<CommitResult> {
+  const orgId = await requireOrgId();
+
+  // The shared public demo org is never written to: the commit runs in full
+  // (validation, every insert) inside the transaction and is then rolled
+  // back, so visitors get real counts without changing the demo data.
+  const res = await commitImportSession(orgId, sessionId, { simulate: isDemoOrg(orgId) });
+
+  if (res.ok && !res.simulated) {
     revalidatePath("/dashboard/overview");
     revalidatePath("/dashboard/inventory");
     revalidatePath("/dashboard/procurement");

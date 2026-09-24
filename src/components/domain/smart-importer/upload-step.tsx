@@ -6,22 +6,35 @@ import { Badge } from "@/components/ui/badge";
 import { UploadCloud, Download, CheckCircle2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { RawParsedSheet } from "@/lib/importer/types";
+import { formatLimitHint } from "@/lib/importer/chunked-import";
+import { ImportProgress } from "./import-progress";
 
 interface UploadStepProps {
   onFileLoaded: (file: File, sheets: RawParsedSheet[]) => void;
   onSwitchToLegacy: () => void;
   isProcessing: boolean;
+  /** Rows allowed per import for this org; null while loading. */
+  rowLimit: number | null;
 }
 
-export function UploadStep({ onFileLoaded, onSwitchToLegacy, isProcessing }: UploadStepProps) {
+export function UploadStep({ onFileLoaded, onSwitchToLegacy, isProcessing, rowLimit }: UploadStepProps) {
   const [isDragging, setIsDragging] = useState(false);
+  const [isReading, setIsReading] = useState(false);
 
   async function handleFile(file: File) {
     if (!file) return;
-    const { readWorkbookBuffer } = await import("@/lib/importer/reader");
-    const arrayBuffer = await file.arrayBuffer();
-    const sheets = readWorkbookBuffer(arrayBuffer);
-    onFileLoaded(file, sheets);
+    setIsReading(true);
+    try {
+      const { readWorkbookBuffer } = await import("@/lib/importer/reader");
+      const arrayBuffer = await file.arrayBuffer();
+      // Parsing is synchronous and can take a few seconds on a large file —
+      // let the "Reading file..." state paint first.
+      await new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
+      const sheets = readWorkbookBuffer(arrayBuffer);
+      onFileLoaded(file, sheets);
+    } finally {
+      setIsReading(false);
+    }
   }
 
   function handleDrop(e: React.DragEvent) {
@@ -91,8 +104,11 @@ export function UploadStep({ onFileLoaded, onSwitchToLegacy, isProcessing }: Upl
         </div>
       </div>
 
+      {isReading && <ImportProgress phase="reading" />}
+
       {/* Upload Zone */}
       <div
+        hidden={isReading}
         onDragOver={(e) => {
           e.preventDefault();
           setIsDragging(true);
@@ -113,7 +129,7 @@ export function UploadStep({ onFileLoaded, onSwitchToLegacy, isProcessing }: Upl
           accept=".xlsx,.xlsm,.xls,.csv,.tsv"
           onChange={handleSelect}
           className="hidden"
-          disabled={isProcessing}
+          disabled={isProcessing || isReading}
         />
 
         <div className="rounded-2xl bg-(--color-brand)/10 p-4 text-(--color-brand) mb-4">
@@ -139,9 +155,11 @@ export function UploadStep({ onFileLoaded, onSwitchToLegacy, isProcessing }: Upl
           </span>
         </div>
 
-        <div className="mt-4 rounded-full bg-(--color-surface-secondary) border border-(--color-border) px-3.5 py-1 text-xs text-(--color-text-secondary)">
-          Demo instance limited to 5,000 rows per import. Self-hosted has no limit.
-        </div>
+        {rowLimit !== null && (
+          <div className="mt-4 rounded-full bg-(--color-surface-secondary) border border-(--color-border) px-3.5 py-1 text-xs text-(--color-text-secondary)">
+            {formatLimitHint(rowLimit)}
+          </div>
+        )}
       </div>
     </div>
   );

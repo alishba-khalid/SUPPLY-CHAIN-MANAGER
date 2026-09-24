@@ -43,8 +43,12 @@ export const prisma =
               msg.includes("Server has closed the connection") ||
               msg.includes("ECONNRESET") ||
               msg.includes("closed the connection") ||
-              err?.code === "P1017" ||
-              err?.code === "P2010";
+              err?.code === "P1017";
+            // Not P2010 on its own: that's *any* failed raw query (a bad
+            // cast, a constraint, a trigger). Retrying it inside a
+            // transaction only yields "current transaction is aborted"
+            // (25P02) and hides the real error. A connection drop wrapped in
+            // P2010 is still caught by the message checks above.
 
             if (!isTransient || attempt === maxAttempts) throw error;
             await new Promise((resolve) => setTimeout(resolve, 200 * attempt));

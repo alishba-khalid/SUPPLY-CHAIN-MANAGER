@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { UploadStep } from "./upload-step";
 import { MappingStep } from "./mapping-step";
 import { MergesStep } from "./merges-step";
@@ -8,12 +8,24 @@ import { PreviewStep } from "./preview-step";
 import { SummaryStep } from "./summary-step";
 import { DataImporter } from "../data-importer";
 import { LoadingState } from "@/components/ui/loading-state";
-import { AlertCircle, Check, Sparkles } from "lucide-react";
+import { AlertCircle, Check, Info, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 import { generateSheetColumnMappings, computeHeadersSignature } from "@/lib/importer/mapping";
 import { extractEntitiesFromWorkbook } from "@/lib/importer/extractor";
-import { commitSmartImportAction, saveOrgMappingAction, getOrgMappingAction } from "@/app/actions/smart-import";
+import {
+  beginImportAction,
+  cancelImportAction,
+  commitImportAction,
+  getImportLimitAction,
+  getImportStatusAction,
+  getOrgMappingAction,
+  saveOrgMappingAction,
+  stageImportChunkAction,
+} from "@/app/actions/smart-import";
+import { formatLimitNote } from "@/lib/importer/chunked-import";
+import { runChunkedImport, type ImportTransport, type UploadProgress } from "@/lib/importer/chunked-upload";
+import { ImportProgress } from "./import-progress";
 
 import type {
   RawParsedSheet,
@@ -22,8 +34,15 @@ import type {
   SkuSupplierConflict,
   ExtractionPreview,
   ImportCommitResult,
-  ImportCommitPayload,
 } from "@/lib/importer/types";
+
+const importTransport: ImportTransport = {
+  begin: beginImportAction,
+  stage: stageImportChunkAction,
+  status: getImportStatusAction,
+  commit: commitImportAction,
+  cancel: cancelImportAction,
+};
 
 export type WizardStep = "upload" | "mapping" | "merges" | "preview" | "summary";
 
@@ -47,17 +66,34 @@ export function SmartImporter() {
   const [preview, setPreview] = useState<ExtractionPreview | null>(null);
   const [importResult, setImportResult] = useState<ImportCommitResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // Over-the-limit is a plan boundary, not an error: shown as a neutral note.
+  const [limitNote, setLimitNote] = useState<string | null>(null);
+  const [rowLimit, setRowLimit] = useState<number | null>(null);
+
+  // Chunked upload state
+  const [upload, setUpload] = useState<UploadProgress | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
 
   const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    getImportLimitAction()
+      .then((res) => setRowLimit(res.limit))
+      .catch(() => setRowLimit(null));
+  }, []);
 
   async function handleFileLoaded(loadedFile: File, rawSheets: RawParsedSheet[]) {
     setFile(loadedFile);
     setSheets(rawSheets);
     setErrorMessage(null);
+    setLimitNote(null);
 
+    // Checked before any mapping or upload work. The server enforces the
+    // same limit again when the upload begins.
     const totalRows = rawSheets.reduce((sum, s) => sum + s.rawRows.length, 0);
-    if (totalRows > 5000) {
-      setErrorMessage("Demo instance limited to 5,000 rows per import. Self-hosted has no limit.");
+    if (rowLimit !== null && totalRows > rowLimit) {
+      setLimitNote(formatLimitNote(totalRows, rowLimit));
       return;
     }
 
@@ -196,46 +232,66 @@ export function SmartImporter() {
     setCurrentStep("preview");
   }
 
-  // STEP 4 -> STEP 5 (ATOMIC COMMIT)
-  function handleCommitImport(clearExisting: boolean) {
-    if (!preview) return;
+  // STEP 4 -> STEP 5: chunked upload, then one atomic commit
+  async function handleCommitImport(clearExisting: boolean) {
+    if (!preview || upload) return;
 
-    startTransition(async () => {
-      setErrorMessage(null);
-      try {
-        if (rememberInDb && sheetMappings.length > 0) {
-          for (const sheet of sheetMappings) {
-            const sig = computeHeadersSignature(sheet.mappings.map((m) => m.rawHeader));
-            await saveOrgMappingAction(sig, sheetMappings);
-          }
+    setErrorMessage(null);
+    setLimitNote(null);
+    setCancelling(false);
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setUpload({ phase: "preparing", rowsSent: 0, totalRows: 0, chunksSent: 0, totalChunks: 0 });
+
+    try {
+      if (rememberInDb && sheetMappings.length > 0) {
+        for (const sheet of sheetMappings) {
+          const sig = computeHeadersSignature(sheet.mappings.map((m) => m.rawHeader));
+          await saveOrgMappingAction(sig, sheetMappings);
         }
+      }
 
-        const payload: ImportCommitPayload = {
+      const result = await runChunkedImport(
+        {
           warehouses: preview.warehouses,
           suppliers: preview.suppliers,
           products: preview.products,
           inventory: preview.inventory,
           purchaseOrders: preview.purchaseOrders,
           transactions: preview.transactions,
-          skuDuplicateResolution: "sum",
-          clearExisting,
-        };
+        },
+        clearExisting,
+        importTransport,
+        { onProgress: setUpload, signal: controller.signal }
+      );
 
-        const result = await commitSmartImportAction(payload);
-
-        if (!result.success) {
-          setErrorMessage(result.error || "Failed to commit import records.");
-          return;
-        }
-
-        setImportResult(result);
-        setCurrentStep("summary");
-      } catch (err) {
-        setErrorMessage(
-          err instanceof Error ? err.message : "Database transaction failed."
-        );
+      if (!result.ok) {
+        if (result.limitExceeded) setLimitNote(result.error);
+        else if (!result.cancelled) setErrorMessage(result.error);
+        return;
       }
-    });
+
+      setImportResult({
+        success: true,
+        importedCounts: result.counts,
+        missingLeadTimeCount: preview.missingLeadTimeCount,
+        missingCapacityCount: preview.missingCapacityCount,
+        duplicateTransactionsSkipped: result.duplicateTransactionsSkipped,
+        simulated: result.simulated,
+      });
+      setCurrentStep("summary");
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? `Import failed: ${err.message}` : "Import failed before any rows were saved.");
+    } finally {
+      abortRef.current = null;
+      setUpload(null);
+      setCancelling(false);
+    }
+  }
+
+  function handleCancelUpload() {
+    setCancelling(true);
+    abortRef.current?.abort();
   }
 
   function handleReset() {
@@ -248,6 +304,7 @@ export function SmartImporter() {
     setPreview(null);
     setImportResult(null);
     setErrorMessage(null);
+    setLimitNote(null);
     setSkippedSteps({});
     setCurrentStep("upload");
   }
@@ -349,14 +406,34 @@ export function SmartImporter() {
 
       {/* Error Alert */}
       {errorMessage && (
-        <div className="flex items-center gap-2.5 rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-small text-red-600 dark:text-red-400">
-          <AlertCircle size={18} className="shrink-0" />
-          <span>{errorMessage}</span>
+        <div className="flex items-start gap-2.5 rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-small text-red-600 dark:text-red-400">
+          <AlertCircle size={18} className="shrink-0 mt-0.5" />
+          <span className="whitespace-pre-line">{errorMessage}</span>
+        </div>
+      )}
+
+      {/* Plan limit — a neutral note, not an error */}
+      {limitNote && (
+        <div className="flex items-start gap-2.5 rounded-xl border border-(--color-border) bg-(--color-surface-secondary) p-4 text-small text-(--color-text-secondary)">
+          <Info size={18} className="shrink-0 mt-0.5 text-(--color-text-muted)" />
+          <span>{limitNote}</span>
         </div>
       )}
 
       {/* Step Renderers */}
-      {isPending ? (
+      {upload ? (
+        <ImportProgress
+          phase={upload.phase}
+          rowsSent={upload.rowsSent}
+          totalRows={upload.totalRows}
+          chunksSent={upload.chunksSent}
+          totalChunks={upload.totalChunks}
+          reconnecting={upload.reconnecting}
+          resumed={upload.resumed}
+          onCancel={handleCancelUpload}
+          cancelling={cancelling}
+        />
+      ) : isPending ? (
         <div className="py-12">
           <LoadingState message="Processing spreadsheet through Smart Pipeline (Clean -> Map -> Cluster -> Extract)..." />
         </div>
@@ -365,6 +442,7 @@ export function SmartImporter() {
           onFileLoaded={handleFileLoaded}
           onSwitchToLegacy={() => setMode("legacy")}
           isProcessing={isPending}
+          rowLimit={rowLimit}
         />
       ) : currentStep === "mapping" ? (
         <MappingStep
@@ -393,7 +471,7 @@ export function SmartImporter() {
               setCurrentStep("mapping");
             }
           }}
-          isCommitting={isPending}
+          isCommitting={upload !== null}
         />
       ) : currentStep === "summary" && importResult ? (
         <SummaryStep result={importResult} onReset={handleReset} />

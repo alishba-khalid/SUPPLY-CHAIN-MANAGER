@@ -8,6 +8,10 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { getOrgSubscription, getOrgQuotaUsage } from "@/data/repositories/subscription";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 
+// The smart importer (rendered here) commits large files in one database
+// transaction via a server action — give it the full function budget.
+export const maxDuration = 300;
+
 export default async function SettingsPage({
   searchParams,
 }: {

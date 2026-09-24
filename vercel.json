@@ -1,6 +1,7 @@
 {
   "crons": [
     { "path": "/api/cron/recompute-forecasts", "schedule": "0 6 * * *" },
-    { "path": "/api/cron/forecast-service-ping", "schedule": "30 6 * * *" }
+    { "path": "/api/cron/forecast-service-ping", "schedule": "30 6 * * *" },
+    { "path": "/api/cron/cleanup-import-staging", "schedule": "15 3 * * *" }
   ]
 }

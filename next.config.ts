@@ -30,9 +30,10 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     serverActions: {
-      // The smart importer is the only action that sends a large payload
-      // (up to 5,000 parsed rows as JSON); everything else is small forms.
-      // Explicit rather than relying on Next's implicit default.
+      // The smart importer is the only action that sends a large payload:
+      // one chunk of at most 2,000 parsed rows (capped at ~1.5MB of JSON in
+      // src/lib/importer/chunked-import.ts) per request; everything else is
+      // small forms. Explicit rather than relying on Next's implicit default.
       bodySizeLimit: "2mb",
     },
   },

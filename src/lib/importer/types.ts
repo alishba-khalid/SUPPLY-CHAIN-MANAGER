@@ -172,5 +172,9 @@ export interface ImportCommitResult {
   };
   missingLeadTimeCount: number;
   missingCapacityCount: number;
+  /** Transactions skipped because an earlier import already saved the same rows. */
+  duplicateTransactionsSkipped?: number;
+  /** Demo workspace: the import ran in full inside a transaction, then was rolled back. */
+  simulated?: boolean;
   error?: string;
 }

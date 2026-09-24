@@ -32,6 +32,16 @@ const eslintConfig = defineConfig([
       "no-restricted-imports": "off",
     },
   },
+  // Tests and benchmarks assert on (and clean up) raw database state across
+  // orgs — e.g. "org A's import never appears in org B" has to count org B's
+  // rows directly, not through the code under test. They never ship in the
+  // app bundle.
+  {
+    files: ["src/**/__tests__/**/*.ts"],
+    rules: {
+      "no-restricted-imports": "off",
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

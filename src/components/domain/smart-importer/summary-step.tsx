@@ -48,11 +48,18 @@ export function SummaryStep({ result, onReset }: SummaryStepProps) {
         </div>
         <div>
           <h2 className="text-h2 font-bold text-(--color-text-primary)">
-            Import Completed Successfully!
+            {result.simulated ? "Import Checked — Demo Data Unchanged" : "Import Completed Successfully!"}
           </h2>
           <p className="mt-1 text-body text-(--color-text-secondary) max-w-lg mx-auto">
-            {totalSaved.toLocaleString()} total records across 6 entities were committed atomically in a single PostgreSQL transaction.
+            {result.simulated
+              ? `${totalSaved.toLocaleString()} records were validated and written inside a single PostgreSQL transaction, then rolled back — this is the shared demo workspace, so its data is never changed.`
+              : `${totalSaved.toLocaleString()} total records across 6 entities were committed atomically in a single PostgreSQL transaction.`}
           </p>
+          {(result.duplicateTransactionsSkipped ?? 0) > 0 && (
+            <p className="mt-2 text-caption text-(--color-text-muted) max-w-lg mx-auto">
+              {result.duplicateTransactionsSkipped!.toLocaleString()} transactions were already in your workspace from an earlier import of the same rows and were skipped, not duplicated.
+            </p>
+          )}
         </div>
       </div>
 
