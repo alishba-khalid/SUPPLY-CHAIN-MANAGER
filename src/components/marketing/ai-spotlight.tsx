@@ -1,16 +1,17 @@
 import { ShieldCheck } from "lucide-react";
 import { RecommendationCard } from "@/components/domain/recommendation-card";
 import type { Recommendation } from "@/types/supply-chain";
-import { DEMO_ORG_ID } from "@/lib/auth";
-import { getOpenPurchaseOrders } from "@/data/repositories/procurement";
-import { getSupplierPerformance } from "@/data/repositories/suppliers";
 
-const SPOTLIGHT_SUPPLIER_ID = "SUP-004";
-
-function daysOverdue(expectedDate: string): number {
-  const ms = Date.now() - new Date(expectedDate).getTime();
-  return Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)));
-}
+// Static sample, not a database read: public marketing pages are prerendered
+// at build time, and a build must never depend on a reachable database (a
+// Preview build without DATABASE_URL crashed here). Figures match what the
+// seeded demo workspace showed when this was written (2026-09-24); they're
+// labelled as an example below rather than presented as live data.
+const SAMPLE_OVERDUE_POS = [
+  { poNumber: "PO-8063", supplierId: "SUP-004", daysOverdue: 15 },
+  { poNumber: "PO-8064", supplierId: "SUP-004", daysOverdue: 10 },
+];
+const SAMPLE_OTIF_PERCENT = 0;
 
 const EXAMPLE_RECOMMENDATION: Recommendation = {
   id: "example-sku-1015",
@@ -25,37 +26,19 @@ const EXAMPLE_RECOMMENDATION: Recommendation = {
   createdAt: "2026-08-24T00:00:00Z",
 };
 
-export async function AiSpotlight() {
-  // Pulled live from the seeded demo dataset (org_demo) rather than
-  // hardcoded — PO numbers and days-overdue drift as real time passes
-  // against fixed expected dates, so a hardcoded snapshot goes stale.
-  const [openPos, performance] = await Promise.all([
-    getOpenPurchaseOrders(DEMO_ORG_ID),
-    getSupplierPerformance(DEMO_ORG_ID, SPOTLIGHT_SUPPLIER_ID),
-  ]);
-
-  const overduePos = openPos
-    .filter((po) => po.supplierId === SPOTLIGHT_SUPPLIER_ID && daysOverdue(po.expectedDate) > 0)
-    .sort((a, b) => daysOverdue(b.expectedDate) - daysOverdue(a.expectedDate))
-    .slice(0, 2);
-
+export function AiSpotlight() {
   const evidenceRows = [
-    ...overduePos.map((po) => ({
+    ...SAMPLE_OVERDUE_POS.map((po) => ({
       label: `${po.poNumber} (${po.supplierId})`,
-      value: `${daysOverdue(po.expectedDate)} days overdue`,
+      value: `${po.daysOverdue} days overdue`,
     })),
     {
       label: "Orion Electronics OTIF",
-      value: `${performance.otifPercent ?? 0}% (trailing 90 days)`,
+      value: `${SAMPLE_OTIF_PERCENT}% (trailing 90 days)`,
     },
   ];
 
-  const overdueSummary =
-    overduePos.length === 2
-      ? `${daysOverdue(overduePos[0].expectedDate)} and ${daysOverdue(overduePos[1].expectedDate)} days overdue`
-      : overduePos.length === 1
-        ? `${daysOverdue(overduePos[0].expectedDate)} days overdue`
-        : "overdue";
+  const overdueSummary = `${SAMPLE_OVERDUE_POS[0].daysOverdue} and ${SAMPLE_OVERDUE_POS[1].daysOverdue} days overdue`;
 
   return (
     <section className="mx-auto max-w-6xl px-6 py-20">
@@ -80,6 +63,7 @@ export async function AiSpotlight() {
           <span className="h-2.5 w-2.5 rounded-full bg-(--color-warning)" />
           <span className="h-2.5 w-2.5 rounded-full bg-(--color-success)" />
           <span className="ml-3 text-caption font-mono text-(--color-text-secondary)">AI Manager Terminal</span>
+          <span className="ml-auto text-caption text-(--color-text-muted)">Example from the demo workspace</span>
         </div>
 
         <div className="space-y-5 p-5 sm:p-6">
@@ -89,7 +73,7 @@ export async function AiSpotlight() {
 
           <div className="max-w-xl rounded-lg rounded-tl-sm bg-(--color-surface-secondary) px-4 py-2.5 text-body text-(--color-text-primary)">
             &quot;Purchase orders from Orion Electronics (SUP-004) are {overdueSummary} with nothing received,
-            depressing trailing 90-day OTIF to {performance.otifPercent ?? 0}%. They supply SKU-1009 and SKU-1015.&quot;
+            depressing trailing 90-day OTIF to {SAMPLE_OTIF_PERCENT}%. They supply SKU-1009 and SKU-1015.&quot;
           </div>
 
           <div className="overflow-x-auto rounded-lg border border-(--color-border)">
