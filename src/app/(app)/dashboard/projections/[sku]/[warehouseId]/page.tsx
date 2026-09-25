@@ -102,7 +102,7 @@ export default async function SkuProjectionPage({
         <div className="flex flex-wrap items-center gap-2">
           <ForecastModeBadge liveCount={isLive ? 1 : 0} totalCount={1} />
           <span className="rounded-md border border-(--color-border) bg-(--color-surface-secondary) px-2.5 py-1 text-caption font-medium text-(--color-text-secondary)">
-            {statusLabel} · {projection.daysOfCoverCurrent?.toFixed(1) ?? "—"}d cover today
+            {statusLabel} · {projection.daysOfCoverCurrent?.toFixed(1) ?? "—"}d left today
           </span>
           <RecomputeForecastsButton lastComputedAt={computedAt ? computedAt.toISOString() : null} />
         </div>

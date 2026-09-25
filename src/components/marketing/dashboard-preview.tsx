@@ -52,7 +52,7 @@ export function DashboardPreview() {
               <div>
                 <dt className="text-caption font-bold uppercase tracking-wide text-(--color-critical)">Problem</dt>
                 <dd className="mt-0.5 text-body font-medium text-(--color-text-primary)">
-                  3 days of cover left — below reorder point.
+                  3 days until stockout — below reorder point.
                 </dd>
               </div>
               <div>

@@ -16,7 +16,7 @@ const CARDS = [
     icon: OctagonAlert,
     toneClass: "bg-(--color-critical-bg) text-(--color-critical)",
     title: "What needs attention",
-    example: "SKU-1015 at NDC has 3 days of cover left — already below its reorder point.",
+    example: "SKU-1015 at NDC has 3 days until stockout — already below its reorder point.",
   },
   {
     icon: ShoppingCart,

@@ -85,7 +85,7 @@ export async function askAiManagerAction(rawQuestion: string): Promise<AiManager
   if (lower.includes("stockout") || lower.includes("risk") || lower.includes("low")) {
     const stockouts = alerts.filter((a) => a.severity === "critical" || a.severity === "warning");
     reply = `There are currently ${stockouts.length} active inventory alerts requiring attention. The most urgent is ${stockouts[0]?.title || "none"}.`;
-    recommendation = `Action: Issue purchase orders for positions with days of cover lower than supplier lead times to avoid production halts.`;
+    recommendation = `Action: Issue purchase orders for positions with days until stockout lower than supplier lead times to avoid production halts.`;
     suggestedAction = { label: "View Low Stock in Inventory", href: "/dashboard/inventory?status=understock" };
   } else if (lower.includes("supplier") || lower.includes("otif") || lower.includes("delivery")) {
     reply = `Supplier score is currently ${health.supplier}/100 and Procurement score is ${health.procurement}/100 based on trailing 90-day purchase order receipts.`;

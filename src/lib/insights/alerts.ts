@@ -131,7 +131,7 @@ export async function getAlerts(
         id: `ALT-INV-STOCKOUT-${insight.sku}-${insight.warehouseId}`,
         category: "inventory",
         severity: "critical",
-        title: `${insight.sku} at ${warehouseCode} — ${daysOfCover} days of cover`,
+        title: `${insight.sku} at ${warehouseCode} — ${daysOfCover} days until stockout`,
         description: descriptionParts.join(" "),
         sku: insight.sku,
         warehouseId: insight.warehouseId,

@@ -3,7 +3,7 @@ import { Sparkles, Mail, CheckCircle2 } from "lucide-react";
 
 const STEPS = [
   { time: "6:00 AM", description: "Reads trailing transaction velocity across every warehouse facility." },
-  { time: "6:02 AM", description: "Flags SKU-1015 at NDC as falling under 3 days of cover against a 7-day lead time." },
+  { time: "6:02 AM", description: "Flags SKU-1015 at NDC as falling under 3 days until stockout against a 7-day lead time." },
   { time: "6:03 AM", description: "Detects supplier OTIF fell on SUP-004 from overdue open purchase orders." },
   { time: "6:04 AM", description: "Prioritized decisions are waiting in your dashboard. You approve every single action." },
 ];

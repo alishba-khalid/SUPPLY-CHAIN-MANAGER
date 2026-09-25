@@ -64,7 +64,7 @@ export function SuggestedPosPanel({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {suggestions.slice(0, 6).map((sug) => {
           let badgeTone = "bg-amber-500/10 text-amber-600 dark:text-amber-400";
-          let badgeText = sug.currentOnHand <= 0 ? "Stockout" : `${sug.daysOfCoverCurrent ?? 0}d cover`;
+          let badgeText = sug.currentOnHand <= 0 ? "Stockout" : `${sug.daysOfCoverCurrent ?? 0}d left`;
 
           if (sug.actionType === "expedite") {
             badgeTone = "bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20";

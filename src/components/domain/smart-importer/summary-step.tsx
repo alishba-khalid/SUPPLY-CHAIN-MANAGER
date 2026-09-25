@@ -138,7 +138,7 @@ export function SummaryStep({ result, onReset }: SummaryStepProps) {
           </div>
           <h4 className="mt-3 font-semibold text-body text-(--color-text-primary)">Inventory Management</h4>
           <p className="mt-1 text-caption text-(--color-text-muted)">
-            Inspect stock health, days of cover, and suggested replenishment orders.
+            Inspect stock health, days until stockout, and suggested replenishment orders.
           </p>
         </Link>
 

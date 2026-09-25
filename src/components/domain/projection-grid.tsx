@@ -49,7 +49,7 @@ function ProjectionTile({ entry }: { entry: ProjectionGridEntry }) {
           <span>
             {daysUntilStockout !== null
               ? `Stockout in ${daysUntilStockout}d`
-              : `${projection.daysOfCoverCurrent?.toFixed(1) ?? "—"}d cover`}
+              : `${projection.daysOfCoverCurrent?.toFixed(1) ?? "—"}d left`}
           </span>
           <span className="text-(--color-text-muted)">
             {abcClass ?? "—"}/{xyzClass}

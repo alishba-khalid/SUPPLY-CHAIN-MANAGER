@@ -112,7 +112,7 @@ export default async function InventoryPage({
           <EmptyState
             icon={<PackageSearch size={18} />}
             title="No transaction history yet."
-            description="Inventory health, days of stock, and reorder points are calculated from purchase order and transaction history — import that data to see this page come alive."
+            description="Inventory health, days until stockout, and reorder points are calculated from purchase order and transaction history — import that data to see this page come alive."
           />
         ) : (
           <>

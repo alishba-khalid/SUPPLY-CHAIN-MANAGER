@@ -30,7 +30,7 @@ export function InventorySummaryCards({
       label: "Overstock",
       value: summary.overstockCount,
       status: "overstock",
-      helpText: "Capital tied up above 30d cover",
+      helpText: "Capital tied up above 30d to stockout",
     },
     {
       label: "Dead Stock",

@@ -15,7 +15,7 @@ const COLUMNS: { key: InventoryTableSortKey; header: string; align?: "right" }[]
   { key: "name", header: "Name" },
   { key: "warehouse", header: "Warehouse" },
   { key: "onHand", header: "On hand", align: "right" },
-  { key: "daysOfStock", header: "Days of stock", align: "right" },
+  { key: "daysOfStock", header: "Days until stockout", align: "right" },
   { key: "reorderPoint", header: "Reorder point", align: "right" },
 ];
 
