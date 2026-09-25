@@ -90,8 +90,10 @@ export function dailyDemandStandardDeviation(
 }
 
 /**
- * Outlier-resistant trimmed mean daily demand (drops top & bottom 5% of daily values).
+ * Outlier-resistant trimmed mean daily demand (drops top & bottom 5% of active sales days).
  * Protects against temporary promotional spikes or spot bulk orders distorting structural velocity.
+ * Trimming is proportional to the number of active (non-zero) sales days so sparse/intermittent
+ * demand does not have its real sales trimmed away.
  */
 export function trimmedDailyDemand(
   transactions: InventoryTransaction[],
@@ -99,18 +101,35 @@ export function trimmedDailyDemand(
   warehouseId: number,
   windowDays: number = TRAILING_WINDOW_DAYS,
   trimPercent: number = 0.05,
+  minActiveDaysToTrim: number = 20,
 ): number | null {
   const values = getDailyOutboundSeries(transactions, sku, warehouseId, windowDays);
-  const totalSum = values.reduce((a, b) => a + b, 0);
+  const activeValues = values.filter((v) => v > 0);
+  if (activeValues.length === 0) return null;
+
+  const totalSum = activeValues.reduce((a, b) => a + b, 0);
   if (totalSum <= 0) return null;
 
-  values.sort((a, b) => a - b);
-  const trimCount = Math.floor(windowDays * trimPercent);
-  const trimmed = values.slice(trimCount, values.length - trimCount);
-  if (trimmed.length === 0) return null;
+  const activeDays = activeValues.length;
+  if (activeDays < minActiveDaysToTrim) {
+    // Sparse/intermittent demand: do not trim with small sample size
+    return Math.round((totalSum / windowDays) * 100) / 100;
+  }
 
-  const trimmedSum = trimmed.reduce((a, b) => a + b, 0);
-  return Math.round((trimmedSum / trimmed.length) * 100) / 100;
+  activeValues.sort((a, b) => a - b);
+  const trimCount = Math.floor(activeDays * trimPercent);
+  if (trimCount === 0) {
+    return Math.round((totalSum / windowDays) * 100) / 100;
+  }
+
+  const trimmed = activeValues.slice(trimCount, activeValues.length - trimCount);
+  if (trimmed.length === 0) {
+    return Math.round((totalSum / windowDays) * 100) / 100;
+  }
+
+  const trimmedActiveMean = trimmed.reduce((a, b) => a + b, 0) / trimmed.length;
+  const dailyDemand = (trimmedActiveMean * activeDays) / windowDays;
+  return Math.round(dailyDemand * 100) / 100;
 }
 
 /**
