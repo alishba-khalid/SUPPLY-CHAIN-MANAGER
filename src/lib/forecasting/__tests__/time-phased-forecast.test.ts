@@ -10,6 +10,7 @@ import {
   classifyInventoryStatus,
 } from "@/lib/metrics/inventory";
 import { computeSupplierPerformance, poOnTimeRate } from "@/lib/metrics/supplier";
+import { todayISODate, addDays } from "@/lib/dates";
 import { getAlerts } from "@/lib/insights/alerts";
 import type {
   InventoryInsight,
@@ -539,16 +540,17 @@ describe("Time-Phased Forward Projection & Netting Regression Suite (C4 + V1-V5 
   });
 
   test("X1 - Supplier OTIF: Open overdue POs MUST count against OTIF and be in denominator", () => {
+    const today = todayISODate();
     // 6 closed late POs (received late) + 2 open overdue POs (expectedDate in past, receivedDate = null)
     const testPOs: PurchaseOrder[] = [
-      { id: 1, poNumber: "PO-8001", supplierId: "SUP-004", sku: "SKU-1001", quantity: 100, unitPrice: 10, orderDate: "2026-06-01", expectedDate: "2026-06-15", receivedDate: "2026-06-21" }, // +6d late
-      { id: 2, poNumber: "PO-8002", supplierId: "SUP-004", sku: "SKU-1001", quantity: 100, unitPrice: 10, orderDate: "2026-06-10", expectedDate: "2026-06-25", receivedDate: "2026-07-01" }, // +6d late
-      { id: 3, poNumber: "PO-8003", supplierId: "SUP-004", sku: "SKU-1001", quantity: 100, unitPrice: 10, orderDate: "2026-07-01", expectedDate: "2026-07-15", receivedDate: "2026-07-21" }, // +6d late
-      { id: 4, poNumber: "PO-8004", supplierId: "SUP-004", sku: "SKU-1001", quantity: 100, unitPrice: 10, orderDate: "2026-07-10", expectedDate: "2026-07-25", receivedDate: "2026-07-31" }, // +6d late
-      { id: 5, poNumber: "PO-8005", supplierId: "SUP-004", sku: "SKU-1001", quantity: 100, unitPrice: 10, orderDate: "2026-08-01", expectedDate: "2026-08-15", receivedDate: "2026-08-21" }, // +6d late
-      { id: 6, poNumber: "PO-8006", supplierId: "SUP-004", sku: "SKU-1001", quantity: 100, unitPrice: 10, orderDate: "2026-08-10", expectedDate: "2026-08-20", receivedDate: "2026-08-26" }, // +6d late
-      { id: 7, poNumber: "PO-8063", supplierId: "SUP-004", sku: "SKU-1001", quantity: 100, unitPrice: 10, orderDate: "2026-08-10", expectedDate: "2026-08-22", receivedDate: null }, // OPEN OVERDUE 11d
-      { id: 8, poNumber: "PO-8064", supplierId: "SUP-004", sku: "SKU-1001", quantity: 100, unitPrice: 10, orderDate: "2026-08-15", expectedDate: "2026-08-27", receivedDate: null }, // OPEN OVERDUE 6d
+      { id: 1, poNumber: "PO-8001", supplierId: "SUP-004", sku: "SKU-1001", quantity: 100, unitPrice: 10, orderDate: addDays(today, -80), expectedDate: addDays(today, -65), receivedDate: addDays(today, -59) }, // +6d late
+      { id: 2, poNumber: "PO-8002", supplierId: "SUP-004", sku: "SKU-1001", quantity: 100, unitPrice: 10, orderDate: addDays(today, -70), expectedDate: addDays(today, -55), receivedDate: addDays(today, -49) }, // +6d late
+      { id: 3, poNumber: "PO-8003", supplierId: "SUP-004", sku: "SKU-1001", quantity: 100, unitPrice: 10, orderDate: addDays(today, -60), expectedDate: addDays(today, -45), receivedDate: addDays(today, -39) }, // +6d late
+      { id: 4, poNumber: "PO-8004", supplierId: "SUP-004", sku: "SKU-1001", quantity: 100, unitPrice: 10, orderDate: addDays(today, -50), expectedDate: addDays(today, -35), receivedDate: addDays(today, -29) }, // +6d late
+      { id: 5, poNumber: "PO-8005", supplierId: "SUP-004", sku: "SKU-1001", quantity: 100, unitPrice: 10, orderDate: addDays(today, -40), expectedDate: addDays(today, -25), receivedDate: addDays(today, -19) }, // +6d late
+      { id: 6, poNumber: "PO-8006", supplierId: "SUP-004", sku: "SKU-1001", quantity: 100, unitPrice: 10, orderDate: addDays(today, -30), expectedDate: addDays(today, -20), receivedDate: addDays(today, -14) }, // +6d late
+      { id: 7, poNumber: "PO-8063", supplierId: "SUP-004", sku: "SKU-1001", quantity: 100, unitPrice: 10, orderDate: addDays(today, -30), expectedDate: addDays(today, -11), receivedDate: null }, // OPEN OVERDUE 11d
+      { id: 8, poNumber: "PO-8064", supplierId: "SUP-004", sku: "SKU-1001", quantity: 100, unitPrice: 10, orderDate: addDays(today, -25), expectedDate: addDays(today, -6), receivedDate: null }, // OPEN OVERDUE 6d
     ];
 
     const perf = computeSupplierPerformance("SUP-004", testPOs, 90);

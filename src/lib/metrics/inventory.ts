@@ -110,6 +110,10 @@ export function trimmedDailyDemand(
   if (trimmed.length === 0) return null;
 
   const trimmedSum = trimmed.reduce((a, b) => a + b, 0);
+  if (trimmedSum <= 0 && totalSum > 0) {
+    // Intermittent demand fallback: trimming eliminated all active sales days
+    return Math.round((totalSum / windowDays) * 100) / 100;
+  }
   return Math.round((trimmedSum / trimmed.length) * 100) / 100;
 }
 
