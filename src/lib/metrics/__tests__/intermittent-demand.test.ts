@@ -68,10 +68,10 @@ describe("Intermittent Demand & Trimmed Velocity Edge Cases", () => {
   test("Edge Case 4: Genuine fast mover (many sales days) retains trimmed-mean outlier resistance unchanged", () => {
     // 90 days of sales: 88 days of 10 units/day, and 2 outlier days of 100 units/day
     const transactions: InventoryTransaction[] = [];
-    for (let i = 1; i <= 90; i++) {
+    for (let i = 0; i < 90; i++) {
       const qty = (i === 10 || i === 20) ? 100 : 10;
       transactions.push({
-        id: i,
+        id: i + 1,
         sku: "SKU-FAST",
         warehouseId: 1,
         quantity: qty,
@@ -84,5 +84,24 @@ describe("Intermittent Demand & Trimmed Velocity Edge Cases", () => {
     // With 90 days, 4 highest (including the two 100s) and 4 lowest (10s) are trimmed.
     // The remaining 82 days all have 10 units. Trimmed mean = 10.00.
     assert.strictEqual(demand, 10, "Fast mover should still trim spikes to 10.00");
+  });
+
+  test("Edge Case 5: Moderate intermittent SKU (5-15 active days) does not drop real sales", () => {
+    // 8 sales days of 6 units each = 48 units total.
+    // 48 / 90 = 0.53 units/day.
+    const transactions: InventoryTransaction[] = [];
+    for (let i = 1; i <= 8; i++) {
+      transactions.push({
+        id: i,
+        sku: "SKU-MOD",
+        warehouseId: 1,
+        quantity: 6,
+        direction: "OUT",
+        date: addDays(today, -i * 10),
+      });
+    }
+
+    const demand = trimmedDailyDemand(transactions, "SKU-MOD", 1, 90, 0.05);
+    assert.strictEqual(demand, 0.53, "8 sales days (48 total) should evaluate to 0.53 units/day without trimming non-outlier days");
   });
 });
