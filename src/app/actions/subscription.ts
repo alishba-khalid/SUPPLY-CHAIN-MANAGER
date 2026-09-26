@@ -9,6 +9,8 @@ import { revalidatePath } from "next/cache";
 import { checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 import { invalidSuggestedPoReason } from "@/lib/insights/quick-order";
 import { getSupplier } from "@/data/repositories/suppliers";
+import { getHighestPoNumber } from "@/data/repositories/procurement";
+import { insertWithNextPoNumber } from "@/lib/procurement/po-number";
 
 const DEMO_MSG = "Demo mode — action is simulated and not saved.";
 
@@ -64,8 +66,6 @@ export async function createPoFromSuggestionAction(suggestion: SuggestedPurchase
     expected.setDate(expected.getDate() + (suggestion.supplierLeadTimeDays || 14));
     const expectedDate = expected.toISOString().slice(0, 10);
 
-    const poNumber = `PO-${Math.floor(8000 + Math.random() * 1999)}`;
-
     if (isDemoOrg(orgId)) {
       return {
         success: true,
@@ -78,23 +78,32 @@ export async function createPoFromSuggestionAction(suggestion: SuggestedPurchase
       return { success: false, error: `Supplier ${suggestion.supplierId} isn't on file for this workspace.` };
     }
 
-    const res = await createPurchaseOrderAction({
-      poNumber,
-      supplierId: suggestion.supplierId,
-      sku: suggestion.sku,
-      quantity: suggestion.suggestedQuantity,
-      unitPrice: suggestion.unitPrice,
-      orderDate,
-      expectedDate,
+    // Next number in this workspace's PO series; if another order takes it
+    // first, the insert is rejected (never overwritten) and the next one is tried.
+    const created = await insertWithNextPoNumber({
+      highestExisting: () => getHighestPoNumber(orgId),
+      insert: async (poNumber) => {
+        const res = await createPurchaseOrderAction({
+          poNumber,
+          supplierId: suggestion.supplierId,
+          sku: suggestion.sku,
+          quantity: suggestion.suggestedQuantity,
+          unitPrice: suggestion.unitPrice,
+          orderDate,
+          expectedDate,
+        });
+        if (res.success) return { ok: true as const, value: res };
+        if ("duplicate" in res && res.duplicate) return { ok: false as const, duplicate: true as const };
+        return { ok: false as const, duplicate: false as const, error: res.error ?? "Failed to create PO from suggestion." };
+      },
     });
+    if (!created.ok) return { success: false, error: created.error };
 
-    if (res.success) {
-      revalidatePath("/dashboard/overview");
-      revalidatePath("/dashboard/procurement");
-      revalidatePath("/dashboard/inventory");
-    }
+    revalidatePath("/dashboard/overview");
+    revalidatePath("/dashboard/procurement");
+    revalidatePath("/dashboard/inventory");
 
-    return res;
+    return { ...created.value, message: `Purchase order ${created.poNumber} created.` };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : "Failed to create PO from suggestion." };
   }

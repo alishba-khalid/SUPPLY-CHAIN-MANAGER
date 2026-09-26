@@ -3,6 +3,8 @@
 import { requireOrgId, isDemoOrg } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { duplicatePoNumberMessage } from "@/lib/procurement/po-number";
+import { insertPurchaseOrder } from "@/data/repositories/procurement";
 
 const DEMO_MSG = "Demo mode — action is simulated and not saved.";
 
@@ -225,31 +227,14 @@ export async function createPurchaseOrderAction(data: {
       };
     }
 
-    const po = await prisma.purchaseOrder.upsert({
-      where: { orgId_poNumber: { orgId, poNumber } },
-      create: {
-        orgId,
-        poNumber,
-        supplierId,
-        sku,
-        quantity,
-        unitPrice,
-        orderDate,
-        expectedDate,
-        receivedDate: null,
-      },
-      update: {
-        supplierId,
-        sku,
-        quantity,
-        unitPrice,
-        orderDate,
-        expectedDate,
-      },
-    });
+    // Insert only: a PO number that already exists is an error, never an overwrite.
+    const inserted = await insertPurchaseOrder(orgId, { poNumber, supplierId, sku, quantity, unitPrice, orderDate, expectedDate });
+    if (!inserted.ok) {
+      return { success: false, duplicate: true, error: duplicatePoNumberMessage(poNumber) };
+    }
 
     revalidateAllDashboard();
-    return { success: true, data: po };
+    return { success: true, data: inserted.value };
   } catch (error) {
     console.error("createPurchaseOrderAction error:", error);
     return { success: false, error: error instanceof Error ? error.message : "Failed to create purchase order." };
