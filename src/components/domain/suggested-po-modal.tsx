@@ -5,7 +5,7 @@ import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { createPoFromSuggestionAction } from "@/app/actions/subscription";
 import type { SuggestedPurchaseOrder } from "@/lib/forecasting/demand-forecast";
-import { knownPositive, parsePositiveInput, type PoDraft } from "@/lib/insights/quick-order";
+import { assignedSupplierId, knownPositive, parsePositiveInput, type PoDraft } from "@/lib/insights/quick-order";
 import { Zap, CheckCircle2, AlertCircle } from "lucide-react";
 
 const inputClass =
@@ -40,12 +40,22 @@ function SuggestedPoForm({ suggestion, open, onClose }: { suggestion: PoDraft; o
   const quantity = knownQuantity ?? parsePositiveInput(quantityText, true);
   const unitPrice = knownUnitPrice ?? parsePositiveInput(unitPriceText, false);
   const estimatedCost = quantity !== null && unitPrice !== null ? Math.round(quantity * unitPrice * 100) / 100 : null;
+  // No supplier can't be typed in here — it has to be assigned to the product first.
+  const supplierId = assignedSupplierId(suggestion.supplierId);
+  const canIssue = supplierId !== null && estimatedCost !== null;
 
   function handleCreatePo() {
-    if (quantity === null || unitPrice === null || estimatedCost === null) return;
+    if (supplierId === null || quantity === null || unitPrice === null || estimatedCost === null) return;
     setError(null);
 
-    const po: SuggestedPurchaseOrder = { ...suggestion, suggestedQuantity: quantity, unitPrice, estimatedCost };
+    const po: SuggestedPurchaseOrder = {
+      ...suggestion,
+      supplierId,
+      supplierName: suggestion.supplierName ?? supplierId,
+      suggestedQuantity: quantity,
+      unitPrice,
+      estimatedCost,
+    };
     startTransition(async () => {
       const res = await createPoFromSuggestionAction(po);
       if (res.success) {
@@ -80,6 +90,13 @@ function SuggestedPoForm({ suggestion, open, onClose }: { suggestion: PoDraft; o
           </div>
         )}
 
+        {supplierId === null && (
+          <div className="flex gap-2 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-small text-red-500">
+            <AlertCircle size={16} className="shrink-0 mt-0.5" />
+            <div>No supplier assigned to this product, so there&apos;s no one to send the PO to. Assign a supplier before ordering.</div>
+          </div>
+        )}
+
         {missing && (
           <div className="flex gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 p-3 text-small text-amber-700 dark:text-amber-400">
             <AlertCircle size={16} className="shrink-0 mt-0.5" />
@@ -101,9 +118,13 @@ function SuggestedPoForm({ suggestion, open, onClose }: { suggestion: PoDraft; o
           <div className="grid grid-cols-2 gap-3 text-small">
             <div>
               <span className="text-(--color-text-muted)">Supplier:</span>
-              <p className="font-medium text-(--color-text-primary)">
-                {suggestion.supplierName} ({suggestion.supplierId})
-              </p>
+              {supplierId === null ? (
+                <p className="font-medium text-red-500">No supplier assigned</p>
+              ) : (
+                <p className="font-medium text-(--color-text-primary)">
+                  {suggestion.supplierName ?? supplierId} ({supplierId})
+                </p>
+              )}
             </div>
             <div>
               <span className="text-(--color-text-muted)">Lead Time:</span>
@@ -168,7 +189,7 @@ function SuggestedPoForm({ suggestion, open, onClose }: { suggestion: PoDraft; o
           <Button variant="ghost" onClick={onClose} disabled={isPending}>
             Cancel
           </Button>
-          <Button onClick={handleCreatePo} disabled={isPending || estimatedCost === null} className="gap-1.5">
+          <Button onClick={handleCreatePo} disabled={isPending || !canIssue} className="gap-1.5">
             <Zap size={14} />
             {isPending ? "Issuing PO..." : "Confirm & Issue PO"}
           </Button>

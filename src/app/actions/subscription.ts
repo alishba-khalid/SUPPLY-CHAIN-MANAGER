@@ -8,6 +8,7 @@ import type { SuggestedPurchaseOrder } from "@/lib/forecasting/demand-forecast";
 import { revalidatePath } from "next/cache";
 import { checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 import { invalidSuggestedPoReason } from "@/lib/insights/quick-order";
+import { getSupplier } from "@/data/repositories/suppliers";
 
 const DEMO_MSG = "Demo mode — action is simulated and not saved.";
 
@@ -44,7 +45,11 @@ export async function createPoFromSuggestionAction(suggestion: SuggestedPurchase
   try {
     const orgId = await requireOrgId();
 
-    const invalid = invalidSuggestedPoReason(suggestion.suggestedQuantity, suggestion.unitPrice);
+    const invalid = invalidSuggestedPoReason({
+      supplierId: suggestion.supplierId,
+      quantity: suggestion.suggestedQuantity,
+      unitPrice: suggestion.unitPrice,
+    });
     if (invalid) return { success: false, error: invalid };
 
     const ip = await getRequestIp();
@@ -67,6 +72,10 @@ export async function createPoFromSuggestionAction(suggestion: SuggestedPurchase
         isDemo: true,
         message: DEMO_MSG,
       };
+    }
+
+    if (!(await getSupplier(orgId, suggestion.supplierId))) {
+      return { success: false, error: `Supplier ${suggestion.supplierId} isn't on file for this workspace.` };
     }
 
     const res = await createPurchaseOrderAction({

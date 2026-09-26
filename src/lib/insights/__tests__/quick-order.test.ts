@@ -52,16 +52,52 @@ describe("user-entered values", () => {
   });
 });
 
+describe("quick order never defaults the supplier", () => {
+  test("product imported without a supplier (SUP-UNASSIGNED placeholder) -> no supplier, not SUP-001", () => {
+    const unassigned: Supplier = { ...supplier, supplierId: "SUP-UNASSIGNED", name: "Unassigned Supplier" };
+    const draft = quickOrderDraft(alert, { ...product(2), supplierId: "SUP-UNASSIGNED" }, unassigned, warehouse);
+    assert.equal(draft.supplierId, null);
+    assert.equal(draft.supplierName, null);
+  });
+
+  test("product not found -> no supplier (the alert's own supplierId isn't used as a fallback)", () => {
+    const draft = quickOrderDraft({ ...alert, supplierId: "SUP-009" }, undefined, undefined, warehouse);
+    assert.equal(draft.supplierId, null);
+  });
+
+  test("product's supplier missing from the supplier list -> no supplier", () => {
+    assert.equal(quickOrderDraft(alert, product(2), undefined, warehouse).supplierId, null);
+  });
+
+  test("a real assigned supplier passes through", () => {
+    const draft = quickOrderDraft(alert, product(2), supplier, warehouse);
+    assert.equal(draft.supplierId, "SUP-001");
+    assert.equal(draft.supplierName, "Supplier");
+  });
+});
+
 describe("server refuses a PO without real values", () => {
+  const ok = { supplierId: "SUP-001", quantity: 100, unitPrice: 3.5 };
+
+  test("missing or placeholder supplier is rejected", () => {
+    for (const supplierId of [null, undefined, "", "  ", "SUP-UNASSIGNED"]) {
+      assert.match(invalidSuggestedPoReason({ ...ok, supplierId }) ?? "", /No supplier is assigned/);
+    }
+  });
+
   test("missing or non-positive quantity is rejected", () => {
-    for (const q of [null, undefined, 0, -10, 2.5, NaN]) assert.match(invalidSuggestedPoReason(q, 3) ?? "", /order quantity/);
+    for (const quantity of [null, undefined, 0, -10, 2.5, NaN]) {
+      assert.match(invalidSuggestedPoReason({ ...ok, quantity }) ?? "", /order quantity/);
+    }
   });
 
   test("missing or non-positive unit price is rejected", () => {
-    for (const p of [null, undefined, 0, -1, NaN, Infinity]) assert.match(invalidSuggestedPoReason(100, p) ?? "", /unit cost/);
+    for (const unitPrice of [null, undefined, 0, -1, NaN, Infinity]) {
+      assert.match(invalidSuggestedPoReason({ ...ok, unitPrice }) ?? "", /unit cost/);
+    }
   });
 
-  test("real quantity and price are accepted", () => {
-    assert.equal(invalidSuggestedPoReason(100, 3.5), null);
+  test("real supplier, quantity and price are accepted", () => {
+    assert.equal(invalidSuggestedPoReason(ok), null);
   });
 });
