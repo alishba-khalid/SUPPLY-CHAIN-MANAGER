@@ -77,6 +77,11 @@ const DEFAULT_PAGE_SIZE = 50;
 const SAFETY_FACTOR = 0.5; // safety_stock = avg_daily_demand × lead_time_days × this factor
 const OVERSTOCK_DAYS_OF_STOCK = 90; // days_of_stock beyond this => overstock
 const TRAILING_WINDOW_DAYS = 90; // matches the trailing window used everywhere else in the app
+// Same outlier trimming as trimmedDailyDemand() in lib/metrics/inventory.ts, so
+// the table's daily demand (and days until stockout) equals the one used by
+// alerts and the forecast engine.
+const TRIM_PERCENT = 0.05;
+const MIN_ACTIVE_DAYS_TO_TRIM = 20;
 
 /**
  * The shared calculation chain, one CTE per step so each can reference the
@@ -84,14 +89,20 @@ const TRAILING_WINDOW_DAYS = 90; // matches the trailing window used everywhere 
  *
  *   base       — raw joins: one row per (sku, warehouse), plus the earliest
  *                transaction date and trailing-90-day outbound quantity.
- *   demand     — days_of_history = min(90, days since the earliest
- *                transaction) — the literal "use the days available" edge
- *                case. 0 when there is no transaction history at all.
- *   calc       — avg_daily_demand = outbound_90d / days_of_history. Note the
- *                outbound sum is *always* over the actual trailing 90 days
- *                (never re-windowed) — if the pair's history is shorter than
- *                90 days there is nothing to sum before it existed anyway,
- *                so the sum is already correct; only the divisor changes.
+ *   demand     — days_of_history = min(90, calendar days from the earliest
+ *                transaction through today, inclusive) — the literal "use the
+ *                days available" edge case, same as daysOfDemandHistory() in
+ *                lib/metrics/inventory.ts. 0 when there is no transaction
+ *                history at all.
+ *   daily/ranked/outbound_stats — per-day outbound totals over the trailing
+ *                90 days, ranked so the top and bottom 5% of selling days can
+ *                be dropped (only with 20+ selling days).
+ *   calc       — avg_daily_demand = (trimmed) outbound_90d / days_of_history,
+ *                rounded to 2 decimals — identical to trimmedDailyDemand() in
+ *                lib/metrics/inventory.ts. Note the outbound sum is *always*
+ *                over the actual trailing 90 days (never re-windowed) — if the
+ *                pair's history is shorter than 90 days there is nothing to sum
+ *                before it existed anyway, so only the divisor changes.
  *   calc2      — days_of_stock = on_hand / avg_daily_demand (null when
  *                demand is null/0 — "infinite" is displayed, never computed).
  *                safety_stock = avg_daily_demand × lead_time_days × 0.5,
@@ -116,6 +127,29 @@ const TRAILING_WINDOW_DAYS = 90; // matches the trailing window used everywhere 
  */
 function scoredCte(orgId: string): Prisma.Sql {
   return Prisma.sql`
+  daily AS (
+    SELECT sku, warehouse_id, date, SUM(quantity) AS q
+    FROM transactions
+    WHERE org_id = ${orgId} AND direction = 'OUT'
+      AND date > CURRENT_DATE - (INTERVAL '1 day' * ${TRAILING_WINDOW_DAYS}) AND date <= CURRENT_DATE
+    GROUP BY sku, warehouse_id, date
+    HAVING SUM(quantity) > 0
+  ),
+  ranked AS (
+    SELECT sku, warehouse_id, q,
+      ROW_NUMBER() OVER (PARTITION BY sku, warehouse_id ORDER BY q) AS rn,
+      COUNT(*) OVER (PARTITION BY sku, warehouse_id) AS n
+    FROM daily
+  ),
+  outbound_stats AS (
+    SELECT sku, warehouse_id,
+      MAX(n) AS "activeDays",
+      SUM(q) AS "outboundSum",
+      SUM(q) FILTER (WHERE rn > FLOOR(n * ${TRIM_PERCENT}::numeric) AND rn <= n - FLOOR(n * ${TRIM_PERCENT}::numeric)) AS "trimmedSum",
+      COUNT(*) FILTER (WHERE rn > FLOOR(n * ${TRIM_PERCENT}::numeric) AND rn <= n - FLOOR(n * ${TRIM_PERCENT}::numeric)) AS "trimmedDays"
+    FROM ranked
+    GROUP BY sku, warehouse_id
+  ),
   base AS (
     SELECT
       i.sku,
@@ -129,26 +163,37 @@ function scoredCte(orgId: string): Prisma.Sql {
       s.lead_time_days AS "leadTimeDays",
       w.code AS "warehouseCode",
       w.name AS "warehouseName",
-      MIN(t.date) AS "earliestTxnDate",
-      COALESCE(SUM(CASE WHEN t.direction = 'OUT' AND t.date > CURRENT_DATE - (INTERVAL '1 day' * ${TRAILING_WINDOW_DAYS}) THEN t.quantity ELSE 0 END), 0) AS "outbound90d"
+      MIN(t.date) FILTER (WHERE t.date <= CURRENT_DATE) AS "earliestTxnDate",
+      COALESCE(os."outboundSum", 0) AS "outbound90d",
+      COALESCE(os."activeDays", 0) AS "activeDays",
+      os."trimmedSum",
+      os."trimmedDays"
     FROM inventory i
     JOIN products p ON p.sku = i.sku AND p.org_id = i.org_id
     LEFT JOIN suppliers s ON s.supplier_id = p.supplier_id AND s.org_id = p.org_id
     JOIN warehouses w ON w.id = i.warehouse_id AND w.org_id = i.org_id
     LEFT JOIN transactions t ON t.sku = i.sku AND t.warehouse_id = i.warehouse_id AND t.org_id = i.org_id
+    LEFT JOIN outbound_stats os ON os.sku = i.sku AND os.warehouse_id = i.warehouse_id
     WHERE i.org_id = ${orgId}
-    GROUP BY i.sku, i.warehouse_id, i.quantity_on_hand, p.name, p.category, p.unit_cost, p.supplier_id, s.name, s.lead_time_days, w.code, w.name
+    GROUP BY i.sku, i.warehouse_id, i.quantity_on_hand, p.name, p.category, p.unit_cost, p.supplier_id, s.name, s.lead_time_days, w.code, w.name,
+             os."outboundSum", os."activeDays", os."trimmedSum", os."trimmedDays"
   ),
   demand AS (
     SELECT *,
       CASE WHEN "earliestTxnDate" IS NULL THEN 0
-           ELSE LEAST(${TRAILING_WINDOW_DAYS}, GREATEST(1, (CURRENT_DATE - "earliestTxnDate"::date)))
+           ELSE LEAST(${TRAILING_WINDOW_DAYS}, (CURRENT_DATE - "earliestTxnDate"::date) + 1)
       END AS "daysOfHistory"
     FROM base
   ),
   calc AS (
     SELECT *,
-      CASE WHEN "daysOfHistory" > 0 THEN "outbound90d"::numeric / "daysOfHistory" ELSE NULL END AS "avgDailyDemand"
+      CASE
+        WHEN "daysOfHistory" = 0 THEN NULL
+        WHEN "activeDays" = 0 THEN 0
+        WHEN "activeDays" < ${MIN_ACTIVE_DAYS_TO_TRIM} OR "trimmedDays" = 0
+          THEN ROUND("outbound90d"::numeric / "daysOfHistory", 2)
+        ELSE ROUND(("trimmedSum"::numeric / "trimmedDays") * "activeDays" / "daysOfHistory", 2)
+      END AS "avgDailyDemand"
     FROM demand
   ),
   calc2 AS (

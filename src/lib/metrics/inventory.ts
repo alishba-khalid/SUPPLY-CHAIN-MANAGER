@@ -3,7 +3,7 @@
  * assumptions, and worked examples.
  */
 import type { InventoryStatus, InventoryTransaction, InventoryInsight } from "@/types/supply-chain";
-import { isWithinTrailingWindow, todayISODate, addDays } from "@/lib/dates";
+import { isWithinTrailingWindow, todayISODate, addDays, daysBetween } from "@/lib/dates";
 
 const TRAILING_WINDOW_DAYS = 90;
 const STOCK_OUT_RISK_DAYS = 3;
@@ -92,10 +92,37 @@ export function dailyDemandStandardDeviation(
 }
 
 /**
+ * Days of history behind a position's demand figure: calendar days from its
+ * first transaction (any direction) through `reference`, both inclusive,
+ * capped at `windowDays` (a first transaction today = 1 day).
+ * A product first seen 10 days ago has 10 days of history, not 90 — dividing
+ * its sales by 90 would treat the days before it existed as zero sales and
+ * understate demand. Same definition as the Inventory table's SQL
+ * ("daysOfHistory" in data/repositories/inventory.ts), so both give one number.
+ */
+export function daysOfDemandHistory(
+  transactions: InventoryTransaction[],
+  sku: string,
+  warehouseId: number,
+  windowDays: number = TRAILING_WINDOW_DAYS,
+  reference: string = todayISODate(),
+): number {
+  let first: string | null = null;
+  for (const t of transactions) {
+    if (t.sku !== sku || t.warehouseId !== warehouseId || t.date > reference) continue;
+    if (first === null || t.date < first) first = t.date;
+  }
+  if (first === null) return windowDays;
+  return Math.min(windowDays, daysBetween(first, reference) + 1);
+}
+
+/**
  * Outlier-resistant trimmed mean daily demand (drops top & bottom 5% of active sales days).
  * Protects against temporary promotional spikes or spot bulk orders distorting structural velocity.
  * Trimming is proportional to the number of active (non-zero) sales days so sparse/intermittent
  * demand does not have its real sales trimmed away.
+ * The daily rate is per day of actual history (`daysOfDemandHistory`), not per
+ * `windowDays`, so a new product's demand isn't diluted by days before it existed.
  * `reference` is the last day of the window (default today) — the spike check
  * uses an earlier reference so the week being tested isn't in its own baseline.
  */
@@ -115,25 +142,26 @@ export function trimmedDailyDemand(
   const totalSum = activeValues.reduce((a, b) => a + b, 0);
   if (totalSum <= 0) return null;
 
+  const historyDays = daysOfDemandHistory(transactions, sku, warehouseId, windowDays, reference);
   const activeDays = activeValues.length;
   if (activeDays < minActiveDaysToTrim) {
     // Sparse/intermittent demand: do not trim with small sample size
-    return Math.round((totalSum / windowDays) * 100) / 100;
+    return Math.round((totalSum / historyDays) * 100) / 100;
   }
 
   activeValues.sort((a, b) => a - b);
   const trimCount = Math.floor(activeDays * trimPercent);
   if (trimCount === 0) {
-    return Math.round((totalSum / windowDays) * 100) / 100;
+    return Math.round((totalSum / historyDays) * 100) / 100;
   }
 
   const trimmed = activeValues.slice(trimCount, activeValues.length - trimCount);
   if (trimmed.length === 0) {
-    return Math.round((totalSum / windowDays) * 100) / 100;
+    return Math.round((totalSum / historyDays) * 100) / 100;
   }
 
   const trimmedActiveMean = trimmed.reduce((a, b) => a + b, 0) / trimmed.length;
-  const dailyDemand = (trimmedActiveMean * activeDays) / windowDays;
+  const dailyDemand = (trimmedActiveMean * activeDays) / historyDays;
   return Math.round(dailyDemand * 100) / 100;
 }
 
