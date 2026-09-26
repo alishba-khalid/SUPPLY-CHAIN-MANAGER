@@ -65,6 +65,9 @@ function createIdSetStore(key: string) {
 import { SuggestedPoModal } from "./suggested-po-modal";
 import { quickOrderDraft, type PoDraft } from "@/lib/insights/quick-order";
 
+/** Alerts shown in Needs Attention before "Show all". */
+const OVERVIEW_ALERT_LIMIT = 10;
+
 const dismissedAlertsStore = createIdSetStore(DISMISSED_ALERTS_KEY);
 const resolvedRecommendationsStore = createIdSetStore(RESOLVED_RECOMMENDATIONS_KEY);
 
@@ -97,6 +100,7 @@ export function OverviewPanels({
   );
   const [detail, setDetail] = useState<DetailTarget | null>(null);
   const [activeSuggestion, setActiveSuggestion] = useState<PoDraft | null>(null);
+  const [showAllAlerts, setShowAllAlerts] = useState(false);
 
   const productBySku = useMemo(() => new Map(products.map((p) => [p.sku, p])), [products]);
   const supplierById = useMemo(() => new Map(suppliers.map((s) => [s.supplierId, s])), [suppliers]);
@@ -120,6 +124,8 @@ export function OverviewPanels({
   }
 
   const visibleAlerts = alerts.filter((a) => !dismissedAlerts.has(a.id));
+  const hasMoreAlerts = visibleAlerts.length > OVERVIEW_ALERT_LIMIT;
+  const shownAlerts = showAllAlerts ? visibleAlerts : visibleAlerts.slice(0, OVERVIEW_ALERT_LIMIT);
   const visibleRecommendations = recommendations.filter((r) => !resolvedRecommendations.has(r.id));
 
   return (
@@ -138,7 +144,7 @@ export function OverviewPanels({
             />
           ) : (
             <div className="space-y-2">
-              {visibleAlerts.slice(0, 5).map((alert) => (
+              {shownAlerts.map((alert) => (
                 <AlertCard
                   key={alert.id}
                   alert={alert}
@@ -167,6 +173,17 @@ export function OverviewPanels({
                   }
                 />
               ))}
+              {hasMoreAlerts && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="w-full"
+                  aria-expanded={showAllAlerts}
+                  onClick={() => setShowAllAlerts((v) => !v)}
+                >
+                  {showAllAlerts ? `Show top ${OVERVIEW_ALERT_LIMIT}` : `Show all ${visibleAlerts.length} alerts`}
+                </Button>
+              )}
             </div>
           )}
         </div>
