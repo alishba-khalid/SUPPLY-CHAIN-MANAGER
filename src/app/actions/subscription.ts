@@ -7,6 +7,7 @@ import type { PlanTier, BillingCycle } from "@/types/subscription";
 import type { SuggestedPurchaseOrder } from "@/lib/forecasting/demand-forecast";
 import { revalidatePath } from "next/cache";
 import { checkRateLimit, getRequestIp } from "@/lib/rate-limit";
+import { invalidSuggestedPoReason } from "@/lib/insights/quick-order";
 
 const DEMO_MSG = "Demo mode — action is simulated and not saved.";
 
@@ -42,6 +43,9 @@ export async function changePlanAction({
 export async function createPoFromSuggestionAction(suggestion: SuggestedPurchaseOrder) {
   try {
     const orgId = await requireOrgId();
+
+    const invalid = invalidSuggestedPoReason(suggestion.suggestedQuantity, suggestion.unitPrice);
+    if (invalid) return { success: false, error: invalid };
 
     const ip = await getRequestIp();
     const rateLimit = await checkRateLimit(`po-action:ip:${ip}`, 20, 10 * 60 * 1000);
