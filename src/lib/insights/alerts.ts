@@ -21,6 +21,7 @@ import { getWarehouses } from "@/data/repositories/warehouses";
 import { daysBetween, todayISODate } from "@/lib/dates";
 import { splitEffectivePipeline } from "@/lib/insights/inventory-availability";
 import { detectDemandSpike, SPIKE_BASELINE_DAYS, SPIKE_RECENT_DAYS, type DemandSpike } from "@/lib/metrics/demand-spike";
+import { getAllSkuWarehouseProjections } from "@/lib/forecasting/demand-forecast";
 
 interface AlertWithRank extends SupplyChainAlert {
   tier: number;
@@ -108,6 +109,20 @@ export async function getAlerts(
     transactionsByPosition.set(key, list);
   }
 
+  // Forecast-engine projection per position: the single source of the
+  // suggested reorder quantity. On-hand comes from the insights themselves.
+  const projectionByPosition = new Map(
+    getAllSkuWarehouseProjections({
+      insights,
+      records: insights.map((i, idx) => ({ id: idx, sku: i.sku, warehouseId: i.warehouseId, quantityOnHand: i.availableQuantity })),
+      products,
+      suppliers,
+      warehouses,
+      purchaseOrders: openPOs,
+      transactions,
+    }).map((p) => [`${p.sku}|${p.warehouseId}`, p]),
+  );
+
   // Index open POs by SKU
   const openPOsBySku = new Map<string, typeof openPOs>();
   for (const po of openPOs) {
@@ -149,15 +164,11 @@ export async function getAlerts(
     const skuOpenPOs = openPOsBySku.get(insight.sku) ?? [];
     const { effectivePos, effectiveQuantity: inboundQty, excludedOverduePos } = splitEffectivePipeline(skuOpenPOs, today);
 
-    // Target stock proportional to lead time
-    const safetyBufferDays = Math.max(2, Math.round(supplierLeadTimeDays * 0.5));
-    let suggestedQty: number | null = null;
-    if (demand !== null) {
-      const targetStock = Math.round(demand * (supplierLeadTimeDays + safetyBufferDays));
-      suggestedQty = Math.max(0, targetStock - insight.availableQuantity - inboundQty);
-      if (suggestedQty > 200) suggestedQty = Math.ceil(suggestedQty / 50) * 50;
-      else if (suggestedQty > 20) suggestedQty = Math.ceil(suggestedQty / 10) * 10;
-    }
+    // The reorder quantity is the forecast engine's — the same number the
+    // Inventory page's replenishment panel shows for this position — never a
+    // separate formula. Unknown demand stays unknown (no suggestion).
+    const projection = projectionByPosition.get(`${insight.sku}|${insight.warehouseId}`);
+    const suggestedQty: number | null = demand !== null && projection ? projection.suggestedQuantity : null;
     const noDemandTeaser = "No sales in the last 90 days, so there's no demand rate to size a reorder from.";
 
     // "Effective cover" = on-hand plus only the in-transit quantity that is still
