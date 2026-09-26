@@ -149,6 +149,7 @@ export async function getOverviewDashboardData(orgId: string): Promise<OverviewD
       products,
       suppliers,
       warehouses,
+      transactions,
     }),
     getRecommendations(orgId),
   ]);

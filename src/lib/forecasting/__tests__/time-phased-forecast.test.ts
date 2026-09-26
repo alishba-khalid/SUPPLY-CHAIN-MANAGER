@@ -526,6 +526,7 @@ describe("Time-Phased Forward Projection & Netting Regression Suite (C4 + V1-V5 
       products: [dummyProduct],
       suppliers: [dummySupplier],
       warehouses: [dummyWarehouse],
+      transactions: [],
     });
 
     const stockoutAlerts = alerts.filter((a) => a.id.startsWith("ALT-INV-STOCKOUT"));

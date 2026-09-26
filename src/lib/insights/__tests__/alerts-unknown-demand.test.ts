@@ -29,6 +29,7 @@ async function stockoutAlertFor(insight: InventoryInsight) {
     products: [product],
     suppliers: [supplier],
     warehouses: [warehouse],
+    transactions: [],
   });
   const alert = alerts.find((a) => a.id.startsWith("ALT-INV-STOCKOUT"));
   assert.ok(alert, "an out-of-stock position must still raise a stockout alert");

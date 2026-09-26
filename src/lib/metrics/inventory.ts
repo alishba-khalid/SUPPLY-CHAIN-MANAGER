@@ -48,16 +48,18 @@ export function trailingOutboundQuantity(
 
 /**
  * Returns an array of daily outbound totals of length `windowDays` (including 0 for days without movement).
+ * `reference` is the last day of the window (default today).
  */
 function getDailyOutboundSeries(
   transactions: InventoryTransaction[],
   sku: string,
   warehouseId: number,
   windowDays: number = TRAILING_WINDOW_DAYS,
+  reference: string = todayISODate(),
 ): number[] {
   const dailyBuckets = new Map<string, number>();
   for (const t of transactions) {
-    if (t.sku === sku && t.warehouseId === warehouseId && t.direction === "OUT" && isWithinTrailingWindow(t.date, windowDays)) {
+    if (t.sku === sku && t.warehouseId === warehouseId && t.direction === "OUT" && isWithinTrailingWindow(t.date, windowDays, reference)) {
       dailyBuckets.set(t.date, (dailyBuckets.get(t.date) || 0) + t.quantity);
     }
   }
@@ -94,6 +96,8 @@ export function dailyDemandStandardDeviation(
  * Protects against temporary promotional spikes or spot bulk orders distorting structural velocity.
  * Trimming is proportional to the number of active (non-zero) sales days so sparse/intermittent
  * demand does not have its real sales trimmed away.
+ * `reference` is the last day of the window (default today) — the spike check
+ * uses an earlier reference so the week being tested isn't in its own baseline.
  */
 export function trimmedDailyDemand(
   transactions: InventoryTransaction[],
@@ -102,8 +106,9 @@ export function trimmedDailyDemand(
   windowDays: number = TRAILING_WINDOW_DAYS,
   trimPercent: number = 0.05,
   minActiveDaysToTrim: number = 20,
+  reference: string = todayISODate(),
 ): number | null {
-  const values = getDailyOutboundSeries(transactions, sku, warehouseId, windowDays);
+  const values = getDailyOutboundSeries(transactions, sku, warehouseId, windowDays, reference);
   const activeValues = values.filter((v) => v > 0);
   if (activeValues.length === 0) return null;
 
@@ -135,6 +140,7 @@ export function trimmedDailyDemand(
 /**
  * Outlier-resistant sample standard deviation of daily outbound demand (winsorized σ).
  * Clips extreme outliers to the 5th and 95th percentiles before computing σ.
+ * `reference` is the last day of the window (default today).
  */
 export function winsorizedDailyDemandStandardDeviation(
   transactions: InventoryTransaction[],
@@ -142,8 +148,9 @@ export function winsorizedDailyDemandStandardDeviation(
   warehouseId: number,
   windowDays: number = TRAILING_WINDOW_DAYS,
   trimPercent: number = 0.05,
+  reference: string = todayISODate(),
 ): number {
-  const values = getDailyOutboundSeries(transactions, sku, warehouseId, windowDays);
+  const values = getDailyOutboundSeries(transactions, sku, warehouseId, windowDays, reference);
   if (values.length <= 1) return 0;
 
   values.sort((a, b) => a - b);
