@@ -22,7 +22,7 @@ export interface Warehouse {
   id: number;
   code: string;
   name: string;
-  capacityUnits: number;
+  capacityUnits: number | null; // null = unknown — never substitute a number
 }
 
 export interface Supplier {
@@ -167,7 +167,7 @@ export interface SupplyChainHealthBreakdown {
   supplier: number;
   procurement: number;
   logistics: number;
-  warehouse: number;
+  warehouse: number | null; // null = no warehouse has a known capacity
 }
 
 // ============================================================

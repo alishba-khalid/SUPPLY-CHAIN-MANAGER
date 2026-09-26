@@ -109,8 +109,8 @@ export function SummaryStep({ result, onReset }: SummaryStepProps) {
             <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
             <div>
               <p className="font-semibold text-small">
-                {result.missingLeadTimeCount > 0 ? `${result.missingLeadTimeCount} supplier(s) imported without lead times (defaulting to 14 days)` : "Missing field defaults applied"}
-                {result.missingCapacityCount > 0 ? ` · ${result.missingCapacityCount} warehouse(s) defaulted to 0 capacity` : ""}
+                {result.missingLeadTimeCount > 0 ? `${result.missingLeadTimeCount} supplier(s) imported without lead times (defaulting to 14 days)` : "Some fields were missing"}
+                {result.missingCapacityCount > 0 ? ` · ${result.missingCapacityCount} warehouse(s) without a capacity (shown as Unknown)` : ""}
               </p>
               <p className="mt-1 text-caption text-amber-800/80 dark:text-amber-300/80 max-w-xl">
                 Safety stocks and reorder recommendations are estimated until exact vendor lead times are configured.

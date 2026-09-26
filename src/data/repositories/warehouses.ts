@@ -4,21 +4,24 @@ import { getInventoryInsights } from "./inventory";
 import {
   capacityUtilization,
   capacityUtilizationScore,
+  averageWarehouseHealth,
   inventoryIssueRateScore,
+  knownCapacity,
   utilizationBand,
   warehouseHealthScore,
   type UtilizationBand,
 } from "@/lib/metrics/warehouse";
 
+/** Capacity-derived fields are null when the warehouse's capacity is unknown. */
 export interface WarehouseHealth {
   warehouseId: number;
   onHandUnits: number;
-  capacityUnits: number;
-  utilizationPercent: number;
-  utilizationBand: UtilizationBand;
-  utilizationScore: number;
+  capacityUnits: number | null;
+  utilizationPercent: number | null;
+  utilizationBand: UtilizationBand | null;
+  utilizationScore: number | null;
   issueRateScore: number;
-  healthScore: number;
+  healthScore: number | null;
 }
 
 export async function getWarehouses(orgId: string): Promise<Warehouse[]> {
@@ -40,8 +43,10 @@ export async function getWarehouseHealth(orgId: string, warehouseId: number): Pr
   });
   const units = onHandUnits._sum.quantityOnHand ?? 0;
 
-  const utilizationPercent = Math.round(capacityUtilization(units, warehouse.capacityUnits) * 10) / 10;
-  const utilizationScore = capacityUtilizationScore(utilizationPercent);
+  const capacityUnits = knownCapacity(warehouse.capacityUnits);
+  const rawUtilization = capacityUtilization(units, capacityUnits);
+  const utilizationPercent = rawUtilization === null ? null : Math.round(rawUtilization * 10) / 10;
+  const utilizationScore = utilizationPercent === null ? null : capacityUtilizationScore(utilizationPercent);
 
   const insights = (await getInventoryInsights(orgId)).filter((i) => i.warehouseId === warehouseId);
   const issueRateScore = inventoryIssueRateScore(insights);
@@ -49,9 +54,9 @@ export async function getWarehouseHealth(orgId: string, warehouseId: number): Pr
   return {
     warehouseId,
     onHandUnits: units,
-    capacityUnits: warehouse.capacityUnits,
+    capacityUnits,
     utilizationPercent,
-    utilizationBand: utilizationBand(utilizationPercent),
+    utilizationBand: utilizationPercent === null ? null : utilizationBand(utilizationPercent),
     utilizationScore,
     issueRateScore,
     healthScore: warehouseHealthScore(utilizationScore, issueRateScore),
@@ -64,8 +69,8 @@ export async function getAllWarehouseHealth(orgId: string): Promise<WarehouseHea
   return results.filter((r): r is WarehouseHealth => !!r);
 }
 
-export async function getWarehouseHealthScore(orgId: string): Promise<number> {
+/** Null when no warehouse has a known capacity. */
+export async function getWarehouseHealthScore(orgId: string): Promise<number | null> {
   const all = await getAllWarehouseHealth(orgId);
-  if (all.length === 0) return 0;
-  return Math.round(all.reduce((s, w) => s + w.healthScore, 0) / all.length);
+  return averageWarehouseHealth(all.map((w) => w.healthScore));
 }

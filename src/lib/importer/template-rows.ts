@@ -13,7 +13,8 @@ export type TemplateType = "warehouses" | "suppliers" | "products" | "inventory"
 export interface WarehouseRecord {
   code: string;
   name: string;
-  capacityUnits: number;
+  /** null = not given; saved as unknown, never a placeholder. */
+  capacityUnits: number | null;
 }
 export interface SupplierRecord {
   supplierId: string;
@@ -165,9 +166,9 @@ export function parseTemplateRows<T extends TemplateType>(
       case "warehouses": {
         const code = text("warehouse_code", FIELDS.warehouseCode, true);
         const name = text("name", FIELDS.warehouseName, true);
-        // Capacity is optional in this template; blank is stored as 0 ("not set").
+        // Capacity is optional in this template; blank (or 0) is stored as null ("unknown").
         const capacity = number("capacity_units", FIELDS.capacity, { why: "", optional: true, integer: true });
-        record = { code, name, capacityUnits: capacity ?? 0 } satisfies WarehouseRecord;
+        record = { code, name, capacityUnits: capacity || null } satisfies WarehouseRecord;
         break;
       }
       case "suppliers": {

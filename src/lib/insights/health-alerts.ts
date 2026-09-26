@@ -19,7 +19,8 @@ export interface HealthScoreContext {
   supplier: { score: number; worst?: { supplierId: string; name: string; otifPercent: number } };
   procurement: { score: number; fulfillment: number; cycleTime: number; priceStability: number };
   logistics: { score: number; onTimeRate: number | null };
-  warehouse: { score: number; worst: WarehouseScoreDetail | null };
+  /** score is null when no warehouse has a known capacity; worst only ever names one that does. */
+  warehouse: { score: number | null; worst: WarehouseScoreDetail | null };
 }
 
 export function buildHealthScoreAlerts(ctx: HealthScoreContext): SupplyChainAlert[] {
@@ -85,7 +86,7 @@ export function buildHealthScoreAlerts(ctx: HealthScoreContext): SupplyChainAler
     });
   }
 
-  if (ctx.warehouse.score < HEALTH_CRITICAL_THRESHOLD) {
+  if (ctx.warehouse.score !== null && ctx.warehouse.score < HEALTH_CRITICAL_THRESHOLD) {
     const w = ctx.warehouse.worst;
     const isUnderutilized = w ? utilizationBand(w.utilizationPercent) === "underutilized" : false;
     const underutilizationExplainer =
