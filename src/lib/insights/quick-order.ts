@@ -1,17 +1,32 @@
 /**
- * Purchase orders issued from an alert or suggestion ("quick order"). An order
- * quantity or unit price that isn't known is kept as null — never replaced
- * with a default — and the user must enter a real value before the PO is
- * issued. The server re-checks this in createPoFromSuggestionAction.
+ * Purchase orders issued from an alert or suggestion ("quick order"). A
+ * supplier, order quantity or unit price that isn't known is kept as null —
+ * never replaced with a default. The user must enter a real quantity and unit
+ * price; a PO with no assigned supplier can't be issued at all. The server
+ * re-checks this in createPoFromSuggestionAction.
  */
 import type { Product, Supplier, SupplyChainAlert, Warehouse } from "@/types/supply-chain";
 import type { SuggestedPurchaseOrder } from "@/lib/forecasting/demand-forecast";
 
-/** A suggestion whose order quantity or unit price may be unknown (null). */
-export type PoDraft = Omit<SuggestedPurchaseOrder, "suggestedQuantity" | "unitPrice" | "estimatedCost"> & {
+/** Placeholder supplier the importer attaches to products imported without one. */
+export const UNASSIGNED_SUPPLIER_ID = "SUP-UNASSIGNED";
+
+/** A suggestion whose supplier, order quantity or unit price may be unknown (null). */
+export type PoDraft = Omit<
+  SuggestedPurchaseOrder,
+  "supplierId" | "supplierName" | "suggestedQuantity" | "unitPrice" | "estimatedCost"
+> & {
+  supplierId: string | null;
+  supplierName: string | null;
   suggestedQuantity: number | null;
   unitPrice: number | null;
 };
+
+/** The supplier id to order from, or null when none is really assigned (missing or the importer's placeholder). */
+export function assignedSupplierId(supplierId: string | null | undefined): string | null {
+  const id = supplierId?.trim();
+  return id && id !== UNASSIGNED_SUPPLIER_ID ? id : null;
+}
 
 /** A positive number, or null for missing / zero / negative (e.g. a product imported without a cost). */
 export function knownPositive(value: number | null | undefined): number | null {
@@ -34,14 +49,16 @@ export function quickOrderDraft(
   warehouse: Warehouse | undefined,
 ): PoDraft {
   const quantity = knownPositive(alert.suggestedQuantity);
+  // Only a real supplier on file for this product — never a default like SUP-001.
+  const orderFrom = supplier && assignedSupplierId(product?.supplierId) === supplier.supplierId ? supplier : undefined;
   return {
     id: `SUG-${alert.id}`,
     sku: alert.sku,
     productName: product?.name || alert.sku,
     category: product?.category || "general",
-    supplierId: product?.supplierId || alert.supplierId || "SUP-001",
-    supplierName: supplier?.name || "Primary Supplier",
-    supplierLeadTimeDays: supplier?.leadTimeDays || 14,
+    supplierId: orderFrom?.supplierId ?? null,
+    supplierName: orderFrom?.name ?? null,
+    supplierLeadTimeDays: orderFrom?.leadTimeDays || 14,
     warehouseId: alert.warehouseId || 1,
     warehouseCode: warehouse?.code || "WH-1",
     currentOnHand: 0,
@@ -60,8 +77,19 @@ export function quickOrderDraft(
   };
 }
 
-/** Server-side check: why this PO can't be issued, or null when quantity and unit price are both real. */
-export function invalidSuggestedPoReason(quantity: unknown, unitPrice: unknown): string | null {
+/** Server-side check: why this PO can't be issued, or null when supplier, quantity and unit price are all real. */
+export function invalidSuggestedPoReason({
+  supplierId,
+  quantity,
+  unitPrice,
+}: {
+  supplierId: unknown;
+  quantity: unknown;
+  unitPrice: unknown;
+}): string | null {
+  if (typeof supplierId !== "string" || assignedSupplierId(supplierId) === null) {
+    return "No supplier is assigned to this product. Assign one before issuing a PO.";
+  }
   if (typeof quantity !== "number" || !Number.isInteger(quantity) || quantity <= 0) {
     return "Enter an order quantity (a whole number of units above 0) before issuing this PO.";
   }
