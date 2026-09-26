@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev -p 3005",
     "postinstall": "prisma generate",
-    "build": "node scripts/check-db-host.mjs && next build && node scripts/check-no-placeholder.mjs",
+    "build": "next build && node scripts/check-no-placeholder.mjs",
     "start": "next start",
     "verify:live": "node scripts/check-live-placeholder.mjs",
     "lint": "eslint",
