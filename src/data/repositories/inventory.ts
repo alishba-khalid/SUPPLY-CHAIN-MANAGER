@@ -272,6 +272,8 @@ interface ScoredRow {
   warehouseCode: string;
   warehouseName: string;
   daysOfHistory: number;
+  activeDays: Numeric;
+  outbound90d: Numeric;
   avgDailyDemand: Numeric | null;
   daysOfStock: Numeric | null;
   safetyStock: Numeric | null;
@@ -298,7 +300,9 @@ function toRow(r: ScoredRow): InventoryTableRow {
     quantityOnHand: r.quantityOnHand,
     unitCost: Number(r.unitCost),
     leadTimeDays: r.leadTimeDays,
-    daysOfHistory: r.daysOfHistory,
+    daysOfHistory: Number(r.daysOfHistory),
+    activeDays: Number(r.activeDays),
+    unitsSold90d: Number(r.outbound90d),
     avgDailyDemand: toNumberOrNull(r.avgDailyDemand),
     daysOfStock: toNumberOrNull(r.daysOfStock),
     safetyStock: toNumberOrNull(r.safetyStock),

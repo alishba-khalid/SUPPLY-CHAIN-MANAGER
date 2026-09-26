@@ -9,6 +9,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { buildQueryString } from "@/lib/url-params";
 import type { InventoryTableRow, InventoryTableSortKey } from "@/types/supply-chain";
 import { cn } from "@/lib/utils";
+import { explainDaysOfStock } from "@/lib/insights/explanations";
+import { WhyPopover } from "./explanation-block";
 
 const COLUMNS: { key: InventoryTableSortKey; header: string; align?: "right" }[] = [
   { key: "sku", header: "SKU" },
@@ -112,7 +114,21 @@ export function InventoryTable({
                   <td className="px-4 py-3 text-(--color-text-secondary)">{row.productName}</td>
                   <td className="px-4 py-3 text-(--color-text-secondary)">{row.warehouseCode}</td>
                   <td className="px-4 py-3 text-right text-(--color-text-primary)">{formatUnits(row.quantityOnHand)}</td>
-                  <td className="px-4 py-3 text-right text-(--color-text-primary)">{formatDaysOfStock(row.daysOfStock)}</td>
+                  <td className="px-4 py-3 text-right text-(--color-text-primary)">
+                    <WhyPopover
+                      label={`${row.sku} at ${row.warehouseCode}: ${formatDaysOfStock(row.daysOfStock)}`}
+                      explanation={explainDaysOfStock({
+                        onHand: row.quantityOnHand,
+                        dailyDemand: row.avgDailyDemand,
+                        daysOfStock: row.daysOfStock,
+                        historyDays: row.daysOfHistory,
+                        activeDays: row.activeDays,
+                        totalSold: row.unitsSold90d,
+                      })}
+                    >
+                      {formatDaysOfStock(row.daysOfStock)}
+                    </WhyPopover>
+                  </td>
                   <td className="px-4 py-3 text-right text-(--color-text-primary)">{formatReorderPoint(row.reorderPoint)}</td>
                   <td className="px-4 py-3">
                     <StatusBadge status={row.status} />

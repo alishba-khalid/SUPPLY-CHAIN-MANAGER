@@ -5,6 +5,7 @@ import { SuppliersTable } from "@/components/domain/suppliers-table";
 import { SuppliersActions } from "@/components/domain/suppliers-actions";
 import { getSuppliers, getAllSupplierPerformance, getSupplierHealthScore } from "@/data/repositories/suppliers";
 import { requireOrgId } from "@/lib/auth";
+import { explainSupplierScore, explanationText } from "@/lib/insights/explanations";
 
 export default async function SuppliersPage() {
   const orgId = await requireOrgId();
@@ -43,6 +44,12 @@ export default async function SuppliersPage() {
           <>
             <SuppliersSummaryCards
               health={health}
+              healthExplanation={explanationText(
+                explainSupplierScore({
+                  score: health,
+                  suppliers: performances.map((p) => ({ ...p, name: suppliers.find((s) => s.supplierId === p.supplierId)?.name ?? p.supplierId })),
+                }),
+              )}
               totalSuppliers={totalSuppliers}
               totalSpend={totalSpend}
               avgLeadTime={avgLeadTime}

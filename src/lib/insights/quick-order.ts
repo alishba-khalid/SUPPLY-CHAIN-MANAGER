@@ -74,6 +74,7 @@ export function quickOrderDraft(
     daysOfCoverCurrent: null,
     daysOfCoverProjected: 30,
     reasoning: alert.description,
+    reorderBreakdown: alert.reorderBreakdown,
   };
 }
 

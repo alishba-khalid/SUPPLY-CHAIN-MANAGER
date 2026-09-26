@@ -147,6 +147,31 @@ export type AlertCategory = "inventory" | "supplier" | "procurement" | "logistic
 /** Which kind of alert this is; the Overview's top 10 gives each group at least one slot. */
 export type AlertGroup = "health" | "stockout" | "overdue_po" | "low_stock" | "demand_spike" | "overstock" | "supplier";
 
+/**
+ * The forecast engine's working for a suggested reorder quantity — the
+ * values behind "How we got N units". All already computed by the engine.
+ */
+export interface ReorderBreakdown {
+  quantity: number;
+  dailyDemand: number;
+  leadTimeDays: number;
+  /** True when the lead time is the 14-day default (not provided, or no supplier found). */
+  leadTimeMissing: boolean;
+  supplierName: string;
+  reviewDays: number;
+  /** Day-to-day variation (units/day); 0 when it can't be measured. */
+  sigma: number;
+  safetyStock: number;
+  targetStock: number;
+  onHand: number;
+  /** Open POs credited because they arrive within the planning window. */
+  inbound: { poNumber: string; quantity: number; arrives: string }[];
+  /** Open POs past their expected date — never credited. */
+  overdue: { poNumber: string; quantity: number }[];
+  historyDays: number;
+  activeDays: number;
+}
+
 export interface SupplyChainAlert {
   id: string;
   category: AlertCategory;
@@ -160,6 +185,8 @@ export interface SupplyChainAlert {
   teaser?: string;
   suggestedQuantity?: number;
   estimatedCost?: number;
+  /** How suggestedQuantity was worked out (forecast engine) — shown in the PO modal. */
+  reorderBreakdown?: ReorderBreakdown;
   /** Destination page for "why is this low / what do I do" — rendered as a CTA on the alert card. */
   link?: { href: string; label: string };
   createdAt: ISODateTime;
@@ -226,6 +253,8 @@ export interface InventoryTableRow {
   unitCost: number;
   leadTimeDays: number | null; // null => no supplier on record, or supplier has no lead time
   daysOfHistory: number; // 0..90 — how much trailing history this row's demand figure is based on
+  activeDays: number; // days with at least one sale in the trailing 90 days
+  unitsSold90d: number; // units sold (outbound) in the trailing 90 days
   avgDailyDemand: number | null; // null => no transaction history at all
   daysOfStock: number | null; // null when avgDailyDemand is null or 0 (would be infinite)
   safetyStock: number | null;

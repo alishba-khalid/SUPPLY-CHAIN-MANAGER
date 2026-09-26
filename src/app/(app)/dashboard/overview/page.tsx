@@ -19,8 +19,6 @@ const HEALTH_TOOLTIPS = {
     "Weighted average of the five category scores below: Inventory 30%, Suppliers 20%, Procurement 20%, Logistics 20%, Warehouses 10%.",
   inventory:
     "Average status score across every SKU x warehouse position: healthy=100, overstock=75, slow-moving=70, low stock=60, dead stock=40, stock-out risk=10.",
-  supplier:
-    "Spend-weighted average on-time-in-full (OTIF) delivery rate across all suppliers, weighted by each supplier's trailing 90-day spend.",
   procurement:
     "Weighted blend, trailing 90 days: PO fulfillment (OTIF) rate 40%, on-time cycle rate 30%, price stability vs. baseline cost 30%.",
   logistics:
@@ -44,6 +42,7 @@ export default async function OverviewPage() {
     trends,
     activity,
     subscription,
+    supplierScoreExplanation,
   } = await getOverviewDashboardData(orgId);
 
   const hasData = products.length > 0 || suppliers.length > 0 || warehouses.length > 0;
@@ -74,7 +73,8 @@ export default async function OverviewPage() {
           <MetricCard
             label="Suppliers"
             value={health.supplier === null ? "—" : `${health.supplier}`}
-            tooltip={HEALTH_TOOLTIPS.supplier}
+            tooltip={supplierScoreExplanation}
+            tooltipWide
             tone={health.supplier === null ? undefined : healthScoreTone(health.supplier)}
           />
           <MetricCard

@@ -22,6 +22,7 @@ import { daysBetween, todayISODate } from "@/lib/dates";
 import { splitEffectivePipeline } from "@/lib/insights/inventory-availability";
 import { detectDemandSpike, SPIKE_BASELINE_DAYS, SPIKE_RECENT_DAYS, type DemandSpike } from "@/lib/metrics/demand-spike";
 import { getAllSkuWarehouseProjections } from "@/lib/forecasting/demand-forecast";
+import { formatDaysOfStock } from "@/lib/insights/explanations";
 
 interface AlertWithRank extends SupplyChainAlert {
   tier: number;
@@ -213,12 +214,16 @@ export async function getAlerts(
         category: "inventory",
         group: "stockout",
         severity: "critical",
-        title: `${insight.sku} at ${warehouseCode} — ${daysOfCover} days until stockout`,
+        title:
+          insight.availableQuantity <= 0 || insight.daysOfStock === null
+            ? `${insight.sku} at ${warehouseCode} — out of stock`
+            : `${insight.sku} at ${warehouseCode} — ${formatDaysOfStock(insight.daysOfStock)} until stockout`,
         description: descriptionParts.join(" "),
         sku: insight.sku,
         warehouseId: insight.warehouseId,
         teaser,
         suggestedQuantity: suggestedQty ?? undefined,
+        reorderBreakdown: suggestedQty !== null && projection ? projection.reorderBreakdown : undefined,
         estimatedCost: suggestedQty === null ? undefined : Math.round(suggestedQty * unitCost * 100) / 100,
         createdAt: now,
         tier: 1,
@@ -248,12 +253,13 @@ export async function getAlerts(
         category: "inventory",
         group: "low_stock",
         severity: "warning",
-        title: `${insight.sku} at ${warehouseCode} — ${daysOfCover} days of cover`,
+        title: `${insight.sku} at ${warehouseCode} — ${insight.daysOfStock === null ? `${daysOfCover} days` : formatDaysOfStock(insight.daysOfStock)} of cover`,
         description: descriptionParts.join(" "),
         sku: insight.sku,
         warehouseId: insight.warehouseId,
         teaser,
         suggestedQuantity: suggestedQty ?? undefined,
+        reorderBreakdown: suggestedQty !== null && projection ? projection.reorderBreakdown : undefined,
         estimatedCost: suggestedQty === null ? undefined : Math.round(suggestedQty * unitCost * 100) / 100,
         createdAt: now,
         tier: 3,

@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { createPoFromSuggestionAction } from "@/app/actions/subscription";
 import type { SuggestedPurchaseOrder } from "@/lib/forecasting/demand-forecast";
 import { assignedSupplierId, knownPositive, parsePositiveInput, type PoDraft } from "@/lib/insights/quick-order";
+import { explainReorderQuantity } from "@/lib/insights/explanations";
+import { ExplanationBlock } from "./explanation-block";
 import { Zap, CheckCircle2, AlertCircle } from "lucide-react";
 
 const inputClass =
@@ -180,9 +182,13 @@ function SuggestedPoForm({ suggestion, open, onClose }: { suggestion: PoDraft; o
             </div>
           </div>
 
-          <div className="pt-2 text-caption text-(--color-text-secondary) border-t border-(--color-border)">
-            💡 {suggestion.reasoning}
-          </div>
+          {suggestion.reorderBreakdown && knownQuantity !== null ? (
+            <ExplanationBlock explanation={explainReorderQuantity(suggestion.reorderBreakdown)} className="pt-2 border-t border-(--color-border)" />
+          ) : (
+            <div className="pt-2 text-caption text-(--color-text-secondary) border-t border-(--color-border)">
+              💡 {suggestion.reasoning}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-end gap-2 pt-2">
