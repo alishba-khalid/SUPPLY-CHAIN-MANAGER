@@ -7,6 +7,7 @@ import { Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Warehouse } from "@/types/supply-chain";
 import type { WarehouseHealth } from "@/data/repositories/warehouses";
+import { knownCapacity } from "@/lib/metrics/warehouse";
 
 interface WarehousesTableProps {
   warehouses: Warehouse[];
@@ -23,13 +24,16 @@ export function WarehousesTable({ warehouses, healthRecords }: WarehousesTablePr
   const tableRows = useMemo(() => {
     return warehouses.map((warehouse) => {
       const health = healthMap.get(warehouse.id);
+      // Capacity-derived values stay null when capacity is unknown — shown as
+      // "Unknown" / "—", never computed against a stand-in number.
       return {
         ...warehouse,
+        capacityUnits: knownCapacity(warehouse.capacityUnits),
         onHandUnits: health?.onHandUnits ?? 0,
-        utilizationPercent: health?.utilizationPercent ?? 0,
-        utilizationBand: health?.utilizationBand ?? "underutilized",
+        utilizationPercent: health?.utilizationPercent ?? null,
+        utilizationBand: health?.utilizationBand ?? null,
         issueRateScore: health?.issueRateScore ?? 100,
-        healthScore: health?.healthScore ?? 0,
+        healthScore: health?.healthScore ?? null,
       };
     });
   }, [warehouses, healthMap]);
@@ -97,8 +101,8 @@ export function WarehousesTable({ warehouses, healthRecords }: WarehousesTablePr
 
                 // Health Score tone
                 let healthTone: "success" | "warning" | "critical" = "critical";
-                if (row.healthScore >= 80) healthTone = "success";
-                else if (row.healthScore >= 60) healthTone = "warning";
+                if (row.healthScore !== null && row.healthScore >= 80) healthTone = "success";
+                else if (row.healthScore !== null && row.healthScore >= 60) healthTone = "warning";
 
                 const issuePercent = 100 - row.issueRateScore;
 
@@ -106,23 +110,29 @@ export function WarehousesTable({ warehouses, healthRecords }: WarehousesTablePr
                   <tr key={row.id} className="border-b border-(--color-border) last:border-b-0 hover:bg-(--color-surface-secondary)">
                     <td className="px-4 py-3 font-semibold text-(--color-text-primary)">{row.code}</td>
                     <td className="px-4 py-3 text-(--color-text-primary) font-medium">{row.name}</td>
-                    <td className="px-4 py-3 text-right text-(--color-text-secondary)">{row.capacityUnits.toLocaleString()}</td>
+                    <td className="px-4 py-3 text-right text-(--color-text-secondary)">
+                      {row.capacityUnits === null ? <span className="text-(--color-text-muted)">Unknown</span> : row.capacityUnits.toLocaleString()}
+                    </td>
                     <td className="px-4 py-3 text-right text-(--color-text-primary)">{row.onHandUnits.toLocaleString()}</td>
                     <td className="px-4 py-3">
-                      <div className="space-y-1.5 w-64">
-                        <div className="flex items-center justify-between text-caption font-medium">
-                          <span className="text-(--color-text-primary)">{row.utilizationPercent.toFixed(1)}%</span>
-                          <Badge tone={utilBadgeTone} className="py-0 px-1.5 text-[10px] leading-4">
-                            {utilLabel}
-                          </Badge>
+                      {row.utilizationPercent === null ? (
+                        <div className="w-64 text-caption text-(--color-text-muted)">— Set capacity to see utilization</div>
+                      ) : (
+                        <div className="space-y-1.5 w-64">
+                          <div className="flex items-center justify-between text-caption font-medium">
+                            <span className="text-(--color-text-primary)">{row.utilizationPercent.toFixed(1)}%</span>
+                            <Badge tone={utilBadgeTone} className="py-0 px-1.5 text-[10px] leading-4">
+                              {utilLabel}
+                            </Badge>
+                          </div>
+                          <div className="h-1.5 w-full rounded-full bg-(--color-border) overflow-hidden">
+                            <div
+                              className={cn("h-full rounded-full transition-all duration-500", utilBarColor)}
+                              style={{ width: `${Math.min(100, row.utilizationPercent)}%` }}
+                            />
+                          </div>
                         </div>
-                        <div className="h-1.5 w-full rounded-full bg-(--color-border) overflow-hidden">
-                          <div
-                            className={cn("h-full rounded-full transition-all duration-500", utilBarColor)}
-                            style={{ width: `${Math.min(100, row.utilizationPercent)}%` }}
-                          />
-                        </div>
-                      </div>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-center">
                       {issuePercent > 0 ? (
@@ -136,9 +146,13 @@ export function WarehousesTable({ warehouses, healthRecords }: WarehousesTablePr
                       )}
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <Badge tone={healthTone} className="font-semibold text-body">
-                        {row.healthScore} / 100
-                      </Badge>
+                      {row.healthScore === null ? (
+                        <span className="text-(--color-text-muted)" title="Needs a known capacity">—</span>
+                      ) : (
+                        <Badge tone={healthTone} className="font-semibold text-body">
+                          {row.healthScore} / 100
+                        </Badge>
+                      )}
                     </td>
                   </tr>
                 );

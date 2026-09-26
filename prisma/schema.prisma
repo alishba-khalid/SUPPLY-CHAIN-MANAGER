@@ -27,7 +27,7 @@ model Warehouse {
   orgId         String   @map("org_id")
   code          String
   name          String
-  capacityUnits Int      @map("capacity_units")
+  capacityUnits Int?     @map("capacity_units") // null = capacity unknown; never substitute a number
 
   inventory     Inventory[]
   transactions  Transaction[]

@@ -341,12 +341,12 @@ export const COMMIT_STATEMENTS: { step: ImportEntity; sql: string }[] = [
   RETURNING w.code
 )
 INSERT INTO warehouses (org_id, code, name, capacity_units)
-SELECT $1, src.code, src.name, COALESCE(NULLIF(src.cap, 0), 50000) FROM src
+SELECT $1, src.code, src.name, CASE WHEN src.cap > 0 THEN src.cap END FROM src
 WHERE NOT EXISTS (SELECT 1 FROM upd WHERE upd.code = src.code)
 -- A warehouse only named on stock rows (e.g. a "Godown" column) is created
 -- if missing under that name — it is never used to update an existing one.
--- Its capacity is the same listed 50,000 placeholder as any warehouse the
--- file gives no capacity for (the preview says so).
+-- A new warehouse the file gives no capacity for is saved with capacity
+-- NULL ("unknown"), never a placeholder number (the preview says so).
 ON CONFLICT (org_id, code) DO NOTHING`,
   },
   {

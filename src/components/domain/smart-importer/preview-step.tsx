@@ -255,8 +255,8 @@ export function PreviewStep({
             )}
             {preview.missingCapacityCount > 0 && (
               <li>
-                <strong>{preview.missingCapacityCount} warehouse(s)</strong> have no capacity in the file. Any that are new will be saved
-                with a placeholder of 50,000 units — set the real capacity on the Warehouses page. Existing warehouses keep theirs.
+                <strong>{preview.missingCapacityCount} warehouse(s)</strong> have no capacity in the file. Any that are new will show capacity
+                as Unknown, and their space utilization stays blank until you set it. Existing warehouses keep theirs.
               </li>
             )}
             {preview.generatedIdsCount > 0 && (
@@ -352,7 +352,9 @@ export function PreviewStep({
                   <tr key={i}>
                     <td className="px-4 py-2.5 font-mono font-medium">{w.code}</td>
                     <td className="px-4 py-2.5">{w.name}</td>
-                    <td className="px-4 py-2.5">{w.capacityUnits.toLocaleString()}</td>
+                    <td className="px-4 py-2.5">
+                      {w.capacityUnits === null ? <span className="text-(--color-text-muted)">Unknown</span> : w.capacityUnits.toLocaleString()}
+                    </td>
                   </tr>
                 ))}
               </tbody>

@@ -17,10 +17,14 @@ export default async function WarehousesPage() {
 
   const hasData = warehouses.length > 0;
 
-  // Compute summary values
-  const totalCapacity = healthRecords.reduce((acc, h) => acc + h.capacityUnits, 0);
+  // Capacity and utilization cover only warehouses whose capacity is known —
+  // an unknown capacity is never counted as some number. Units on hand is real
+  // data for every warehouse.
+  const known = healthRecords.filter((h) => h.capacityUnits !== null);
+  const totalCapacity = known.length > 0 ? known.reduce((acc, h) => acc + (h.capacityUnits ?? 0), 0) : null;
+  const knownOnHandUnits = known.reduce((acc, h) => acc + h.onHandUnits, 0);
   const onHandUnits = healthRecords.reduce((acc, h) => acc + h.onHandUnits, 0);
-  const spaceUtilization = totalCapacity > 0 ? (onHandUnits / totalCapacity) * 100 : 0;
+  const spaceUtilization = totalCapacity ? (knownOnHandUnits / totalCapacity) * 100 : null;
 
   return (
     <div>
@@ -40,6 +44,8 @@ export default async function WarehousesPage() {
               totalCapacity={totalCapacity}
               onHandUnits={onHandUnits}
               spaceUtilization={spaceUtilization}
+              knownCapacityCount={known.length}
+              warehouseCount={healthRecords.length}
             />
 
             <WarehousesTable

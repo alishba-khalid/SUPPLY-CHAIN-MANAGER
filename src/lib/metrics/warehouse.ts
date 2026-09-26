@@ -7,9 +7,21 @@ const HEALTHY_MIN_UTILIZATION = 70;
 const HEALTHY_MAX_UTILIZATION = 90;
 const OVER_CAPACITY_RISK_CEILING = 130; // utilization % at which the score bottoms out
 
-export function capacityUtilization(onHandUnits: number, capacityUnits: number): number {
-  if (capacityUnits <= 0) return 0;
-  return (onHandUnits / capacityUnits) * 100;
+/**
+ * The warehouse's capacity if it is actually known, else null. Missing
+ * (null) and non-positive values both mean "not provided" — 0 was written
+ * as a stand-in for blank before capacity became nullable. Never
+ * substitute a number for an unknown capacity.
+ */
+export function knownCapacity(capacityUnits: number | null | undefined): number | null {
+  return capacityUnits != null && capacityUnits > 0 ? capacityUnits : null;
+}
+
+/** Utilization %, or null when capacity is unknown — there is nothing to divide by. */
+export function capacityUtilization(onHandUnits: number, capacityUnits: number | null): number | null {
+  const capacity = knownCapacity(capacityUnits);
+  if (capacity === null) return null;
+  return (onHandUnits / capacity) * 100;
 }
 
 export type UtilizationBand = "underutilized" | "healthy" | "risk";
@@ -43,7 +55,22 @@ export function inventoryIssueRateScore(insights: InventoryInsight[]): number {
   return Math.min(100, Math.max(0, Math.round(100 - issueRate)));
 }
 
-export function warehouseHealthScore(utilizationScore: number, issueRateScore: number): number {
+/**
+ * Null when the utilization score is unknown (capacity not set): the score
+ * is a 50/50 blend, and half of it can't be invented.
+ */
+export function warehouseHealthScore(utilizationScore: number | null, issueRateScore: number): number | null {
+  if (utilizationScore === null) return null;
   const score = utilizationScore * 0.5 + issueRateScore * 0.5;
   return Math.min(100, Math.max(0, Math.round(score)));
+}
+
+/**
+ * Average health across the warehouses whose health is known. Null when
+ * none is — warehouses with unknown capacity are left out, not scored 0.
+ */
+export function averageWarehouseHealth(scores: (number | null)[]): number | null {
+  const known = scores.filter((s): s is number => s !== null);
+  if (known.length === 0) return null;
+  return Math.round(known.reduce((a, b) => a + b, 0) / known.length);
 }

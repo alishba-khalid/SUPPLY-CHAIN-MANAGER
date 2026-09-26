@@ -24,19 +24,26 @@ export function healthScoreTone(score: number): HealthScoreTone {
   return "critical";
 }
 
+/**
+ * `warehouse` is null when no warehouse has a known capacity. The overall
+ * score is then the weighted average of the other four components (their
+ * weights re-normalized), rather than counting the unknown part as 0.
+ */
 export function overallHealthScore(parts: {
   inventory: number;
   supplier: number;
   procurement: number;
   logistics: number;
-  warehouse: number;
+  warehouse: number | null;
 }): SupplyChainHealthBreakdown {
-  const overall =
+  const weighted =
     parts.inventory * WEIGHTS.inventory +
     parts.supplier * WEIGHTS.supplier +
     parts.procurement * WEIGHTS.procurement +
     parts.logistics * WEIGHTS.logistics +
-    parts.warehouse * WEIGHTS.warehouse;
+    (parts.warehouse ?? 0) * WEIGHTS.warehouse;
+  const totalWeight = parts.warehouse === null ? 1 - WEIGHTS.warehouse : 1;
+  const overall = weighted / totalWeight;
 
   return {
     overall: Math.min(100, Math.max(0, Math.round(overall))),
@@ -44,6 +51,6 @@ export function overallHealthScore(parts: {
     supplier: Math.round(parts.supplier),
     procurement: Math.round(parts.procurement),
     logistics: Math.round(parts.logistics),
-    warehouse: Math.round(parts.warehouse),
+    warehouse: parts.warehouse === null ? null : Math.round(parts.warehouse),
   };
 }

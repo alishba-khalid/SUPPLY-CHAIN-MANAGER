@@ -27,6 +27,7 @@ import { logisticsHealthScore } from "@/lib/metrics/logistics";
 import {
   capacityUtilization,
   capacityUtilizationScore,
+  averageWarehouseHealth,
   inventoryIssueRateScore,
   warehouseHealthScore,
 } from "@/lib/metrics/warehouse";
@@ -68,14 +69,12 @@ export async function getSupplyChainHealth(orgId: string): Promise<SupplyChainHe
   const warehouseScores = warehouses.map((w) => {
     const onHand = records.filter((r) => r.warehouseId === w.id).reduce((sum, r) => sum + r.quantityOnHand, 0);
     const utilPercent = capacityUtilization(onHand, w.capacityUnits);
-    const utilScore = capacityUtilizationScore(utilPercent);
+    const utilScore = utilPercent === null ? null : capacityUtilizationScore(utilPercent);
     const issueScore = inventoryIssueRateScore(insights.filter((i) => i.warehouseId === w.id));
     return warehouseHealthScore(utilScore, issueScore);
   });
-  const warehouse =
-    warehouseScores.length > 0
-      ? Math.round(warehouseScores.reduce((a, b) => a + b, 0) / warehouseScores.length)
-      : 0;
+  // Warehouses with unknown capacity are left out; null if none is known.
+  const warehouse = averageWarehouseHealth(warehouseScores);
 
   return overallHealthScore({ inventory, supplier, procurement, logistics, warehouse });
 }
@@ -158,17 +157,15 @@ export async function getOverviewDashboardData(orgId: string): Promise<OverviewD
   const procurement = procurementHealthScore(purchaseOrders, baselineCost);
   const logistics = logisticsHealthScore(purchaseOrders);
 
-  const warehouseDetails: WarehouseScoreDetail[] = warehouses.map((w) => {
+  const warehouseDetails = warehouses.map((w) => {
     const onHand = records.filter((r) => r.warehouseId === w.id).reduce((sum, r) => sum + r.quantityOnHand, 0);
     const utilPercent = capacityUtilization(onHand, w.capacityUnits);
-    const utilScore = capacityUtilizationScore(utilPercent);
+    const utilScore = utilPercent === null ? null : capacityUtilizationScore(utilPercent);
     const issueScore = inventoryIssueRateScore(insights.filter((i) => i.warehouseId === w.id));
     return { warehouse: w, utilizationPercent: utilPercent, issueRateScore: issueScore, score: warehouseHealthScore(utilScore, issueScore) };
   });
-  const warehouse =
-    warehouseDetails.length > 0
-      ? Math.round(warehouseDetails.reduce((a, b) => a + b.score, 0) / warehouseDetails.length)
-      : 0;
+  // Warehouses with unknown capacity are left out; null if none is known.
+  const warehouse = averageWarehouseHealth(warehouseDetails.map((w) => w.score));
 
   const health = overallHealthScore({ inventory, supplier, procurement, logistics, warehouse });
 
@@ -181,8 +178,12 @@ export async function getOverviewDashboardData(orgId: string): Promise<OverviewD
   const worstSupplier = worstSupplierPerf
     ? { supplierId: worstSupplierPerf.supplierId, name: suppliers.find((s) => s.supplierId === worstSupplierPerf.supplierId)?.name ?? worstSupplierPerf.supplierId, otifPercent: worstSupplierPerf.otifPercent as number }
     : undefined;
-  const worstWarehouse = warehouseDetails.length
-    ? warehouseDetails.reduce((worst, w) => (w.score < worst.score ? w : worst))
+  // Only warehouses with a known capacity can be "the weakest position".
+  const scoredWarehouses = warehouseDetails.filter(
+    (w): w is WarehouseScoreDetail => w.score !== null && w.utilizationPercent !== null,
+  );
+  const worstWarehouse = scoredWarehouses.length
+    ? scoredWarehouses.reduce((worst, w) => (w.score < worst.score ? w : worst))
     : null;
 
   const healthAlerts = buildHealthScoreAlerts({

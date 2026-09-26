@@ -290,7 +290,10 @@ export function OverviewPanels({
                     <p className="text-body text-(--color-text-primary)">{warehouse?.name ?? detail.warehouseId}</p>
                     {warehouse && (
                       <p className="text-small text-(--color-text-muted)">
-                        {warehouse.code} · {warehouse.capacityUnits.toLocaleString()} unit capacity
+                        {warehouse.code} ·{" "}
+                        {warehouse.capacityUnits && warehouse.capacityUnits > 0
+                          ? `${warehouse.capacityUnits.toLocaleString()} unit capacity`
+                          : "capacity unknown"}
                       </p>
                     )}
                   </div>

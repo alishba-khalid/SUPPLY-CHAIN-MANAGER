@@ -203,8 +203,9 @@ function checkText(obj: Record<string, unknown>, key: string, required: boolean)
   return null;
 }
 
-function checkNumber(obj: Record<string, unknown>, key: string, opts: { integer?: boolean; min?: number }): Problem | null {
+function checkNumber(obj: Record<string, unknown>, key: string, opts: { integer?: boolean; min?: number; optional?: boolean }): Problem | null {
   const v = obj[key];
+  if (opts.optional && (v === null || v === undefined)) return null;
   if (typeof v !== "number" || !Number.isFinite(v)) return { column: key, problem: `${JSON.stringify(v)} is not a number.` };
   if (opts.integer && !Number.isInteger(v)) return { column: key, problem: `${v} must be a whole number.` };
   if (opts.min !== undefined && v < opts.min) return { column: key, problem: `${v} is below the minimum of ${opts.min}.` };
@@ -235,7 +236,8 @@ export function validateRow(row: StagedRow): Problem | null {
       checks.push(
         () => checkText(d, "code", true),
         () => checkText(d, "name", true),
-        () => checkNumber(d, "capacityUnits", { integer: true, min: 0 })
+        // null = the file gave no capacity; saved as unknown, never a placeholder.
+        () => checkNumber(d, "capacityUnits", { integer: true, min: 0, optional: true })
       );
       break;
     case "supplier":

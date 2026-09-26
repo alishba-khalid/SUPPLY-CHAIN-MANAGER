@@ -407,8 +407,19 @@ Warehouse Health = (Capacity Utilization Score × 50%) + (Inventory Issue Rate S
 **Bands:** Below 70% utilization = **Underutilized**. 70–90% =
 **Healthy**. Above 90% = **Risk**.
 
-**Implementation:** `capacityUtilization`, `capacityUtilizationScore`,
-`inventoryIssueRateScore`, `warehouseHealthScore` in
+**Unknown capacity:** `Warehouse.capacityUnits` is nullable. A null (or
+non-positive) capacity is *unknown* — never replaced by a number. For that
+warehouse, utilization %, band, utilization score and Warehouse Health are
+all null (shown as "Unknown" / "—"). The page-level and Overview warehouse
+scores average only warehouses with a known capacity; if none has one, the
+warehouse component is null and the overall Supply Chain Health Score is
+the weighted average of the other four components (weights re-normalized).
+Capacity totals and space utilization likewise cover only known-capacity
+warehouses and say how many are unknown.
+
+**Implementation:** `knownCapacity`, `capacityUtilization`,
+`capacityUtilizationScore`, `inventoryIssueRateScore`,
+`warehouseHealthScore`, `averageWarehouseHealth` in
 `src/lib/metrics/warehouse.ts`.
 
 ---
@@ -432,6 +443,10 @@ Supply Chain Health =
 
 Each component is computed independently (see above) and rounded to the
 nearest whole number only at the final step. Result clamped to [0, 100].
+
+If no warehouse has a known capacity, Warehouse Health is null and is left
+out: the score is the other four components divided by their combined
+weight (0.9), not a 0 in the warehouse slot.
 
 **Implementation:** `overallHealthScore` in `src/lib/metrics/health.ts`,
 composed in `getSupplyChainHealth()` in `src/data/repositories/dashboard.ts`.

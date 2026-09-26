@@ -26,7 +26,7 @@ const HEALTH_TOOLTIPS = {
   logistics:
     "Inbound purchase-order on-time delivery rate, trailing 90 days (this schema has no shipments table, so logistics reuses PO receipt timing).",
   warehouse:
-    "Average across warehouses of capacity utilization score (50%, healthy at 70-90% of capacity) and inventory issue-rate score (50%, share of SKU positions in healthy status).",
+    "Average across warehouses of capacity utilization score (50%, healthy at 70-90% of capacity) and inventory issue-rate score (50%, share of SKU positions in healthy status). Warehouses with unknown capacity are left out; shows — if none has a capacity set.",
 } as const;
 
 export default async function OverviewPage() {
@@ -91,9 +91,9 @@ export default async function OverviewPage() {
           />
           <MetricCard
             label="Warehouses"
-            value={`${health.warehouse}`}
+            value={health.warehouse === null ? "—" : `${health.warehouse}`}
             tooltip={HEALTH_TOOLTIPS.warehouse}
-            tone={healthScoreTone(health.warehouse)}
+            tone={health.warehouse === null ? undefined : healthScoreTone(health.warehouse)}
           />
         </section>
  
