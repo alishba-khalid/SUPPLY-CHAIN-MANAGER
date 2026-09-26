@@ -168,7 +168,7 @@ export interface SupplyChainAlert {
 export interface SupplyChainHealthBreakdown {
   overall: number; // 0-100
   inventory: number;
-  supplier: number;
+  supplier: number | null; // null = no supplier has on-time data in the last 90 days
   procurement: number;
   logistics: number;
   warehouse: number | null; // null = no warehouse has a known capacity

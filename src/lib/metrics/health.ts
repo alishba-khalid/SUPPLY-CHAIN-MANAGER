@@ -25,30 +25,27 @@ export function healthScoreTone(score: number): HealthScoreTone {
 }
 
 /**
+ * `supplier` is null when no supplier has on-time data in the window, and
  * `warehouse` is null when no warehouse has a known capacity. The overall
- * score is then the weighted average of the other four components (their
- * weights re-normalized), rather than counting the unknown part as 0.
+ * score is then the weighted average of the known components (their weights
+ * re-normalized), rather than counting an unknown part as 0.
  */
 export function overallHealthScore(parts: {
   inventory: number;
-  supplier: number;
+  supplier: number | null;
   procurement: number;
   logistics: number;
   warehouse: number | null;
 }): SupplyChainHealthBreakdown {
-  const weighted =
-    parts.inventory * WEIGHTS.inventory +
-    parts.supplier * WEIGHTS.supplier +
-    parts.procurement * WEIGHTS.procurement +
-    parts.logistics * WEIGHTS.logistics +
-    (parts.warehouse ?? 0) * WEIGHTS.warehouse;
-  const totalWeight = parts.warehouse === null ? 1 - WEIGHTS.warehouse : 1;
+  const known = (Object.keys(WEIGHTS) as (keyof typeof WEIGHTS)[]).filter((k) => parts[k] !== null);
+  const weighted = known.reduce((sum, k) => sum + (parts[k] as number) * WEIGHTS[k], 0);
+  const totalWeight = known.reduce((sum, k) => sum + WEIGHTS[k], 0);
   const overall = weighted / totalWeight;
 
   return {
     overall: Math.min(100, Math.max(0, Math.round(overall))),
     inventory: Math.round(parts.inventory),
-    supplier: Math.round(parts.supplier),
+    supplier: parts.supplier === null ? null : Math.round(parts.supplier),
     procurement: Math.round(parts.procurement),
     logistics: Math.round(parts.logistics),
     warehouse: parts.warehouse === null ? null : Math.round(parts.warehouse),

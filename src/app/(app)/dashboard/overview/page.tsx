@@ -73,9 +73,9 @@ export default async function OverviewPage() {
           />
           <MetricCard
             label="Suppliers"
-            value={`${health.supplier}`}
+            value={health.supplier === null ? "—" : `${health.supplier}`}
             tooltip={HEALTH_TOOLTIPS.supplier}
-            tone={healthScoreTone(health.supplier)}
+            tone={health.supplier === null ? undefined : healthScoreTone(health.supplier)}
           />
           <MetricCard
             label="Procurement"

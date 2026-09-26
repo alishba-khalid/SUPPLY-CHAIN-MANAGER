@@ -16,7 +16,8 @@ export interface WarehouseScoreDetail {
 
 export interface HealthScoreContext {
   inventory: { score: number; unhealthyCount: number; totalCount: number };
-  supplier: { score: number; worst?: { supplierId: string; name: string; otifPercent: number } };
+  /** score is null when no supplier has on-time data — no alert then (unknown is not "critical"). */
+  supplier: { score: number | null; worst?: { supplierId: string; name: string; otifPercent: number } };
   procurement: { score: number; fulfillment: number; cycleTime: number; priceStability: number };
   logistics: { score: number; onTimeRate: number | null };
   /** score is null when no warehouse has a known capacity; worst only ever names one that does. */
@@ -39,7 +40,7 @@ export function buildHealthScoreAlerts(ctx: HealthScoreContext): SupplyChainAler
     });
   }
 
-  if (ctx.supplier.score < HEALTH_CRITICAL_THRESHOLD) {
+  if (ctx.supplier.score !== null && ctx.supplier.score < HEALTH_CRITICAL_THRESHOLD) {
     const w = ctx.supplier.worst;
     alerts.push({
       id: "ALT-HEALTH-SUPPLIER",
