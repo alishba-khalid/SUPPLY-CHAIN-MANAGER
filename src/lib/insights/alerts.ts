@@ -78,7 +78,10 @@ export async function getAlerts(
     const warehouseCode = warehouse?.code ?? `WH-${insight.warehouseId}`;
     const supplier = product ? supplierMap.get(product.supplierId) : undefined;
     const supplierLeadTimeDays = supplier?.leadTimeDays ?? 14;
-    const demand = insight.averageDailyDemand || 5;
+    // Null when there were no sales in the trailing window. Never substitute a
+    // made-up rate: anything sized from demand (reorder qty, cover, value at
+    // risk) is left out instead.
+    const demand = insight.averageDailyDemand !== null && insight.averageDailyDemand > 0 ? insight.averageDailyDemand : null;
 
     const daysOfCover = insight.daysOfStock !== null ? Math.round(insight.daysOfStock) : 0;
     const isStockoutImminent =
@@ -94,16 +97,18 @@ export async function getAlerts(
 
     // Target stock proportional to lead time
     const safetyBufferDays = Math.max(2, Math.round(supplierLeadTimeDays * 0.5));
-    const targetStock = Math.round(demand * (supplierLeadTimeDays + safetyBufferDays));
-    const rawNetNeeded = Math.max(0, targetStock - insight.availableQuantity - inboundQty);
-
-    let suggestedQty = rawNetNeeded;
-    if (suggestedQty > 200) suggestedQty = Math.ceil(suggestedQty / 50) * 50;
-    else if (suggestedQty > 20) suggestedQty = Math.ceil(suggestedQty / 10) * 10;
+    let suggestedQty: number | null = null;
+    if (demand !== null) {
+      const targetStock = Math.round(demand * (supplierLeadTimeDays + safetyBufferDays));
+      suggestedQty = Math.max(0, targetStock - insight.availableQuantity - inboundQty);
+      if (suggestedQty > 200) suggestedQty = Math.ceil(suggestedQty / 50) * 50;
+      else if (suggestedQty > 20) suggestedQty = Math.ceil(suggestedQty / 10) * 10;
+    }
+    const noDemandTeaser = "No sales in the last 90 days, so there's no demand rate to size a reorder from.";
 
     // "Effective cover" = on-hand plus only the in-transit quantity that is still
     // credible (not overdue) — the number the reorder decision is actually based on.
-    const effectiveCoverDays = demand > 0 ? Math.round(((insight.availableQuantity + inboundQty) / demand) * 10) / 10 : daysOfCover;
+    const effectiveCoverDays = demand !== null ? Math.round(((insight.availableQuantity + inboundQty) / demand) * 10) / 10 : daysOfCover;
     const excludedNote = excludedOverduePos
       .map(
         (po) =>
@@ -112,8 +117,9 @@ export async function getAlerts(
       .join("; ");
 
     if (isStockoutImminent) {
-      // Tier 1: Stockout imminent (days of cover < supplier lead time)
-      const valueAtRisk = demand * supplierLeadTimeDays * unitCost;
+      // Tier 1: Stockout imminent (days of cover < supplier lead time).
+      // Unknown demand → no value-at-risk estimate; it ranks last within the tier.
+      const valueAtRisk = demand !== null ? demand * supplierLeadTimeDays * unitCost : 0;
       const inboundNote =
         inboundQty > 0
           ? ` (${inboundQty.toLocaleString()} units already in transit on ${effectivePos[0]?.poNumber})`
@@ -123,7 +129,9 @@ export async function getAlerts(
       if (excludedNote) descriptionParts.push(`${excludedNote}. Effective cover: ${Math.round(effectiveCoverDays)} days.`);
 
       const teaser =
-        suggestedQty > 0
+        suggestedQty === null
+          ? noDemandTeaser
+          : suggestedQty > 0
           ? `Growth plans would order ${suggestedQty.toLocaleString()} units from ${product?.supplierId || "primary supplier"} today — upgrade to generate this PO.`
           : `Inbound PO ${effectivePos[0]?.poNumber || "in transit"} covers replenishment target.`;
 
@@ -136,8 +144,8 @@ export async function getAlerts(
         sku: insight.sku,
         warehouseId: insight.warehouseId,
         teaser,
-        suggestedQuantity: suggestedQty,
-        estimatedCost: Math.round(suggestedQty * unitCost * 100) / 100,
+        suggestedQuantity: suggestedQty ?? undefined,
+        estimatedCost: suggestedQty === null ? undefined : Math.round(suggestedQty * unitCost * 100) / 100,
         createdAt: now,
         tier: 1,
         valueAtRisk,
@@ -154,7 +162,9 @@ export async function getAlerts(
       if (excludedNote) descriptionParts.push(`${excludedNote}. Effective cover: ${Math.round(effectiveCoverDays)} days.`);
 
       const teaser =
-        suggestedQty > 0
+        suggestedQty === null
+          ? noDemandTeaser
+          : suggestedQty > 0
           ? `Growth plans would order ${suggestedQty.toLocaleString()} units from ${product?.supplierId || "primary supplier"} today — upgrade to generate this PO.`
           : `Inbound PO ${effectivePos[0]?.poNumber || "in transit"} covers replenishment target.`;
 
@@ -167,8 +177,8 @@ export async function getAlerts(
         sku: insight.sku,
         warehouseId: insight.warehouseId,
         teaser,
-        suggestedQuantity: suggestedQty,
-        estimatedCost: Math.round(suggestedQty * unitCost * 100) / 100,
+        suggestedQuantity: suggestedQty ?? undefined,
+        estimatedCost: suggestedQty === null ? undefined : Math.round(suggestedQty * unitCost * 100) / 100,
         createdAt: now,
         tier: 3,
         valueAtRisk,
