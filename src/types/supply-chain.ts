@@ -144,9 +144,13 @@ export type AlertSeverity = "info" | "warning" | "critical";
 
 export type AlertCategory = "inventory" | "supplier" | "procurement" | "logistics" | "warehouse";
 
+/** Which kind of alert this is; the Overview's top 10 gives each group at least one slot. */
+export type AlertGroup = "health" | "stockout" | "overdue_po" | "low_stock" | "demand_spike" | "overstock" | "supplier";
+
 export interface SupplyChainAlert {
   id: string;
   category: AlertCategory;
+  group?: AlertGroup;
   severity: AlertSeverity;
   title: string;
   description: string;
