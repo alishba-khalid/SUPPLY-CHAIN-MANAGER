@@ -47,6 +47,7 @@ function spikeNote(spike: DemandSpike): string {
 function spikeAlert(spike: DemandSpike, insight: InventoryInsight, warehouseCode: string, unitCost: number, now: string): AlertWithRank {
   const base = {
     category: "inventory" as const,
+    group: "demand_spike" as const,
     severity: "warning" as const,
     sku: insight.sku,
     warehouseId: insight.warehouseId,
@@ -199,6 +200,7 @@ export async function getAlerts(
       rankedAlerts.push({
         id: `ALT-INV-STOCKOUT-${insight.sku}-${insight.warehouseId}`,
         category: "inventory",
+        group: "stockout",
         severity: "critical",
         title: `${insight.sku} at ${warehouseCode} — ${daysOfCover} days until stockout`,
         description: descriptionParts.join(" "),
@@ -233,6 +235,7 @@ export async function getAlerts(
       rankedAlerts.push({
         id: `ALT-INV-LOW-${insight.sku}-${insight.warehouseId}`,
         category: "inventory",
+        group: "low_stock",
         severity: "warning",
         title: `${insight.sku} at ${warehouseCode} — ${daysOfCover} days of cover`,
         description: descriptionParts.join(" "),
@@ -276,6 +279,7 @@ export async function getAlerts(
     rankedAlerts.push({
       id: "ALT-INV-OVERSTOCK-AGGREGATE",
       category: "inventory",
+      group: "overstock",
       severity: "warning",
       title: `${overstockedPositions.length} positions overstocked — ${tiedUpFormatted} tied up`,
       description: `Excess stock across ${overstockedPositions.length} warehouse positions holding capital above 3x lead-time targets. Tap to view and triage all overstocked items in Inventory.`,
@@ -295,6 +299,7 @@ export async function getAlerts(
       rankedAlerts.push({
         id: `ALT-PO-${po.poNumber}`,
         category: "procurement",
+        group: "overdue_po",
         severity: "critical",
         title: `${po.poNumber} from ${po.supplierId} — ${daysOverdue} days overdue`,
         description: `Expected ${po.expectedDate}, nothing received. ${po.quantity} units of ${po.sku}.`,
@@ -318,6 +323,7 @@ export async function getAlerts(
       rankedAlerts.push({
         id: `ALT-SUP-${perf.supplierId}`,
         category: "supplier",
+        group: "supplier",
         severity: perf.otifPercent < 50 ? "critical" : "warning",
         title: `${perf.supplierId} (${supplierName}) — ${perf.otifPercent}% OTIF`,
         description: `${lateCount} of ${perf.eligiblePurchaseOrders} orders late or incomplete over trailing ${perf.windowDays} days.`,

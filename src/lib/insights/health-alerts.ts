@@ -105,5 +105,5 @@ export function buildHealthScoreAlerts(ctx: HealthScoreContext): SupplyChainAler
     });
   }
 
-  return alerts;
+  return alerts.map((alert) => ({ ...alert, group: "health" as const }));
 }

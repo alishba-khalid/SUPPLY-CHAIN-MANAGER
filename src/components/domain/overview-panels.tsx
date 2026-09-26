@@ -64,8 +64,9 @@ function createIdSetStore(key: string) {
 
 import { SuggestedPoModal } from "./suggested-po-modal";
 import { quickOrderDraft, type PoDraft } from "@/lib/insights/quick-order";
+import { selectTopAlerts } from "@/lib/insights/alert-selection";
 
-/** Alerts shown in Needs Attention before "Show all". */
+/** Alerts shown in Needs Attention before "Show all" (every alert type gets at least one slot). */
 const OVERVIEW_ALERT_LIMIT = 10;
 
 const dismissedAlertsStore = createIdSetStore(DISMISSED_ALERTS_KEY);
@@ -125,7 +126,7 @@ export function OverviewPanels({
 
   const visibleAlerts = alerts.filter((a) => !dismissedAlerts.has(a.id));
   const hasMoreAlerts = visibleAlerts.length > OVERVIEW_ALERT_LIMIT;
-  const shownAlerts = showAllAlerts ? visibleAlerts : visibleAlerts.slice(0, OVERVIEW_ALERT_LIMIT);
+  const shownAlerts = showAllAlerts ? visibleAlerts : selectTopAlerts(visibleAlerts, OVERVIEW_ALERT_LIMIT);
   const visibleRecommendations = recommendations.filter((r) => !resolvedRecommendations.has(r.id));
 
   return (
