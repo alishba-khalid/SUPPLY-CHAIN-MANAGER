@@ -5,6 +5,7 @@
  */
 import type {
   InventoryInsight,
+  InventoryTransaction,
   Product,
   PurchaseOrder,
   Supplier,
@@ -12,13 +13,14 @@ import type {
   SupplyChainAlert,
   Warehouse,
 } from "@/types/supply-chain";
-import { getInventoryInsights } from "@/data/repositories/inventory";
+import { getInventoryInsights, getInventoryTransactions } from "@/data/repositories/inventory";
 import { getAllSupplierPerformance, getSuppliers } from "@/data/repositories/suppliers";
 import { getOpenPurchaseOrders } from "@/data/repositories/procurement";
 import { getProducts } from "@/data/repositories/products";
 import { getWarehouses } from "@/data/repositories/warehouses";
 import { daysBetween, todayISODate } from "@/lib/dates";
 import { splitEffectivePipeline } from "@/lib/insights/inventory-availability";
+import { detectDemandSpike, SPIKE_BASELINE_DAYS, SPIKE_RECENT_DAYS, type DemandSpike } from "@/lib/metrics/demand-spike";
 
 interface AlertWithRank extends SupplyChainAlert {
   tier: number;
@@ -32,6 +34,47 @@ export interface PreloadedAlertDependencies {
   products?: Product[];
   suppliers?: Supplier[];
   warehouses?: Warehouse[];
+  transactions?: InventoryTransaction[];
+}
+
+/** One line added to an existing stockout/low-stock alert when that position is also spiking. */
+function spikeNote(spike: DemandSpike): string {
+  return spike.kind === "sustained"
+    ? `Demand spike: ${spike.recentUnits.toLocaleString()} units sold in the last ${SPIKE_RECENT_DAYS} days vs ${spike.expectedUnits.toLocaleString()} usual (${spike.ratio}×), so stock may run out sooner than shown.`
+    : `Includes a single large order: ${spike.largestDay.units.toLocaleString()} units on ${spike.largestDay.date}.`;
+}
+
+function spikeAlert(spike: DemandSpike, insight: InventoryInsight, warehouseCode: string, unitCost: number, now: string): AlertWithRank {
+  const base = {
+    category: "inventory" as const,
+    severity: "warning" as const,
+    sku: insight.sku,
+    warehouseId: insight.warehouseId,
+    createdAt: now,
+    tier: 4,
+    valueAtRisk: Math.max(0, spike.excessUnits) * unitCost,
+  };
+
+  if (spike.kind === "single_order") {
+    return {
+      ...base,
+      id: `ALT-INV-LARGE-ORDER-${insight.sku}-${insight.warehouseId}`,
+      title: `${insight.sku} at ${warehouseCode} — single large order: ${spike.largestDay.units.toLocaleString()} units on ${spike.largestDay.date}`,
+      description: `One day accounts for this week's jump: ${spike.largestDay.units.toLocaleString()} units on ${spike.largestDay.date}, against about ${spike.baselineDailyDemand}/day usually. The rest of the week wasn't unusual, so this looks like a one-off order rather than a lasting change in demand.`,
+    };
+  }
+
+  const recentDaily = spike.recentUnits / SPIKE_RECENT_DAYS;
+  const coverSentence =
+    insight.availableQuantity > 0
+      ? ` At this week's rate, ${insight.availableQuantity.toLocaleString()} on hand covers ${Math.round(insight.availableQuantity / recentDaily)} days (${Math.round(insight.availableQuantity / spike.baselineDailyDemand)} at the usual rate).`
+      : "";
+  return {
+    ...base,
+    id: `ALT-INV-SPIKE-${insight.sku}-${insight.warehouseId}`,
+    title: `${insight.sku} at ${warehouseCode} — demand spike: ${spike.ratio}× usual rate`,
+    description: `${spike.recentUnits.toLocaleString()} units sold in the last ${SPIKE_RECENT_DAYS} days vs ${spike.expectedUnits.toLocaleString()} usual (${spike.baselineDailyDemand}/day over the prior ${SPIKE_BASELINE_DAYS} days).${coverSentence}`,
+  };
 }
 
 export async function getAlerts(
@@ -41,18 +84,28 @@ export async function getAlerts(
   const now = new Date().toISOString();
   const today = todayISODate();
 
-  const [insights, supplierPerf, openPOs, products, suppliers, warehouses] = await Promise.all([
+  const [insights, supplierPerf, openPOs, products, suppliers, warehouses, transactions] = await Promise.all([
     preloaded?.insights ?? getInventoryInsights(orgId),
     preloaded?.supplierPerf ?? getAllSupplierPerformance(orgId),
     preloaded?.openPOs ?? getOpenPurchaseOrders(orgId),
     preloaded?.products ?? getProducts(orgId),
     preloaded?.suppliers ?? getSuppliers(orgId),
     preloaded?.warehouses ?? getWarehouses(orgId),
+    preloaded?.transactions ?? getInventoryTransactions(orgId),
   ]);
 
   const productMap = new Map(products.map((p) => [p.sku, p]));
   const supplierMap = new Map(suppliers.map((s) => [s.supplierId, s]));
   const warehouseMap = new Map(warehouses.map((w) => [w.id, w]));
+
+  // Group once so spike detection scans only each position's own transactions.
+  const transactionsByPosition = new Map<string, InventoryTransaction[]>();
+  for (const t of transactions) {
+    const key = `${t.sku}|${t.warehouseId}`;
+    const list = transactionsByPosition.get(key) ?? [];
+    list.push(t);
+    transactionsByPosition.set(key, list);
+  }
 
   // Index open POs by SKU
   const openPOsBySku = new Map<string, typeof openPOs>();
@@ -116,6 +169,13 @@ export async function getAlerts(
       )
       .join("; ");
 
+    const spike = detectDemandSpike(
+      transactionsByPosition.get(`${insight.sku}|${insight.warehouseId}`) ?? [],
+      insight.sku,
+      insight.warehouseId,
+      today,
+    );
+
     if (isStockoutImminent) {
       // Tier 1: Stockout imminent (days of cover < supplier lead time).
       // Unknown demand → no value-at-risk estimate; it ranks last within the tier.
@@ -127,6 +187,7 @@ export async function getAlerts(
 
       const descriptionParts = [`Below reorder point. Supplier lead time is ${supplierLeadTimeDays} days${inboundNote}.`];
       if (excludedNote) descriptionParts.push(`${excludedNote}. Effective cover: ${Math.round(effectiveCoverDays)} days.`);
+      if (spike) descriptionParts.push(spikeNote(spike));
 
       const teaser =
         suggestedQty === null
@@ -160,6 +221,7 @@ export async function getAlerts(
 
       const descriptionParts = [`Below reorder point. Supplier lead time is ${supplierLeadTimeDays} days${inboundNote}.`];
       if (excludedNote) descriptionParts.push(`${excludedNote}. Effective cover: ${Math.round(effectiveCoverDays)} days.`);
+      if (spike) descriptionParts.push(spikeNote(spike));
 
       const teaser =
         suggestedQty === null
@@ -183,16 +245,21 @@ export async function getAlerts(
         tier: 3,
         valueAtRisk,
       });
-    } else if (insight.status === "overstock" || insight.availableQuantity > insight.overstockThreshold) {
-      // Collect overstocked positions for W2 aggregate rollup
-      const excessUnits = Math.max(0, insight.availableQuantity - insight.overstockThreshold);
-      const tiedUpDollars = Math.round((excessUnits > 0 ? excessUnits : insight.availableQuantity) * unitCost);
-      overstockedPositions.push({
-        sku: insight.sku,
-        warehouseId: insight.warehouseId,
-        excessUnits,
-        tiedUpDollars,
-      });
+    } else {
+      if (insight.status === "overstock" || insight.availableQuantity > insight.overstockThreshold) {
+        // Collect overstocked positions for W2 aggregate rollup
+        const excessUnits = Math.max(0, insight.availableQuantity - insight.overstockThreshold);
+        const tiedUpDollars = Math.round((excessUnits > 0 ? excessUnits : insight.availableQuantity) * unitCost);
+        overstockedPositions.push({
+          sku: insight.sku,
+          warehouseId: insight.warehouseId,
+          excessUnits,
+          tiedUpDollars,
+        });
+      }
+      // Tier 4: demand spike / single large order. Stockout and low-stock alerts
+      // carry the spike as a note instead, so a position never gets two alerts.
+      if (spike) rankedAlerts.push(spikeAlert(spike, insight, warehouseCode, unitCost, now));
     }
   }
 
@@ -214,7 +281,7 @@ export async function getAlerts(
       description: `Excess stock across ${overstockedPositions.length} warehouse positions holding capital above 3x lead-time targets. Tap to view and triage all overstocked items in Inventory.`,
       teaser: "View overstocked positions in Inventory",
       createdAt: now,
-      tier: 4,
+      tier: 5,
       valueAtRisk: totalTiedUp,
     });
   }
@@ -240,7 +307,7 @@ export async function getAlerts(
     }
   }
 
-  // 3. Supplier Underperformance Alerts (Tier 5: critical suppliers only)
+  // 3. Supplier Underperformance Alerts (Tier 6: critical suppliers only)
   for (const perf of supplierPerf) {
     if (perf.otifPercent !== null && perf.otifPercent < 70 && perf.eligiblePurchaseOrders >= 2) {
       const supplier = supplierMap.get(perf.supplierId);
@@ -256,13 +323,14 @@ export async function getAlerts(
         description: `${lateCount} of ${perf.eligiblePurchaseOrders} orders late or incomplete over trailing ${perf.windowDays} days.`,
         supplierId: perf.supplierId,
         createdAt: now,
-        tier: 5,
+        tier: 6,
         valueAtRisk,
       });
     }
   }
 
-  // Sort by Tier ASC (1: Stockout imminent, 2: Overdue PO, 3: Low stock, 4: Overstock Aggregate, 5: Supplier)
+  // Sort by Tier ASC (1: Stockout imminent, 2: Overdue PO, 3: Low stock, 4: Demand spike / large order,
+  // 5: Overstock Aggregate, 6: Supplier)
   // Within a tier, sort by valueAtRisk DESC (highest dollar value at risk first)
   rankedAlerts.sort((a, b) => {
     if (a.tier !== b.tier) {

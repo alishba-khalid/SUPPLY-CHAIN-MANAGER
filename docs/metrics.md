@@ -178,6 +178,52 @@ zero stock and zero recent demand is reported as the more urgent
 
 ---
 
+## Demand Spike
+
+**Business definition:** A (product, warehouse) position whose sales over the
+last 7 days are far above its usual rate. Two distinct signals:
+
+- **Sustained spike** — the week is still a spike after removing its single
+  biggest day (demand has genuinely risen).
+- **Single large order** — one day's sales account for the jump; the rest of
+  the week wasn't unusual (e.g. a one-off bulk order).
+
+**Formula:**
+
+- *Recent* = units sold in the last 7 days (today and the 6 days before).
+- *Usual rate* = the trimmed Average Daily Demand over the **90 days before
+  that week** (days 7–96 ago), so the week being tested never inflates its own
+  baseline. *Expected* = usual rate × 7.
+- *σ₇* = winsorized daily σ over the same 90 days × √7.
+- A week is a spike when **all** hold:
+  - Recent ≥ **3×** Expected
+  - Recent ≥ Expected + **3σ₇** (erratic/intermittent SKUs' normal lumps don't count)
+  - Recent − Expected ≥ **10 units** (low-volume SKUs don't count)
+
+**No usual rate (never flagged):** fewer than 10 selling days in the baseline,
+or the position's first transaction is newer than the start of the baseline
+window (days before the data began would otherwise read as zero sales).
+
+**Worked examples:**
+
+| Usual | Last 7 days | Result | Deciding rule |
+|---|---|---|---|
+| 10/day, steady | 40/day | sustained spike (4×) | all three pass |
+| 10/day, steady | 7–13/day | none | ratio (1.0×) |
+| 10/day, steady | 20/day | none | ratio (2×) |
+| 1/week | 4 units | none | floor (3 units over) |
+| 15-unit lumps every ~7 days (2/day) | three lumps, 45 units | none | 3σ (needs ~55) |
+| 10/day, steady | 10/day + one 300-unit order | single large order | week minus biggest day = 60, not a spike |
+
+**Where it shows:** its own alert (tier 4, after low stock) on a healthy or
+overstocked position. On a position that already has a stockout or low-stock
+alert, it's added to that alert's description instead of a second alert.
+
+**Implementation:** `detectDemandSpike` in `src/lib/metrics/demand-spike.ts`;
+alerts in `src/lib/insights/alerts.ts`.
+
+---
+
 ## Inventory Turnover
 
 **Business definition:** How many times a SKU's inventory is sold and
