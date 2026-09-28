@@ -3,6 +3,7 @@
 import { requireOrgId, isDemoOrg } from "@/lib/auth";
 import { importData } from "@/data/repositories/import";
 import { parseTemplateRows, type TemplateType } from "@/lib/importer/template-rows";
+import { EMPTY_TALLY } from "@/lib/importer/template-import";
 import { revalidatePath } from "next/cache";
 
 const DEMO_MSG = "Demo mode — action is simulated and not saved.";
@@ -25,6 +26,8 @@ export async function importDataAction(
       message: DEMO_MSG,
       count: records.length,
       rejected,
+      // Nothing is compared or saved in the demo, so every valid row counts as checked.
+      tally: { ...EMPTY_TALLY, added: records.length },
       counts: {
         warehouses: type === "warehouses" ? records.length : 0,
         suppliers: type === "suppliers" ? records.length : 0,

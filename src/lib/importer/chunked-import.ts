@@ -64,6 +64,15 @@ export interface ImportChunk {
 }
 
 /**
+ * The content part of a transaction's import key (`date` as YYYY-MM-DD).
+ * Shared with the template importer, so a row imported either way gets the
+ * same key and is never saved twice.
+ */
+export function transactionImportKeyBase(t: ExtractedTransaction): string {
+  return `${t.sku}|${t.warehouseCode}|${t.date}|${t.direction}|${t.quantity}`;
+}
+
+/**
  * The idempotency key for an imported transaction: its content plus its
  * occurrence number among identical rows in the same file. Re-importing the
  * same file reproduces the same keys (so nothing is duplicated), while two
@@ -73,7 +82,7 @@ export interface ImportChunk {
 function withImportKeys(transactions: ExtractedTransaction[]): StagedTransaction[] {
   const seen = new Map<string, number>();
   return transactions.map((t) => {
-    const base = `${t.sku}|${t.warehouseCode}|${t.date}|${t.direction}|${t.quantity}`;
+    const base = transactionImportKeyBase(t);
     const occurrence = (seen.get(base) ?? 0) + 1;
     seen.set(base, occurrence);
     return { ...t, importKey: `${base}#${occurrence}` };

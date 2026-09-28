@@ -5,6 +5,14 @@ import * as XLSX from "xlsx";
 import { importDataAction } from "@/app/actions/import";
 import { RejectedRowsNotice } from "@/components/domain/rejected-rows-notice";
 import type { TemplateRejectedRow } from "@/lib/importer/template-rows";
+import {
+  EMPTY_TALLY,
+  addTallies,
+  templateResultMessage,
+  templateStoppedMessage,
+  withTemplateImportKeys,
+  type TemplateImportTally,
+} from "@/lib/importer/template-import";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -174,12 +182,15 @@ export function DataImporter() {
     startTransition(async () => {
       try {
         const BATCH_SIZE = 500;
-        let totalCount = 0;
+        let tally: TemplateImportTally = { ...EMPTY_TALLY };
+        let isDemo = false;
         const rejected: TemplateRejectedRow[] = [];
         setRejectedRows([]);
+        // Keys are numbered over the whole file, before it is split into batches.
+        const rowsToSend = importType === "transactions" ? withTemplateImportKeys(parsedRows) : parsedRows;
 
-        for (let i = 0; i < parsedRows.length; i += BATCH_SIZE) {
-          const batch = parsedRows.slice(i, i + BATCH_SIZE);
+        for (let i = 0; i < rowsToSend.length; i += BATCH_SIZE) {
+          const batch = rowsToSend.slice(i, i + BATCH_SIZE);
           const isFirstBatch = i === 0;
 
           if (parsedRows.length > BATCH_SIZE) {
@@ -198,23 +209,21 @@ export function DataImporter() {
             setRejectedRows(rejected);
             setImportResult({
               success: false,
-              message: "error" in res ? res.error : "Import failed",
+              message: templateStoppedMessage("error" in res ? res.error : "Import failed.", i + 2, i + batch.length + 1),
             });
             setProgressMsg(null);
             return;
           }
 
-          if ("count" in res && typeof res.count === "number") {
-            totalCount += res.count;
-          }
+          if ("tally" in res && res.tally) tally = addTallies(tally, res.tally);
+          if ("isDemo" in res && res.isDemo) isDemo = true;
         }
 
         setRejectedRows(rejected);
+        const summary = templateResultMessage(importType, tally, rejected.length);
         setImportResult({
           success: true,
-          message: rejected.length
-            ? `Saved ${totalCount} records into ${config.label}. ${rejected.length} rows were rejected (see below).`
-            : `Successfully saved and imported ${totalCount} records into ${config.label}!`,
+          message: isDemo ? `Demo workspace — checked only, nothing was saved. ${summary}` : summary,
         });
         setParsedRows([]);
         setFile(null);
