@@ -4,7 +4,7 @@ import Link from "next/link";
 import { SITE_NAME, SITE_URL, CONTACT_EMAIL } from "@/lib/site-config";
 
 const TITLE = `Privacy Policy | ${SITE_NAME}`;
-const DESCRIPTION = `How ${SITE_NAME} collects, uses, stores, and protects your data.`;
+const DESCRIPTION = `How ${SITE_NAME} collects, uses, stores and shares your data, how long we keep it, how to get it deleted, and your privacy rights.`;
 const LAST_UPDATED = "September 18, 2026";
 
 export const metadata: Metadata = {

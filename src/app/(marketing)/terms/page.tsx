@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { SITE_NAME, SITE_URL, CONTACT_EMAIL, TRIAL_DAYS } from "@/lib/site-config";
 
 const TITLE = `Terms of Service | ${SITE_NAME}`;
-const DESCRIPTION = `The terms governing use of ${SITE_NAME}.`;
+const DESCRIPTION = `The terms for using ${SITE_NAME}: accounts, trials and billing, your data, acceptable use, termination, liability and how to contact us.`;
 const LAST_UPDATED = "September 18, 2026";
 
 // TODO: this page is unfinished — it has no Governing Law section because no

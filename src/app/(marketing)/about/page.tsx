@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { SITE_NAME, SITE_URL, CONTACT_EMAIL } from "@/lib/site-config";
 
 const TITLE = `About | ${SITE_NAME}`;
-const DESCRIPTION = `Why we built ${SITE_NAME}.`;
+const DESCRIPTION = `Why we built ${SITE_NAME}: inventory and purchasing software that tells distributors what to order today, and shows the numbers behind every call.`;
 
 // TODO: this page is unfinished — it's missing a Founder section pending
 // real name/title/bio from the business owner. It's deliberately kept out
