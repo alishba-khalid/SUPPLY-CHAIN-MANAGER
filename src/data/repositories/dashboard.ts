@@ -36,6 +36,7 @@ import { getAlerts } from "@/lib/insights/alerts";
 import { getRecommendations } from "@/lib/insights/recommendations";
 import { getRecentActivity } from "@/lib/insights/activity";
 import { buildHealthScoreAlerts, type WarehouseScoreDetail } from "@/lib/insights/health-alerts";
+import { explainSupplierScore, explanationText } from "@/lib/insights/explanations";
 
 export interface OverviewDashboardData {
   products: Product[];
@@ -47,6 +48,8 @@ export interface OverviewDashboardData {
   trends: OverviewTrends;
   activity: ActivityEvent[];
   subscription: Awaited<ReturnType<typeof getOrgSubscription>>;
+  /** "Why this number" for the Suppliers score card. */
+  supplierScoreExplanation: string;
 }
 
 export async function getSupplyChainHealth(orgId: string): Promise<SupplyChainHealthBreakdown> {
@@ -222,5 +225,11 @@ export async function getOverviewDashboardData(orgId: string): Promise<OverviewD
     trends,
     activity,
     subscription,
+    supplierScoreExplanation: explanationText(
+      explainSupplierScore({
+        score: health.supplier,
+        suppliers: suppliers.map((s, i) => ({ name: s.name, ...supplierPerformances[i] })),
+      }),
+    ),
   };
 }

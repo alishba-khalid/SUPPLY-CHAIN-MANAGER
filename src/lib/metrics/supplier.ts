@@ -82,11 +82,15 @@ export function computeSupplierPerformance(
   };
 }
 
-/** Spend-weighted average OTIF across all suppliers with eligible orders. */
-export function supplierHealthScore(performances: SupplierPerformance[]): number {
+/**
+ * Spend-weighted average OTIF across all suppliers with eligible orders.
+ * Null when no supplier has any eligible order in the window — there is no
+ * on-time record to score, which is not the same as scoring 0.
+ */
+export function supplierHealthScore(performances: SupplierPerformance[]): number | null {
   const withData = performances.filter((p) => p.otifPercent !== null && p.totalSpend > 0);
   const totalSpend = withData.reduce((s, p) => s + p.totalSpend, 0);
-  if (totalSpend === 0) return 0;
+  if (totalSpend === 0) return null;
   const weighted = withData.reduce((s, p) => s + (p.otifPercent as number) * p.totalSpend, 0) / totalSpend;
   return Math.min(100, Math.max(0, Math.round(weighted)));
 }

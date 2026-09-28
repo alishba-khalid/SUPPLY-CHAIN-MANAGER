@@ -88,7 +88,10 @@ export async function askAiManagerAction(rawQuestion: string): Promise<AiManager
     recommendation = `Action: Issue purchase orders for positions with days until stockout lower than supplier lead times to avoid production halts.`;
     suggestedAction = { label: "View Low Stock in Inventory", href: "/dashboard/inventory?status=understock" };
   } else if (lower.includes("supplier") || lower.includes("otif") || lower.includes("delivery")) {
-    reply = `Supplier score is currently ${health.supplier}/100 and Procurement score is ${health.procurement}/100 based on trailing 90-day purchase order receipts.`;
+    reply =
+      health.supplier === null
+        ? `There is no supplier on-time data yet — no purchase orders were received or overdue in the last 90 days. Procurement score is ${health.procurement}/100.`
+        : `Supplier score is currently ${health.supplier}/100 and Procurement score is ${health.procurement}/100 based on trailing 90-day purchase order receipts.`;
     recommendation = `Action: Investigate suppliers with sub-80% OTIF rates and adjust safety stock lead times accordingly.`;
     suggestedAction = { label: "Open Supplier Scorecards", href: "/dashboard/suppliers" };
   } else if (lower.includes("overstock") || lower.includes("capital") || lower.includes("tied up")) {

@@ -13,6 +13,8 @@ export interface MetricCardProps {
   className?: string;
   /** Explains how the value is calculated (inputs + weights) — shown on hover and keyboard focus. */
   tooltip?: string;
+  /** Wider tooltip that keeps line breaks — for multi-line "why this number" explanations. */
+  tooltipWide?: boolean;
   /** Colour-codes the value by health threshold. Omit for a plain numeric/text metric. */
   tone?: "healthy" | "warning" | "critical";
 }
@@ -23,14 +25,14 @@ const TONE_CLASSES: Record<NonNullable<MetricCardProps["tone"]>, string> = {
   critical: "text-(--color-critical)",
 };
 
-export function MetricCard({ label, value, helpText, trend, icon, className, tooltip, tone }: MetricCardProps) {
+export function MetricCard({ label, value, helpText, trend, icon, className, tooltip, tooltipWide, tone }: MetricCardProps) {
   return (
     <Card className={cn("p-5", className)}>
       <div className="flex items-start justify-between">
         <span className="flex items-center gap-1 text-small text-(--color-text-muted)">
           {label}
           {tooltip && (
-            <Tooltip label={tooltip}>
+            <Tooltip label={tooltip} wide={tooltipWide}>
               <span
                 tabIndex={0}
                 aria-label={`How ${label} is calculated: ${tooltip}`}

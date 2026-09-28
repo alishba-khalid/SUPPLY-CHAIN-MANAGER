@@ -4,6 +4,7 @@ import type {
   InventoryTransaction,
   Product,
   PurchaseOrder,
+  ReorderBreakdown,
   Supplier,
   Warehouse,
 } from "@/types/supply-chain";
@@ -13,6 +14,7 @@ import {
   REVIEW_PERIOD_DAYS,
   averageDailyDemand,
   calculateDayOfWeekMultipliers,
+  daysOfDemandHistory,
   trimmedDailyDemand,
   variabilitySafetyStock,
   winsorizedDailyDemandStandardDeviation,
@@ -65,6 +67,8 @@ export interface SuggestedPurchaseOrder {
   gapInboundPoNumber?: string;
   surplusWarehouseCode?: string;
   surplusAvailableUnits?: number;
+  /** How suggestedQuantity was worked out — shown as "How we got N units" in the PO modal. */
+  reorderBreakdown?: ReorderBreakdown;
 }
 
 /** Helper: formats ISO date string YYYY-MM-DD + N days */
@@ -215,6 +219,12 @@ export interface SkuWarehouseProjection {
   surplusAvailableUnits?: number;
   actionType?: SuggestedOrderActionType;
   suggestedQuantity: number;
+  reorderBreakdown: ReorderBreakdown;
+}
+
+/** "2026-10-02" -> "Oct 2" */
+function shortDate(iso: string): string {
+  return new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 }
 
 /**
@@ -526,6 +536,29 @@ function computeSkuWarehouseProjection(
   }
   // Outcome 3 (no actionType): Fully covered through horizon
 
+  // The working behind suggestedQuantity, for "How we got N units" — only
+  // values already computed above (plus history/selling-day counts).
+  const reorderBreakdown: ReorderBreakdown = {
+    quantity: suggestedQuantity,
+    dailyDemand: demand,
+    leadTimeDays,
+    leadTimeMissing: !supplier || supplier.leadTimeMissing,
+    supplierName: supplier?.name ?? product.supplierId,
+    reviewDays: REVIEW_PERIOD_DAYS,
+    sigma: Math.round(sigma * 100) / 100,
+    safetyStock: ss,
+    targetStock,
+    onHand,
+    inbound: sortedCreditedHorizonPOs.map((p) => ({ poNumber: p.rawPo.poNumber, quantity: p.rawPo.quantity, arrives: shortDate(p.effectiveArrivalDate) })),
+    overdue: sortedHorizonPOs.filter((p) => p.isOverdue).map((p) => ({ poNumber: p.rawPo.poNumber, quantity: p.rawPo.quantity })),
+    historyDays: daysOfDemandHistory(transactions, insight.sku, insight.warehouseId, 90, today),
+    activeDays: new Set(
+      transactions
+        .filter((t) => t.sku === insight.sku && t.warehouseId === insight.warehouseId && t.direction === "OUT" && t.quantity > 0 && isWithinTrailingWindow(t.date, 90))
+        .map((t) => t.date),
+    ).size,
+  };
+
   return {
     sku: insight.sku,
     warehouseId: insight.warehouseId,
@@ -562,6 +595,7 @@ function computeSkuWarehouseProjection(
     surplusAvailableUnits,
     actionType,
     suggestedQuantity,
+    reorderBreakdown,
   };
 }
 
@@ -602,6 +636,7 @@ export function generateSuggestedPurchaseOrders(inputs: ProjectionInputs): Sugge
       daysOfCoverProjected: p.daysOfCoverProjected,
       firstStockoutDate: p.firstStockoutDate,
       coveredThroughDate: p.coveredThroughDate,
+      reorderBreakdown: p.reorderBreakdown,
     };
 
     if (p.actionType === "expedite" || p.actionType === "transfer") {

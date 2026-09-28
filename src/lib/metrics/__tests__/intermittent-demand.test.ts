@@ -1,6 +1,6 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { trimmedDailyDemand, buildInventoryInsight } from "../inventory";
+import { trimmedDailyDemand, buildInventoryInsight, daysOfDemandHistory } from "../inventory";
 import { todayISODate, addDays } from "../../dates";
 import type { InventoryTransaction } from "@/types/supply-chain";
 
@@ -31,6 +31,8 @@ describe("Intermittent Demand & Trimmed Velocity Edge Cases", () => {
       { id: 2, sku: "SKU-BOUND-4", warehouseId: 1, quantity: 5, direction: "OUT", date: addDays(today, -25) },
       { id: 3, sku: "SKU-BOUND-4", warehouseId: 1, quantity: 5, direction: "OUT", date: addDays(today, -40) },
       { id: 4, sku: "SKU-BOUND-4", warehouseId: 1, quantity: 5, direction: "OUT", date: addDays(today, -60) },
+      // Stocked 95 days ago, so the product has the full 90 days of history.
+      { id: 5, sku: "SKU-BOUND-4", warehouseId: 1, quantity: 50, direction: "IN", date: addDays(today, -95) },
     ];
 
     const demand = trimmedDailyDemand(transactions, "SKU-BOUND-4", 1, 90, 0.05);
@@ -53,6 +55,7 @@ describe("Intermittent Demand & Trimmed Velocity Edge Cases", () => {
   test("Edge Case 3: SKU with fewer than 4 sales days (1, 2, 3 days) also computes positive demand", () => {
     const txns1: InventoryTransaction[] = [
       { id: 1, sku: "SKU-SLOW-1", warehouseId: 1, quantity: 18, direction: "OUT", date: addDays(today, -15) },
+      { id: 9, sku: "SKU-SLOW-1", warehouseId: 1, quantity: 50, direction: "IN", date: addDays(today, -95) },
     ];
     const demand1 = trimmedDailyDemand(txns1, "SKU-SLOW-1", 1, 90, 0.05);
     assert.strictEqual(demand1, 0.2, "18 / 90 = 0.2 units/day");
@@ -60,6 +63,7 @@ describe("Intermittent Demand & Trimmed Velocity Edge Cases", () => {
     const txns2: InventoryTransaction[] = [
       { id: 1, sku: "SKU-SLOW-2", warehouseId: 1, quantity: 9, direction: "OUT", date: addDays(today, -15) },
       { id: 2, sku: "SKU-SLOW-2", warehouseId: 1, quantity: 9, direction: "OUT", date: addDays(today, -30) },
+      { id: 9, sku: "SKU-SLOW-2", warehouseId: 1, quantity: 50, direction: "IN", date: addDays(today, -95) },
     ];
     const demand2 = trimmedDailyDemand(txns2, "SKU-SLOW-2", 1, 90, 0.05);
     assert.strictEqual(demand2, 0.2, "18 / 90 = 0.2 units/day");
@@ -100,8 +104,30 @@ describe("Intermittent Demand & Trimmed Velocity Edge Cases", () => {
         date: addDays(today, -i * 10),
       });
     }
+    transactions.push({ id: 99, sku: "SKU-MOD", warehouseId: 1, quantity: 100, direction: "IN", date: addDays(today, -95) });
 
     const demand = trimmedDailyDemand(transactions, "SKU-MOD", 1, 90, 0.05);
     assert.strictEqual(demand, 0.53, "8 sales days (48 total) should evaluate to 0.53 units/day without trimming non-outlier days");
+  });
+
+  test("New product: demand is per day of actual history, not diluted over 90 days", () => {
+    // First seen 9 days ago (10 days of history incl. today), selling 6/day on 10 days = 60 units.
+    const transactions: InventoryTransaction[] = [];
+    for (let i = 0; i <= 9; i++) {
+      transactions.push({ id: i + 1, sku: "SKU-NEW", warehouseId: 1, quantity: 6, direction: "OUT", date: addDays(today, -i) });
+    }
+    assert.strictEqual(daysOfDemandHistory(transactions, "SKU-NEW", 1, 90), 10);
+    // 60 / 10 = 6/day. Dividing by 90 would give 0.67/day and ~9x overstate days until stockout.
+    assert.strictEqual(trimmedDailyDemand(transactions, "SKU-NEW", 1, 90, 0.05), 6);
+
+    const insight = buildInventoryInsight(transactions, { sku: "SKU-NEW", warehouseId: 1, quantityOnHand: 30 }, 14, 90);
+    assert.strictEqual(insight.daysOfStock, 5, "30 on hand / 6 per day = 5 days, not ~45");
+  });
+
+  test("History counts calendar days inclusively and caps at the window", () => {
+    const tx = (daysAgo: number): InventoryTransaction => ({ id: daysAgo, sku: "S", warehouseId: 1, quantity: 1, direction: "IN", date: addDays(today, -daysAgo) });
+    assert.strictEqual(daysOfDemandHistory([tx(0)], "S", 1, 90), 1, "first transaction today = 1 day");
+    assert.strictEqual(daysOfDemandHistory([tx(89)], "S", 1, 90), 90, "the full 90-day window");
+    assert.strictEqual(daysOfDemandHistory([tx(400)], "S", 1, 90), 90, "older products cap at 90");
   });
 });

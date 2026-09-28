@@ -49,8 +49,8 @@ describe("alerts never invent a demand rate", () => {
 
   test("known demand still gets a reorder suggestion", async () => {
     const alert = await stockoutAlertFor({ ...outOfStock(10), daysOfStock: 0 });
-    // 10/day x (14 + 7) days = 210 -> rounded up to 250.
-    assert.equal(alert.suggestedQuantity, 250);
-    assert.equal(alert.estimatedCost, 500);
+    // Forecast engine: (14-day lead time + 1 review day) x 10/day + 70 safety stock = 220, minus 0 on hand / 0 inbound.
+    assert.equal(alert.suggestedQuantity, 220);
+    assert.equal(alert.estimatedCost, 440);
   });
 });

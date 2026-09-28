@@ -27,7 +27,8 @@ export async function getAllSupplierPerformance(orgId: string): Promise<Supplier
   return suppliers.map((s) => computeSupplierPerformance(s.supplierId, purchaseOrders));
 }
 
-export async function getSupplierHealthScore(orgId: string): Promise<number> {
+/** Null when no supplier has on-time data in the last 90 days. */
+export async function getSupplierHealthScore(orgId: string): Promise<number | null> {
   const performances = await getAllSupplierPerformance(orgId);
   return supplierHealthScore(performances);
 }

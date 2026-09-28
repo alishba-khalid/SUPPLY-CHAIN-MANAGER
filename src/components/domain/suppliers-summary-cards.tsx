@@ -1,7 +1,10 @@
 import { MetricCard } from "@/components/ui/metric-card";
 
 interface SuppliersSummaryCardsProps {
-  health: number;
+  /** Null when no supplier has on-time data in the last 90 days. */
+  health: number | null;
+  /** "Why this number" for the reliability score. */
+  healthExplanation: string;
   totalSuppliers: number;
   totalSpend: number;
   avgLeadTime: number | null;
@@ -9,6 +12,7 @@ interface SuppliersSummaryCardsProps {
 
 export function SuppliersSummaryCards({
   health,
+  healthExplanation,
   totalSuppliers,
   totalSpend,
   avgLeadTime,
@@ -17,8 +21,10 @@ export function SuppliersSummaryCards({
     <section className="grid grid-cols-2 gap-4 sm:grid-cols-4">
       <MetricCard
         label="Supplier Reliability"
-        value={`${health} / 100`}
-        helpText="Spend-weighted average OTIF score"
+        value={health === null ? "No data" : `${health} / 100`}
+        helpText={health === null ? "No received or overdue POs in the last 90 days to score" : "Spend-weighted average OTIF score"}
+        tooltip={healthExplanation}
+        tooltipWide
       />
       <MetricCard
         label="Active Suppliers"
