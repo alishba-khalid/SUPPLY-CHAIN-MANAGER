@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { SITE_NAME, SITE_URL, TAGLINE, CONTACT_EMAIL } from "@/lib/site-config";
+import { SITE_NAME, SITE_URL, CONTACT_EMAIL } from "@/lib/site-config";
 
 const TITLE = `About | ${SITE_NAME}`;
 const DESCRIPTION = `Why we built ${SITE_NAME}.`;
@@ -26,7 +26,7 @@ export default function AboutPage() {
   return (
     <div className="mx-auto max-w-3xl px-6 py-16">
       <p className="text-small font-medium uppercase tracking-wide text-(--color-text-muted)">About</p>
-      <h1 className="mt-2 text-h1 text-(--color-text-primary)">{TAGLINE}</h1>
+      <h1 className="mt-2 text-h1 text-(--color-text-primary)">Why we built {SITE_NAME}</h1>
 
       <div className="mt-8 space-y-4 text-body text-(--color-text-secondary)">
         <p>
