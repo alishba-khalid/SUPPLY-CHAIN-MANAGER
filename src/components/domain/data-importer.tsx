@@ -13,6 +13,12 @@ import {
   withTemplateImportKeys,
   type TemplateImportTally,
 } from "@/lib/importer/template-import";
+import {
+  TEMPLATE_REQUIRED_HEADERS,
+  UNREADABLE_FILE_MESSAGE,
+  checkFileExtension,
+  checkTemplateHeaders,
+} from "@/lib/importer/template-file-check";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -38,37 +44,37 @@ interface ImportConfig {
 const IMPORT_CONFIGS: Record<ImportType, ImportConfig> = {
   warehouses: {
     label: "Warehouses",
-    requiredHeaders: ["Warehouse Code", "Name"],
+    requiredHeaders: TEMPLATE_REQUIRED_HEADERS.warehouses,
     templateCsv: "Warehouse Code,Name,Capacity (Units)\nNDC,National Distribution Center,50000\nW1,Secondary Warehouse,20000",
     description: "Locations where inventory is stored. Establishes capacity metrics.",
   },
   suppliers: {
     label: "Suppliers",
-    requiredHeaders: ["Supplier ID", "Name"],
+    requiredHeaders: TEMPLATE_REQUIRED_HEADERS.suppliers,
     templateCsv: "Supplier ID,Name,Lead Time (Days),Email\nSUP-001,Delta Components,14,delta@example.com\nSUP-002,Northgate Materials,10,north@example.com",
     description: "Vendors supplying products. Sets lead time expectations.",
   },
   products: {
     label: "Products",
-    requiredHeaders: ["SKU", "Name", "Supplier ID"],
+    requiredHeaders: TEMPLATE_REQUIRED_HEADERS.products,
     templateCsv: "SKU,Name,Category,Unit Cost,Supplier ID\nSKU-001,Actuator Arm,component,12.50,SUP-001\nSKU-002,Standard Gasket,mro,2.10,SUP-002",
     description: "Catalog item master list. Relates products to their default supplier.",
   },
   inventory: {
     label: "Inventory Balances",
-    requiredHeaders: ["SKU", "Warehouse Code", "Quantity On Hand"],
+    requiredHeaders: TEMPLATE_REQUIRED_HEADERS.inventory,
     templateCsv: "SKU,Warehouse Code,Quantity On Hand\nSKU-001,NDC,1500\nSKU-002,W1,5000",
     description: "Current on-hand stock quantities by SKU and Warehouse.",
   },
   purchase_orders: {
     label: "Purchase Orders",
-    requiredHeaders: ["PO Number", "Supplier ID", "SKU", "Quantity", "Unit Price", "Order Date", "Expected Date"],
+    requiredHeaders: TEMPLATE_REQUIRED_HEADERS.purchase_orders,
     templateCsv: "PO Number,Supplier ID,SKU,Quantity,Unit Price,Order Date,Expected Date,Received Date\nPO-1001,SUP-001,SKU-001,500,12.50,2026-08-01,2026-08-15,2026-08-14\nPO-1002,SUP-002,SKU-002,1000,2.10,2026-08-10,2026-08-20,",
     description: "Inbound supply orders. Used for cycle time and supplier reliability score calculations.",
   },
   transactions: {
     label: "Inventory Transactions",
-    requiredHeaders: ["SKU", "Warehouse Code", "Quantity", "Direction", "Date"],
+    requiredHeaders: TEMPLATE_REQUIRED_HEADERS.transactions,
     templateCsv: "SKU,Warehouse Code,Quantity,Direction,Date\nSKU-001,NDC,150,IN,2026-08-14\nSKU-001,NDC,12,OUT,2026-08-15\nSKU-002,W1,50,OUT,2026-08-16",
     description: "Inbound and outbound movements (IN/OUT). Establishes daily demand trends.",
   },
@@ -117,6 +123,12 @@ export function DataImporter() {
     setValidationError(null);
     setImportResult(null);
 
+    const extensionError = checkFileExtension(selectedFile.name);
+    if (extensionError) {
+      setValidationError(extensionError);
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
@@ -135,25 +147,18 @@ export function DataImporter() {
 
         // Get headers from sheet
         const headers = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1 })[0] || [];
-        const cleanHeaders = headers.map((h) => String(h).trim());
-
-        // Check for required headers with normalized comparison (ignoring case, spaces, symbols)
-        const normalize = (s: string) => s.toLowerCase().replace(/[\s_\-()]/g, "");
-        const cleanHeadersNorm = cleanHeaders.map(normalize);
-        const missingHeaders = config.requiredHeaders.filter(
-          (required) => !cleanHeadersNorm.includes(normalize(required))
-        );
-
-        if (missingHeaders.length > 0) {
-          setValidationError(
-            `Missing required columns: ${missingHeaders.join(", ")}. Please follow the template layout.`
-          );
+        const headerError = checkTemplateHeaders(importType, headers.map(String), {
+          mode: "template-mode",
+          templateButton: "Download Template",
+        });
+        if (headerError) {
+          setValidationError(headerError);
           return;
         }
 
         setParsedRows(rows);
       } catch (err) {
-        setValidationError("Failed to read file. Please ensure it is a valid Excel or CSV file.");
+        setValidationError(UNREADABLE_FILE_MESSAGE);
         console.error(err);
       }
     };
