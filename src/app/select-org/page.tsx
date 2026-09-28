@@ -1,4 +1,11 @@
+import type { Metadata } from "next";
 import { OrganizationList } from "@clerk/nextjs";
+import { SITE_NAME } from "@/lib/site-config";
+
+export const metadata: Metadata = {
+  title: `Choose a workspace | ${SITE_NAME}`,
+  robots: { index: false, follow: false },
+};
 
 export default function SelectOrgPage() {
   return (

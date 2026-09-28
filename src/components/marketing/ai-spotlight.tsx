@@ -18,7 +18,7 @@ const EXAMPLE_RECOMMENDATION: Recommendation = {
   category: "reorder",
   priority: "high",
   title: "Pull forward reorder on SKU-1015 at NDC",
-  description: "Cover supplier lead-time delay of 14 days before safety stock drops into stockout.",
+  description: "Cover the 15-day delay on overdue PO-8063 before safety stock runs out.",
   affectedSkus: ["SKU-1015"],
   affectedSupplierId: "SUP-004",
   affectedWarehouseId: 1,

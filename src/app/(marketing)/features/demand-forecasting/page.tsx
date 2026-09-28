@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArrowRight, LineChart, Sparkles, CheckCircle2 } from "lucide-react";
 import { SITE_NAME, SITE_URL } from "@/lib/site-config";
 
-const TITLE = `Automated Demand Forecasting Software for Distributors | ${SITE_NAME}`;
+const TITLE = `Demand Forecasting for Distributors | ${SITE_NAME}`;
 const DESCRIPTION =
   "Eliminate stockouts and overstock with automated demand forecasting, time-phased stockout projections, and safety stock calculations.";
 

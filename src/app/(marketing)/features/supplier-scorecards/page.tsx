@@ -49,9 +49,9 @@ export default function SupplierScorecardsPage() {
             </p>
           </div>
           <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-6 space-y-3">
-            <h3 className="text-h3 font-semibold text-(--color-text-primary)">Automated Lead-Time Alerts</h3>
+            <h3 className="text-h3 font-semibold text-(--color-text-primary)">Actual vs Contract Lead Times</h3>
             <p className="text-body text-(--color-text-secondary)">
-              Surfaces warning banners when supplier lead times trend upward, prompting pull-forward reorders.
+              Shows each supplier's actual average lead time next to the contracted one, so slipping vendors stand out.
             </p>
           </div>
         </div>

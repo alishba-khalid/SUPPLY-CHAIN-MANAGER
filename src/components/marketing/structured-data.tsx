@@ -1,4 +1,4 @@
-import { SITE_NAME, SITE_URL, CONTACT_EMAIL, TAGLINE, PRICING_TIERS } from "@/lib/site-config";
+import { SITE_NAME, SITE_URL, CONTACT_EMAIL, TAGLINE } from "@/lib/site-config";
 import { FAQ_ITEMS } from "./faq";
 
 /** Escapes "</" so embedded JSON can never prematurely close the surrounding <script> tag. */
@@ -22,13 +22,8 @@ export function StructuredData() {
     applicationCategory: "BusinessApplication",
     operatingSystem: "Web",
     description: TAGLINE,
-    offers: PRICING_TIERS.filter((tier) => !tier.contactUsInstead).map((tier) => ({
-      "@type": "Offer",
-      name: tier.name,
-      price: tier.monthlyPrice.toString(),
-      priceCurrency: "USD",
-      description: tier.audience,
-    })),
+    // No "offers" (prices) until pricing is final — see the note in
+    // lib/site-config.ts. Search engines treat schema prices as facts.
   };
 
   const faqPage = {
