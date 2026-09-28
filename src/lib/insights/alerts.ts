@@ -199,7 +199,7 @@ export async function getAlerts(
           : "";
 
       const descriptionParts = [`Below reorder point. Supplier lead time is ${supplierLeadTimeDays} days${inboundNote}.`];
-      if (excludedNote) descriptionParts.push(`${excludedNote}. Effective cover: ${Math.round(effectiveCoverDays)} days.`);
+      if (excludedNote) descriptionParts.push(`${excludedNote}. Effective cover: ${formatDaysOfStock(effectiveCoverDays)}.`);
       if (spike) descriptionParts.push(spikeNote(spike));
 
       const teaser =
@@ -238,7 +238,7 @@ export async function getAlerts(
           : "";
 
       const descriptionParts = [`Below reorder point. Supplier lead time is ${supplierLeadTimeDays} days${inboundNote}.`];
-      if (excludedNote) descriptionParts.push(`${excludedNote}. Effective cover: ${Math.round(effectiveCoverDays)} days.`);
+      if (excludedNote) descriptionParts.push(`${excludedNote}. Effective cover: ${formatDaysOfStock(effectiveCoverDays)}.`);
       if (spike) descriptionParts.push(spikeNote(spike));
 
       const teaser =
