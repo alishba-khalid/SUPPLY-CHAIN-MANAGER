@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { parseTemplateRows, type TemplateRejectedRow, type TemplateType } from "@/lib/importer/template-rows";
+import { EMPTY_TALLY, readImportKey, sameDay, sameMoney, tallyChanges, type TemplateImportTally } from "@/lib/importer/template-import";
 
 /**
  * 6-file template import. Rows with a blank or invalid required value are
@@ -7,13 +8,22 @@ import { parseTemplateRows, type TemplateRejectedRow, type TemplateType } from "
  * the valid rows are written in one transaction. No value is invented (a
  * blank quantity never becomes 0, a blank date never becomes today) — see
  * src/lib/importer/template-rows.ts.
+ *
+ * Each result says how many records were added, updated or unchanged, so a
+ * repeat import says so. Transactions carry an import key (built in the
+ * browser over the whole file, see lib/importer/template-import.ts); a row
+ * whose key is already saved is skipped, so re-importing a file never
+ * duplicates the ledger.
  */
 export async function importData(
   orgId: string,
   type: TemplateType,
   rows: Record<string, unknown>[],
   options: { clearExisting: boolean; firstRowNumber?: number }
-): Promise<{ success: true; count: number; rejected: TemplateRejectedRow[] } | { success: false; error: string; rejected: TemplateRejectedRow[] }> {
+): Promise<
+  | { success: true; count: number; rejected: TemplateRejectedRow[]; tally: TemplateImportTally }
+  | { success: false; error: string; rejected: TemplateRejectedRow[] }
+> {
   const firstRowNumber = options.firstRowNumber ?? 2;
   const rejected: TemplateRejectedRow[] = [];
 
@@ -44,10 +54,19 @@ export async function importData(
         }
 
         let count = 0;
+        let tally: TemplateImportTally = { ...EMPTY_TALLY };
 
         if (type === "warehouses") {
           const parsed = parseTemplateRows("warehouses", rows, firstRowNumber);
           rejected.push(...parsed.rejected);
+          const incoming = parsed.records.map((r) => r.record);
+          const saved = await tx.warehouse.findMany({
+            where: { orgId, code: { in: incoming.map((w) => w.code) } },
+            select: { code: true, name: true, capacityUnits: true },
+          });
+          tally = tallyChanges(incoming, (w) => w.code, new Map(saved.map((w) => [w.code, w])), (a, b) =>
+            a.name === b.name && a.capacityUnits === b.capacityUnits
+          );
           for (const { record: w } of parsed.records) {
             await tx.warehouse.upsert({
               where: { orgId_code: { orgId, code: w.code } },
@@ -59,6 +78,14 @@ export async function importData(
         } else if (type === "suppliers") {
           const parsed = parseTemplateRows("suppliers", rows, firstRowNumber);
           rejected.push(...parsed.rejected);
+          const incoming = parsed.records.map((r) => r.record);
+          const saved = await tx.supplier.findMany({
+            where: { orgId, supplierId: { in: incoming.map((s) => s.supplierId) } },
+            select: { supplierId: true, name: true, leadTimeDays: true, leadTimeMissing: true, email: true },
+          });
+          tally = tallyChanges(incoming, (s) => s.supplierId, new Map(saved.map((s) => [s.supplierId, s])), (a, b) =>
+            a.name === b.name && a.leadTimeDays === b.leadTimeDays && a.leadTimeMissing === b.leadTimeMissing && a.email === b.email
+          );
           for (const { record: s } of parsed.records) {
             await tx.supplier.upsert({
               where: { orgId_supplierId: { orgId, supplierId: s.supplierId } },
@@ -73,6 +100,17 @@ export async function importData(
           // Preload suppliers for O(1) lookup
           const existingSuppliers = await tx.supplier.findMany({ where: { orgId }, select: { supplierId: true } });
           const supplierSet = new Set(existingSuppliers.map((s) => s.supplierId));
+          const incoming = parsed.records.map((r) => r.record);
+          const saved = await tx.product.findMany({
+            where: { orgId, sku: { in: incoming.map((p) => p.sku) } },
+            select: { sku: true, name: true, category: true, unitCost: true, supplierId: true },
+          });
+          tally = tallyChanges(
+            incoming,
+            (p) => p.sku,
+            new Map(saved.map((p) => [p.sku, { ...p, unitCost: Number(p.unitCost) }])),
+            (a, b) => a.name === b.name && a.category === b.category && sameMoney(a.unitCost, b.unitCost) && a.supplierId === b.supplierId
+          );
 
           for (const { record: p } of parsed.records) {
             if (!supplierSet.has(p.supplierId)) {
@@ -95,6 +133,23 @@ export async function importData(
           ]);
           const productSet = new Set(products.map((p) => p.sku));
           const warehouseMap = new Map(warehouses.map((w) => [w.code, w.id]));
+          const warehouseCodeById = new Map(warehouses.map((w) => [w.id, w.code]));
+          const incoming = parsed.records.map((r) => r.record);
+          const saved = await tx.inventory.findMany({
+            where: { orgId, sku: { in: incoming.map((i) => i.sku) } },
+            select: { sku: true, warehouseId: true, quantityOnHand: true },
+          });
+          tally = tallyChanges(
+            incoming,
+            (i) => `${i.sku}|${i.warehouseCode}`,
+            new Map(
+              saved.map((i) => {
+                const warehouseCode = warehouseCodeById.get(i.warehouseId) ?? "";
+                return [`${i.sku}|${warehouseCode}`, { sku: i.sku, warehouseCode, quantityOnHand: i.quantityOnHand }];
+              })
+            ),
+            (a, b) => a.quantityOnHand === b.quantityOnHand
+          );
 
           for (const { record: inv } of parsed.records) {
             if (!productSet.has(inv.sku)) {
@@ -121,6 +176,24 @@ export async function importData(
           ]);
           const productSet = new Set(products.map((p) => p.sku));
           const supplierSet = new Set(suppliers.map((s) => s.supplierId));
+          const incoming = parsed.records.map((r) => r.record);
+          const saved = await tx.purchaseOrder.findMany({
+            where: { orgId, poNumber: { in: incoming.map((po) => po.poNumber) } },
+            select: { poNumber: true, supplierId: true, sku: true, quantity: true, unitPrice: true, orderDate: true, expectedDate: true, receivedDate: true },
+          });
+          tally = tallyChanges(
+            incoming,
+            (po) => po.poNumber,
+            new Map(saved.map((po) => [po.poNumber, { ...po, unitPrice: Number(po.unitPrice) }])),
+            (a, b) =>
+              a.supplierId === b.supplierId &&
+              a.sku === b.sku &&
+              a.quantity === b.quantity &&
+              sameMoney(a.unitPrice, b.unitPrice) &&
+              sameDay(a.orderDate, b.orderDate) &&
+              sameDay(a.expectedDate, b.expectedDate) &&
+              sameDay(a.receivedDate, b.receivedDate)
+          );
 
           for (const { record: po } of parsed.records) {
             if (!productSet.has(po.sku)) {
@@ -148,8 +221,16 @@ export async function importData(
           const productSet = new Set(products.map((p) => p.sku));
           const warehouseMap = new Map(warehouses.map((w) => [w.code, w.id]));
 
-          const insertData: { orgId: string; sku: string; warehouseId: number; quantity: number; direction: "IN" | "OUT"; date: Date }[] = [];
-          for (const { record: t } of parsed.records) {
+          const insertData: {
+            orgId: string;
+            sku: string;
+            warehouseId: number;
+            quantity: number;
+            direction: "IN" | "OUT";
+            date: Date;
+            importKey: string | null;
+          }[] = [];
+          for (const { rowNumber, record: t } of parsed.records) {
             if (!productSet.has(t.sku)) {
               throw new Error(`Product SKU '${t.sku}' does not exist. Please import Products before Transactions.`);
             }
@@ -157,18 +238,24 @@ export async function importData(
             if (!warehouseId) {
               throw new Error(`Warehouse code '${t.warehouseCode}' does not exist. Please import Warehouses before Transactions.`);
             }
-            insertData.push({ orgId, sku: t.sku, warehouseId, quantity: t.quantity, direction: t.direction, date: t.date });
+            const importKey = readImportKey(rows[rowNumber - firstRowNumber]);
+            insertData.push({ orgId, sku: t.sku, warehouseId, quantity: t.quantity, direction: t.direction, date: t.date, importKey });
           }
 
-          // Bulk insert in chunks of 1000 for high stability & speed
+          // Bulk insert in chunks of 1000 for high stability & speed. A row whose
+          // import key is already saved (an earlier import of the same file) is
+          // skipped, not duplicated; a row without a key is always inserted.
           const CHUNK_SIZE = 1000;
+          let inserted = 0;
           for (let i = 0; i < insertData.length; i += CHUNK_SIZE) {
-            await tx.transaction.createMany({ data: insertData.slice(i, i + CHUNK_SIZE) });
+            const res = await tx.transaction.createMany({ data: insertData.slice(i, i + CHUNK_SIZE), skipDuplicates: true });
+            inserted += res.count;
           }
-          count = insertData.length;
+          count = inserted;
+          tally = { ...EMPTY_TALLY, added: inserted, skipped: insertData.length - inserted };
         }
 
-        return { success: true as const, count, rejected };
+        return { success: true as const, count, rejected, tally };
       },
       { timeout: 60000 } // 60-second transaction budget for large multi-thousand datasets
     );

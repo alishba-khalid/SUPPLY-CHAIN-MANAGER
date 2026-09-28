@@ -53,7 +53,7 @@ export function SummaryStep({ result, onReset }: SummaryStepProps) {
           <p className="mt-1 text-body text-(--color-text-secondary) max-w-lg mx-auto">
             {result.simulated
               ? `${totalSaved.toLocaleString()} records were validated and written inside a single PostgreSQL transaction, then rolled back — this is the shared demo workspace, so its data is never changed.`
-              : `${totalSaved.toLocaleString()} total records across 6 entities were committed atomically in a single PostgreSQL transaction.`}
+              : `Saved ${totalSaved.toLocaleString()} records from this file, all in one step — if anything had failed, nothing would have been saved.`}
           </p>
           {(result.duplicateTransactionsSkipped ?? 0) > 0 && (
             <p className="mt-2 text-caption text-(--color-text-muted) max-w-lg mx-auto">

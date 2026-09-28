@@ -9,6 +9,19 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { importDataAction } from "@/app/actions/import";
 import { RejectedRowsNotice } from "@/components/domain/rejected-rows-notice";
 import type { TemplateRejectedRow } from "@/lib/importer/template-rows";
+import {
+  EMPTY_TALLY,
+  addTallies,
+  templateResultMessage,
+  templateStoppedMessage,
+  withTemplateImportKeys,
+  type TemplateImportTally,
+} from "@/lib/importer/template-import";
+import {
+  UNREADABLE_FILE_MESSAGE,
+  checkFileExtension,
+  checkTemplateHeaders,
+} from "@/lib/importer/template-file-check";
 import { Download, Upload, AlertCircle, CheckCircle2, FileSpreadsheet } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -22,41 +35,35 @@ type ImportType =
 
 const IMPORT_CONFIGS: Record<
   ImportType,
-  { label: string; requiredHeaders: string[]; templateCsv: string; description: string }
+  { label: string; templateCsv: string; description: string }
 > = {
   warehouses: {
     label: "Warehouses",
-    requiredHeaders: ["Warehouse Code", "Name"],
     templateCsv: "Warehouse Code,Name,Capacity (Units)\nNDC,National Distribution Center,50000\nWH-WEST,West Coast Facility,25000",
     description: "Locations where inventory is stored. Establishes capacity metrics.",
   },
   suppliers: {
     label: "Suppliers",
-    requiredHeaders: ["Supplier ID", "Name"],
     templateCsv: "Supplier ID,Name,Lead Time (Days),Email\nSUP-001,Delta Components LLC,14,orders@deltacomponents.com\nSUP-002,Northgate Industrial,10,supply@northgate.com",
     description: "Vendors supplying products. Sets lead time expectations.",
   },
   products: {
     label: "Products",
-    requiredHeaders: ["SKU", "Name", "Supplier ID"],
     templateCsv: "SKU,Name,Category,Unit Cost,Supplier ID\nSKU-1001,Hydraulic Valve Assembly,valves,45.50,SUP-001\nSKU-1002,Stainless Steel Gasket,fasteners,3.20,SUP-002",
     description: "Catalog item master list. Relates products to their default supplier.",
   },
   inventory: {
     label: "Inventory Balances",
-    requiredHeaders: ["SKU", "Warehouse Code", "Quantity On Hand"],
     templateCsv: "SKU,Warehouse Code,Quantity On Hand\nSKU-1001,NDC,1250\nSKU-1002,NDC,5000",
     description: "Current on-hand stock quantities by SKU and Warehouse.",
   },
   purchase_orders: {
     label: "Purchase Orders",
-    requiredHeaders: ["PO Number", "Supplier ID", "SKU", "Quantity", "Unit Price", "Order Date", "Expected Date"],
     templateCsv: "PO Number,Supplier ID,SKU,Quantity,Unit Price,Order Date,Expected Date,Received Date\nPO-8001,SUP-001,SKU-1001,500,45.50,2026-08-01,2026-08-15,2026-08-14\nPO-8002,SUP-002,SKU-1002,2000,3.20,2026-08-20,2026-08-30,",
     description: "Inbound supply orders. Used for cycle time and supplier reliability calculations.",
   },
   transactions: {
     label: "Inventory Transactions",
-    requiredHeaders: ["SKU", "Warehouse Code", "Quantity", "Direction", "Date"],
     templateCsv: "SKU,Warehouse Code,Quantity,Direction,Date\nSKU-1001,NDC,500,IN,2026-08-14\nSKU-1001,NDC,25,OUT,2026-08-15",
     description: "Inbound and outbound movements (IN/OUT). Establishes daily demand velocity.",
   },
@@ -111,6 +118,12 @@ export function SectionImportModal({
     setValidationError(null);
     setImportResult(null);
 
+    const extensionError = checkFileExtension(selectedFile.name);
+    if (extensionError) {
+      setValidationError(extensionError);
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
@@ -127,24 +140,18 @@ export function SectionImportModal({
         }
 
         const headers = XLSX.utils.sheet_to_json<string[]>(sheet, { header: 1 })[0] || [];
-        const cleanHeaders = headers.map((h) => String(h).trim());
-
-        const normalize = (s: string) => s.toLowerCase().replace(/[\s_\-()]/g, "");
-        const cleanHeadersNorm = cleanHeaders.map(normalize);
-        const missingHeaders = config.requiredHeaders.filter(
-          (required) => !cleanHeadersNorm.includes(normalize(required))
-        );
-
-        if (missingHeaders.length > 0) {
-          setValidationError(
-            `Missing required columns: ${missingHeaders.join(", ")}. Please follow the template layout.`
-          );
+        const headerError = checkTemplateHeaders(type, headers.map(String), {
+          mode: "section",
+          templateButton: "Template CSV",
+        });
+        if (headerError) {
+          setValidationError(headerError);
           return;
         }
 
         setParsedRows(rows);
       } catch (err) {
-        setValidationError("Failed to read file. Please ensure it is a valid Excel or CSV file.");
+        setValidationError(UNREADABLE_FILE_MESSAGE);
         console.error(err);
       }
     };
@@ -159,12 +166,15 @@ export function SectionImportModal({
     startTransition(async () => {
       try {
         const BATCH_SIZE = 500;
-        let totalCount = 0;
+        let tally: TemplateImportTally = { ...EMPTY_TALLY };
+        let isDemo = false;
         const rejected: TemplateRejectedRow[] = [];
         setRejectedRows([]);
+        // Keys are numbered over the whole file, before it is split into batches.
+        const rowsToSend = type === "transactions" ? withTemplateImportKeys(parsedRows) : parsedRows;
 
-        for (let i = 0; i < parsedRows.length; i += BATCH_SIZE) {
-          const batch = parsedRows.slice(i, i + BATCH_SIZE);
+        for (let i = 0; i < rowsToSend.length; i += BATCH_SIZE) {
+          const batch = rowsToSend.slice(i, i + BATCH_SIZE);
           const isFirstBatch = i === 0;
 
           if (parsedRows.length > BATCH_SIZE) {
@@ -183,23 +193,21 @@ export function SectionImportModal({
             setRejectedRows(rejected);
             setImportResult({
               success: false,
-              message: "error" in res ? res.error : "Import failed",
+              message: templateStoppedMessage("error" in res ? res.error : "Import failed.", i + 2, i + batch.length + 1),
             });
             setProgressMsg(null);
             return;
           }
 
-          if ("count" in res && typeof res.count === "number") {
-            totalCount += res.count;
-          }
+          if ("tally" in res && res.tally) tally = addTallies(tally, res.tally);
+          if ("isDemo" in res && res.isDemo) isDemo = true;
         }
 
         setRejectedRows(rejected);
+        const summary = templateResultMessage(type, tally, rejected.length);
         setImportResult({
           success: true,
-          message: rejected.length
-            ? `Saved ${totalCount} records into ${config.label}. ${rejected.length} rows were rejected (see below).`
-            : `Successfully saved ${totalCount} records into ${config.label}!`,
+          message: isDemo ? `Demo workspace — checked only, nothing was saved. ${summary}` : summary,
         });
         setParsedRows([]);
         setFile(null);
