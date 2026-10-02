@@ -64,8 +64,8 @@ export function BillingComingSoon({ compact = false }: { compact?: boolean }) {
         <div>
           <h3 className="text-h3 font-semibold text-(--color-text-primary)">Choose a plan to add your data</h3>
           <p className="mt-1 text-small text-(--color-text-secondary)">
-            Your account is ready and you can explore everything. Adding your own data needs a paid plan. Billing is
-            coming soon, so plans can&apos;t be bought yet.
+            Your account is ready and you can explore everything. Adding your own data needs a paid plan, billed
+            monthly. You can cancel anytime.
           </p>
           {organization && (
             <p className="mt-1 text-small font-medium text-(--color-text-primary)">

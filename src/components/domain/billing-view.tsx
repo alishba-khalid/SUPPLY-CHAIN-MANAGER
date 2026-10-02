@@ -58,9 +58,6 @@ export function BillingView({
               {orgName && (
                 <p className="text-small font-medium text-(--color-text-primary)">Organization: {orgName}</p>
               )}
-              <p className="text-small text-(--color-text-secondary)">
-                Billing is coming soon. Plans can&apos;t be purchased yet.
-              </p>
               <p className="text-small text-(--color-text-secondary)">{SOURCE_NOTE[source]}</p>
             </div>
           </div>

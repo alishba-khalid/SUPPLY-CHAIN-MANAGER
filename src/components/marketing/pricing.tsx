@@ -12,7 +12,7 @@ export function Pricing() {
       <div className="mx-auto max-w-2xl text-center">
         <h2 className="text-h1 text-(--color-text-primary)">What it costs to keep on payroll</h2>
         <p className="mt-3 text-body-lg text-(--color-text-secondary)">
-          Try everything in the live demo first, free. Paid plans unlock adding your own data. Billing is coming soon.
+          Try everything in the live demo first, free. Paid plans unlock adding your own data. Billed monthly, cancel anytime.
         </p>
       </div>
 

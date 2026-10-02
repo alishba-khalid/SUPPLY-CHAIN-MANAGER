@@ -19,8 +19,8 @@
 import { TIER_ORDER, getTierRank } from "@/lib/subscriptions/tiers";
 import type { PlanTier } from "@/types/subscription";
 
-export const WRITE_BLOCKED_MESSAGE = "Adding your own data needs a paid plan. Billing is coming soon.";
-export const BILLING_COMING_SOON_MESSAGE = "Billing is coming soon. Plans can't be purchased or changed yet.";
+export const WRITE_BLOCKED_MESSAGE = "Adding your own data needs a paid plan. Choose a plan in Settings → Billing.";
+export const PLAN_CHANGE_MESSAGE = "Plans are bought through checkout and changed or cancelled in Manage billing (Settings → Billing).";
 
 /** Days a past_due subscription (failed payment, Polar retrying) keeps write access. */
 export const PAST_DUE_GRACE_DAYS = 7;

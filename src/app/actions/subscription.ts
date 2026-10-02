@@ -1,7 +1,7 @@
 "use server";
 
 import { requireOrgId, isDemoOrg, checkOrgWriteAccess } from "@/lib/auth";
-import { WRITE_BLOCKED_MESSAGE, BILLING_COMING_SOON_MESSAGE } from "@/lib/subscriptions/write-access";
+import { WRITE_BLOCKED_MESSAGE, PLAN_CHANGE_MESSAGE } from "@/lib/subscriptions/write-access";
 import { createPurchaseOrderAction } from "@/app/actions/domain";
 import type { PlanTier, BillingCycle } from "@/types/subscription";
 import type { SuggestedPurchaseOrder } from "@/lib/forecasting/demand-forecast";
@@ -14,8 +14,9 @@ import { insertWithNextPoNumber } from "@/lib/procurement/po-number";
 
 const DEMO_MSG = "Demo mode — action is simulated and not saved.";
 
-// The plan/billingCycle argument is kept so the billing view's call shape
-// doesn't change when real billing replaces the refusal below.
+// Plans are bought and changed only through Polar (/api/billing/checkout and
+// /api/billing/portal), so this never changes a plan. Kept as a refusal so no
+// caller can switch a plan for free.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function changePlanAction(_input: { plan: PlanTier; billingCycle?: BillingCycle }) {
   try {
@@ -29,10 +30,7 @@ export async function changePlanAction(_input: { plan: PlanTier; billingCycle?: 
       };
     }
 
-    // No billing exists yet, so a plan can't be bought or switched — not
-    // even by orgs on the IMPORT_ALLOWED_ORG_IDS list. Previously this
-    // flipped the in-memory plan for free, which was a checkout in name only.
-    return { success: false, error: BILLING_COMING_SOON_MESSAGE };
+    return { success: false, error: PLAN_CHANGE_MESSAGE };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : "Failed to update subscription." };
   }
