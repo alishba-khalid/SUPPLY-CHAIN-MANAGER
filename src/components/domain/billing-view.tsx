@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { PLAN_DEFINITIONS, TIER_ORDER } from "@/lib/subscriptions/tiers";
 import type { OrgSubscription, PlanTier, QuotaUsage, BillingCycle } from "@/types/subscription";
-import { changePlanAction } from "@/app/actions/subscription";
 import { Button } from "@/components/ui/button";
-import { Check, Sparkles, Building2, Package, Bot, Zap, ArrowRight, ShieldCheck } from "lucide-react";
+import { Check, Sparkles, Building2, Package, Bot, Zap, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function BillingView({
@@ -16,33 +15,14 @@ export function BillingView({
   quota: QuotaUsage;
 }) {
   const [billingCycle, setBillingCycle] = useState<BillingCycle>(subscription.billingCycle || "monthly");
-  const [isPending, startTransition] = useTransition();
-  const [activePlan, setActivePlan] = useState<PlanTier>(subscription.plan);
-  const [statusMsg, setStatusMsg] = useState<string | null>(null);
-
+  // No billing exists yet, so plans can't be bought or switched — every
+  // plan button below is disabled and changePlanAction refuses on the server.
+  const activePlan: PlanTier = subscription.plan;
   const currentPlanDef = PLAN_DEFINITIONS[activePlan];
-
-  function handleSelectPlan(plan: PlanTier) {
-    if (plan === activePlan) return;
-
-    startTransition(async () => {
-      const res = await changePlanAction({ plan, billingCycle });
-      if (res.success) {
-        setActivePlan(plan);
-        setStatusMsg((res as { message?: string }).message || `Successfully switched to the ${PLAN_DEFINITIONS[plan].name} plan!`);
-        setTimeout(() => setStatusMsg(null), 4000);
-      }
-    });
-  }
-
-  // Calculate trial days left if in trial
-  const trialEnds = new Date(subscription.trialEndsAt);
-  const today = new Date();
-  const trialDaysLeft = Math.max(0, Math.ceil((trialEnds.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)));
 
   return (
     <div className="space-y-8">
-      {/* Active Trial / Status Banner */}
+      {/* Plan / Status Banner */}
       <div className="rounded-xl border border-blue-500/20 bg-blue-500/10 p-5 text-small">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -54,16 +34,9 @@ export function BillingView({
                 <h3 className="font-semibold text-body text-(--color-text-primary)">
                   {currentPlanDef.name} Plan
                 </h3>
-                {subscription.status === "trialing" && (
-                  <span className="rounded-full bg-blue-600/20 px-2 py-0.5 text-caption font-semibold text-blue-600 dark:text-blue-400">
-                    14-Day Pro Trial
-                  </span>
-                )}
               </div>
               <p className="text-small text-(--color-text-secondary)">
-                {subscription.status === "trialing"
-                  ? `${trialDaysLeft} days remaining in your trial with all Professional capabilities unlocked.`
-                  : currentPlanDef.tagline}
+                Billing is coming soon. Plans can&apos;t be purchased yet.
               </p>
             </div>
           </div>
@@ -76,12 +49,6 @@ export function BillingView({
           </div>
         </div>
       </div>
-
-      {statusMsg && (
-        <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-4 text-small text-emerald-600 dark:text-emerald-400 font-medium">
-          ✓ {statusMsg}
-        </div>
-      )}
 
       {/* Quota & Usage Meter Section */}
       <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-6 space-y-4">
@@ -289,14 +256,8 @@ export function BillingView({
                     Current Plan
                   </Button>
                 ) : (
-                  <Button
-                    onClick={() => handleSelectPlan(tierKey)}
-                    disabled={isPending}
-                    variant={plan.highlighted ? "primary" : "secondary"}
-                    className="w-full gap-1.5"
-                  >
-                    {isPending ? "Updating..." : `Switch to ${plan.name}`}
-                    <ArrowRight size={14} />
+                  <Button variant={plan.highlighted ? "primary" : "secondary"} className="w-full" disabled>
+                    Billing coming soon
                   </Button>
                 )}
               </div>

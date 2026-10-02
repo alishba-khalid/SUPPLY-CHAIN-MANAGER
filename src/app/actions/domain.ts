@@ -1,6 +1,7 @@
 "use server";
 
-import { requireOrgId, isDemoOrg } from "@/lib/auth";
+import { requireOrgId, isDemoOrg, canWriteOrgData } from "@/lib/auth";
+import { WRITE_BLOCKED_MESSAGE } from "@/lib/subscriptions/write-access";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { duplicatePoNumberMessage } from "@/lib/procurement/po-number";
@@ -25,6 +26,7 @@ export async function createWarehouseAction(data: {
 }) {
   try {
     const orgId = await requireOrgId();
+    if (!canWriteOrgData(orgId)) return { success: false, writeBlocked: true, error: WRITE_BLOCKED_MESSAGE };
     const code = data.code.trim();
     const name = data.name.trim();
     const capacityUnits = Number(data.capacityUnits) || 0;
@@ -64,6 +66,7 @@ export async function createSupplierAction(data: {
 }) {
   try {
     const orgId = await requireOrgId();
+    if (!canWriteOrgData(orgId)) return { success: false, writeBlocked: true, error: WRITE_BLOCKED_MESSAGE };
     const supplierId = data.supplierId.trim();
     const name = data.name.trim();
     const leadTimeDays = Number(data.leadTimeDays) || 14;
@@ -105,6 +108,7 @@ export async function createProductAction(data: {
 }) {
   try {
     const orgId = await requireOrgId();
+    if (!canWriteOrgData(orgId)) return { success: false, writeBlocked: true, error: WRITE_BLOCKED_MESSAGE };
     const sku = data.sku.trim();
     const name = data.name.trim();
     const category = data.category.trim() || "general";
@@ -152,6 +156,7 @@ export async function adjustStockAction(data: {
 }) {
   try {
     const orgId = await requireOrgId();
+    if (!canWriteOrgData(orgId)) return { success: false, writeBlocked: true, error: WRITE_BLOCKED_MESSAGE };
     const sku = data.sku.trim();
     const warehouseId = Number(data.warehouseId);
     const quantityOnHand = Number(data.quantityOnHand) || 0;
@@ -194,6 +199,7 @@ export async function createPurchaseOrderAction(data: {
 }) {
   try {
     const orgId = await requireOrgId();
+    if (!canWriteOrgData(orgId)) return { success: false, writeBlocked: true, error: WRITE_BLOCKED_MESSAGE };
     const poNumber = data.poNumber.trim();
     const supplierId = data.supplierId.trim();
     const sku = data.sku.trim();
@@ -248,6 +254,7 @@ export async function receivePurchaseOrderAction(data: {
 }) {
   try {
     const orgId = await requireOrgId();
+    if (!canWriteOrgData(orgId)) return { success: false, writeBlocked: true, error: WRITE_BLOCKED_MESSAGE };
     const poNumber = data.poNumber.trim();
     const receivedDate = new Date(data.receivedDate);
 

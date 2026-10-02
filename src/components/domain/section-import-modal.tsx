@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { LoadingState } from "@/components/ui/loading-state";
 import { importDataAction } from "@/app/actions/import";
+import { WriteGate } from "@/components/domain/billing-coming-soon";
 import { RejectedRowsNotice } from "@/components/domain/rejected-rows-notice";
 import type { TemplateRejectedRow } from "@/lib/importer/template-rows";
 import {
@@ -229,6 +230,7 @@ export function SectionImportModal({
 
   return (
     <Modal open={open} onClose={handleClose} title={`Import ${config.label}`} className="max-w-2xl">
+      <WriteGate compact>
       <div className="space-y-4">
         <div className="flex items-center justify-between rounded-lg bg-(--color-surface-secondary) p-3 text-small">
           <span className="text-(--color-text-secondary)">{config.description}</span>
@@ -380,6 +382,7 @@ export function SectionImportModal({
 
         {isPending && <LoadingState message={progressMsg || "Writing records to database..."} />}
       </div>
+      </WriteGate>
     </Modal>
   );
 }

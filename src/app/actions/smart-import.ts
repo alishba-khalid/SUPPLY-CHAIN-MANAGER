@@ -1,6 +1,7 @@
 "use server";
 
-import { requireOrgId, isDemoOrg } from "@/lib/auth";
+import { requireOrgId, isDemoOrg, canWriteOrgData } from "@/lib/auth";
+import { WRITE_BLOCKED_MESSAGE } from "@/lib/subscriptions/write-access";
 import { saveOrgImportMapping, getOrgImportMapping } from "@/data/repositories/smart-import";
 import {
   beginImportSession,
@@ -23,6 +24,13 @@ import { checkRateLimit, getRequestIp } from "@/lib/rate-limit";
 const IMPORT_PER_IP_LIMIT = 10;
 const IMPORT_PER_IP_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
 
+// Read-only: lets the UI show the pricing screen instead of a form or upload
+// for orgs that may not add data. The write actions re-check on the server.
+export async function getWriteAccessAction(): Promise<{ allowed: boolean }> {
+  const orgId = await requireOrgId();
+  return { allowed: canWriteOrgData(orgId) };
+}
+
 export async function getImportLimitAction(): Promise<{ limit: number }> {
   const orgId = await requireOrgId();
   return { limit: await getImportRowLimit(orgId, isDemoOrg(orgId)) };
@@ -35,6 +43,7 @@ export async function beginImportAction(input: {
   clearExisting: boolean;
 }): Promise<BeginResult> {
   const orgId = await requireOrgId();
+  if (!canWriteOrgData(orgId)) return { ok: false, error: WRITE_BLOCKED_MESSAGE };
   const rowLimit = await getImportRowLimit(orgId, isDemoOrg(orgId));
 
   // Rate-limit whole imports (one begin each), not chunks — a large file is
@@ -56,6 +65,7 @@ export async function beginImportAction(input: {
 
 export async function stageImportChunkAction(sessionId: string, chunkIndex: number, rows: StagedRow[]): Promise<StageResult> {
   const orgId = await requireOrgId();
+  if (!canWriteOrgData(orgId)) return { ok: false, error: WRITE_BLOCKED_MESSAGE };
   return stageImportChunk(orgId, sessionId, chunkIndex, rows);
 }
 
@@ -71,6 +81,7 @@ export async function cancelImportAction(sessionId: string): Promise<void> {
 
 export async function commitImportAction(sessionId: string): Promise<CommitResult> {
   const orgId = await requireOrgId();
+  if (!canWriteOrgData(orgId)) return { ok: false, error: WRITE_BLOCKED_MESSAGE };
 
   // The shared public demo org is never written to: the commit runs in full
   // (validation, every insert) inside the transaction and is then rolled
@@ -93,6 +104,7 @@ export async function commitImportAction(sessionId: string): Promise<CommitResul
 
 export async function saveOrgMappingAction(headersSignature: string, mappings: SheetMapping[]) {
   const orgId = await requireOrgId();
+  if (!canWriteOrgData(orgId)) return { success: false, error: WRITE_BLOCKED_MESSAGE };
   if (isDemoOrg(orgId)) {
     return { success: true };
   }

@@ -31,10 +31,10 @@ export default function SupplierScorecardsPage() {
 
         <div className="mt-8 flex justify-center gap-4">
           <Link
-            href="/sign-up"
+            href="/dashboard/overview?demo=true"
             className="inline-flex items-center gap-2 rounded-lg bg-(--color-brand) px-6 py-3 text-body font-semibold text-white hover:bg-(--color-brand-hover) transition-colors"
           >
-            Start 14-Day Free Trial
+            See live demo
             <ArrowRight size={16} />
           </Link>
         </div>

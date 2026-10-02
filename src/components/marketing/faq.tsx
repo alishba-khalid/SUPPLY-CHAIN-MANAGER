@@ -1,5 +1,4 @@
 import { Accordion, type AccordionItem } from "@/components/ui/accordion";
-import { TRIAL_DAYS } from "@/lib/site-config";
 
 export const FAQ_ITEMS: AccordionItem[] = [
   {
@@ -33,8 +32,9 @@ export const FAQ_ITEMS: AccordionItem[] = [
       "No — you approve every action. It recommends a specific purchase order, a supplier review, or a warehouse transfer, and explains why. Nothing happens until you approve it.",
   },
   {
-    question: "How does the trial work?",
-    answer: `${TRIAL_DAYS} days, no credit card required. You can also try the live demo with no signup at all — it's preloaded with a sample dataset so you can see real stockout prevention and reorder recommendations before connecting your own data. When you're ready, you choose a plan from Settings — there's no automatic billing, and nothing on your account changes when the trial period ends.`,
+    question: "Can I try it before paying?",
+    answer:
+      "Yes. The live demo runs on a real sample dataset with no signup, so you can see stockout projections and reorder recommendations first. Adding your own data needs a paid plan. Billing is coming soon.",
   },
 ];
 

@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
+import { WriteGate } from "@/components/domain/billing-coming-soon";
 import { SectionImportModal } from "./section-import-modal";
 import { createWarehouseAction } from "@/app/actions/domain";
 import { Plus, Upload, Warehouse as WarehouseIcon, AlertCircle } from "lucide-react";
@@ -57,6 +58,7 @@ export function WarehousesActions() {
       </div>
 
       <Modal open={addOpen} onClose={() => setAddOpen(false)} title="Add Warehouse">
+        <WriteGate compact>
         <form onSubmit={handleCreate} className="space-y-4">
           {error && (
             <div className="flex gap-2 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-small text-red-500">
@@ -116,6 +118,7 @@ export function WarehousesActions() {
             </Button>
           </div>
         </form>
+        </WriteGate>
       </Modal>
 
       <SectionImportModal open={importOpen} onClose={() => setImportOpen(false)} type="warehouses" />

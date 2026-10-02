@@ -4,10 +4,10 @@ import { useState } from "react";
 import Link from "next/link";
 import { Check, ShieldCheck, Download, Zap, XCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { PRICING_TIERS, CONTACT_EMAIL, TRIAL_DAYS, type BillingPeriod } from "@/lib/site-config";
+import { PRICING_TIERS, type BillingPeriod } from "@/lib/site-config";
 
 export function Pricing() {
   const [period, setPeriod] = useState<BillingPeriod>("monthly");
@@ -17,7 +17,7 @@ export function Pricing() {
       <div className="mx-auto max-w-2xl text-center">
         <h2 className="text-h1 text-(--color-text-primary)">What it costs to keep on payroll</h2>
         <p className="mt-3 text-body-lg text-(--color-text-secondary)">
-          Every plan starts with a {TRIAL_DAYS}-day free trial with full Professional capabilities. No credit card required.
+          Try everything in the live demo first, free. Paid plans unlock adding your own data. Billing is coming soon.
         </p>
       </div>
 
@@ -124,12 +124,9 @@ export function Pricing() {
 
               <div className="mt-8 pt-4 border-t border-(--color-border)">
                 {tier.contactUsInstead ? (
-                  <a
-                    href={`mailto:${CONTACT_EMAIL}`}
-                    className={buttonVariants({ variant: "secondary", size: "lg", className: "w-full" })}
-                  >
-                    Contact sales
-                  </a>
+                  <Button variant="secondary" size="lg" className="w-full" disabled>
+                    Billing coming soon
+                  </Button>
                 ) : (
                   <Link
                     href="/sign-up"
@@ -139,7 +136,7 @@ export function Pricing() {
                       className: "w-full",
                     })}
                   >
-                    Start 14-day trial
+                    Get started
                   </Link>
                 )}
               </div>
@@ -153,7 +150,7 @@ export function Pricing() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
           <div className="flex items-center justify-center gap-2 text-small font-semibold text-(--color-text-primary)">
             <ShieldCheck size={18} className="text-emerald-500" />
-            <span>14-Day Free Trial</span>
+            <span>Free live demo</span>
           </div>
           <div className="flex items-center justify-center gap-2 text-small font-semibold text-(--color-text-primary)">
             <XCircle size={18} className="text-(--color-brand)" />

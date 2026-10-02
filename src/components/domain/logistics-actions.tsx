@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
+import { WriteGate } from "@/components/domain/billing-coming-soon";
 import { receivePurchaseOrderAction } from "@/app/actions/domain";
 import type { PurchaseOrder, Warehouse } from "@/types/supply-chain";
 import { CheckCircle2, Ship, AlertCircle } from "lucide-react";
@@ -60,6 +61,7 @@ export function LogisticsActions({
       </div>
 
       <Modal open={receiveOpen} onClose={() => setReceiveOpen(false)} title="Receive Inbound Shipment" className="max-w-md">
+        <WriteGate compact>
         <form onSubmit={handleReceive} className="space-y-4">
           {error && (
             <div className="flex gap-2 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-small text-red-500">
@@ -126,6 +128,7 @@ export function LogisticsActions({
             </Button>
           </div>
         </form>
+        </WriteGate>
       </Modal>
     </>
   );

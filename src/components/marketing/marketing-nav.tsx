@@ -57,7 +57,7 @@ export function MarketingNav() {
                 Sign in
               </Link>
               <Link href="/sign-up" className={buttonVariants({ variant: "primary", size: "md" })}>
-                Start trial
+                Get started
               </Link>
             </>
           )}
@@ -110,7 +110,7 @@ export function MarketingNav() {
                   onClick={() => setOpen(false)}
                   className={buttonVariants({ variant: "primary", size: "md", className: "w-full" })}
                 >
-                  Start trial
+                  Get started
                 </Link>
               </>
             )}

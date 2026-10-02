@@ -1,6 +1,7 @@
 "use server";
 
-import { requireOrgId, isDemoOrg } from "@/lib/auth";
+import { requireOrgId, isDemoOrg, canWriteOrgData } from "@/lib/auth";
+import { WRITE_BLOCKED_MESSAGE } from "@/lib/subscriptions/write-access";
 import { importData } from "@/data/repositories/import";
 import { parseTemplateRows, type TemplateType } from "@/lib/importer/template-rows";
 import { EMPTY_TALLY } from "@/lib/importer/template-import";
@@ -16,12 +17,15 @@ export async function importDataAction(
   options: { clearExisting: boolean; firstRowNumber?: number }
 ) {
   const orgId = await requireOrgId();
+  if (!canWriteOrgData(orgId)) {
+    return { success: false as const, writeBlocked: true as const, error: WRITE_BLOCKED_MESSAGE };
+  }
 
   if (isDemoOrg(orgId)) {
     // Same row rules as a real import, so the demo reports the same rejections.
     const { records, rejected } = parseTemplateRows(type, rows, options.firstRowNumber ?? 2);
     return {
-      success: true,
+      success: true as const,
       isDemo: true,
       message: DEMO_MSG,
       count: records.length,

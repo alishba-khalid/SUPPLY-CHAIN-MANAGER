@@ -1,7 +1,7 @@
 "use server";
 
-import { requireOrgId, isDemoOrg } from "@/lib/auth";
-import { updateOrgSubscription } from "@/data/repositories/subscription";
+import { requireOrgId, isDemoOrg, canWriteOrgData } from "@/lib/auth";
+import { WRITE_BLOCKED_MESSAGE, BILLING_COMING_SOON_MESSAGE } from "@/lib/subscriptions/write-access";
 import { createPurchaseOrderAction } from "@/app/actions/domain";
 import type { PlanTier, BillingCycle } from "@/types/subscription";
 import type { SuggestedPurchaseOrder } from "@/lib/forecasting/demand-forecast";
@@ -14,13 +14,10 @@ import { insertWithNextPoNumber } from "@/lib/procurement/po-number";
 
 const DEMO_MSG = "Demo mode — action is simulated and not saved.";
 
-export async function changePlanAction({
-  plan,
-  billingCycle,
-}: {
-  plan: PlanTier;
-  billingCycle?: BillingCycle;
-}) {
+// The plan/billingCycle argument is kept so the billing view's call shape
+// doesn't change when real billing replaces the refusal below.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export async function changePlanAction(_input: { plan: PlanTier; billingCycle?: BillingCycle }) {
   try {
     const orgId = await requireOrgId();
 
@@ -32,12 +29,10 @@ export async function changePlanAction({
       };
     }
 
-    const updated = await updateOrgSubscription(orgId, { plan, billingCycle });
-    revalidatePath("/dashboard/settings");
-    revalidatePath("/dashboard/overview");
-    revalidatePath("/dashboard/inventory");
-    revalidatePath("/dashboard/ai-manager");
-    return { success: true, subscription: updated };
+    // No billing exists yet, so a plan can't be bought or switched — not
+    // even by orgs on the IMPORT_ALLOWED_ORG_IDS list. Previously this
+    // flipped the in-memory plan for free, which was a checkout in name only.
+    return { success: false, error: BILLING_COMING_SOON_MESSAGE };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : "Failed to update subscription." };
   }
@@ -46,6 +41,7 @@ export async function changePlanAction({
 export async function createPoFromSuggestionAction(suggestion: SuggestedPurchaseOrder) {
   try {
     const orgId = await requireOrgId();
+    if (!canWriteOrgData(orgId)) return { success: false, writeBlocked: true, error: WRITE_BLOCKED_MESSAGE };
 
     const invalid = invalidSuggestedPoReason({
       supplierId: suggestion.supplierId,
