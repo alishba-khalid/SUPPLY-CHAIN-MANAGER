@@ -68,7 +68,7 @@ export function AIManagerView({
         {
           id: `err-${Date.now()}`,
           sender: "ai",
-          text: `⚠️ You have reached your monthly limit of AI queries for the ${subscription.plan.toUpperCase()} tier (${quota.aiQueries.limit} queries/mo). Please upgrade your plan in Settings to continue querying.`,
+          text: `⚠️ You have reached your monthly limit of AI queries for the ${(subscription.plan ?? "no plan").toUpperCase()} tier (${quota.aiQueries.limit} queries/mo). Please upgrade your plan in Settings to continue querying.`,
           timestamp: "Just now",
           suggestedAction: {
             label: "Upgrade Plan",
@@ -136,7 +136,7 @@ export function AIManagerView({
                 AI Supply Chain Copilot
               </h3>
               <span className="rounded-full bg-purple-500/10 px-2 py-0.5 text-caption font-semibold text-purple-600 dark:text-purple-400 capitalize">
-                {subscription.plan} Tier
+                {subscription.plan === null ? "No plan" : `${subscription.plan} Tier`}
               </span>
             </div>
             <p className="text-small text-(--color-text-muted)">

@@ -90,18 +90,19 @@ export const PLAN_DEFINITIONS: Record<PlanTier, PlanDefinition> = {
   },
 };
 
-// Rows per single import while an org is on the public demo or still in its
-// trial — paid plans use their own `importRowLimit` above. A per-org
+// Rows per single import for the public demo, an org on the
+// IMPORT_ALLOWED_ORG_IDS override, or an org with no plan — paid plans use
+// their own `importRowLimit` above. A per-org
 // override (organizations.import_row_limit_override) beats both.
 export const TRIAL_IMPORT_ROW_LIMIT = 50_000;
 
 export function resolveImportRowLimit(opts: {
-  plan: PlanTier;
+  plan: PlanTier | null;
   isDemoOrTrial: boolean;
   orgOverride?: number | null;
 }): number {
   if (opts.orgOverride != null && opts.orgOverride > 0) return opts.orgOverride;
-  if (opts.isDemoOrTrial) return TRIAL_IMPORT_ROW_LIMIT;
+  if (opts.isDemoOrTrial || opts.plan === null) return TRIAL_IMPORT_ROW_LIMIT;
   return PLAN_DEFINITIONS[opts.plan].importRowLimit;
 }
 

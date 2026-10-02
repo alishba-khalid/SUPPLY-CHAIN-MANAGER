@@ -15,8 +15,11 @@ export function BillingView({
 }) {
   // No billing exists yet, so plans can't be bought or switched — every
   // plan button below is disabled and changePlanAction refuses on the server.
-  const activePlan: PlanTier = subscription.plan;
-  const currentPlanDef = PLAN_DEFINITIONS[activePlan];
+  // null = "No plan" (never paid and not on the allow-list).
+  const activePlan: PlanTier | null = subscription.plan;
+  const currentPlanDef = activePlan === null ? null : PLAN_DEFINITIONS[activePlan];
+  const wh = quota.warehouses;
+  const skus = quota.skus;
 
   return (
     <div className="space-y-8">
@@ -30,7 +33,7 @@ export function BillingView({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-semibold text-body text-(--color-text-primary)">
-                  {currentPlanDef.name} Plan
+                  {currentPlanDef === null ? "No plan" : `${currentPlanDef.name} Plan`}
                 </h3>
               </div>
               <p className="text-small text-(--color-text-secondary)">
@@ -63,28 +66,28 @@ export function BillingView({
                 <Building2 size={16} className="text-(--color-brand)" /> Warehouses
               </span>
               <span>
-                {quota.warehouses.used} / {quota.warehouses.limit === -1 ? "Unlimited" : quota.warehouses.limit}
+                {wh.used} / {wh.limit === null ? "—" : wh.limit === -1 ? "Unlimited" : wh.limit}
               </span>
             </div>
             <div className="h-2 w-full rounded-full bg-(--color-border) overflow-hidden">
               <div
                 className={cn(
                   "h-full rounded-full transition-all",
-                  quota.warehouses.isOverLimit ? "bg-red-500" : "bg-(--color-brand)"
+                  wh.isOverLimit ? "bg-red-500" : "bg-(--color-brand)"
                 )}
                 style={{
                   width: `${
-                    quota.warehouses.limit === -1
-                      ? 20
-                      : Math.min(100, (quota.warehouses.used / quota.warehouses.limit) * 100)
+                    wh.limit === null ? 0 : wh.limit === -1 ? 20 : Math.min(100, (wh.used / wh.limit) * 100)
                   }%`,
                 }}
               />
             </div>
             <p className="text-caption text-(--color-text-muted)">
-              {quota.warehouses.limit === -1
-                ? "Unlimited facilities allowed"
-                : `${Math.max(0, quota.warehouses.limit - quota.warehouses.used)} facility slots available`}
+              {wh.limit === null
+                ? "No plan"
+                : wh.limit === -1
+                  ? "Unlimited facilities allowed"
+                  : `${Math.max(0, wh.limit - wh.used)} facility slots available`}
             </p>
           </div>
 
@@ -95,27 +98,29 @@ export function BillingView({
                 <Package size={16} className="text-blue-500" /> Active SKUs
               </span>
               <span>
-                {quota.skus.used.toLocaleString()} /{" "}
-                {quota.skus.limit === -1 ? "Unlimited" : quota.skus.limit.toLocaleString()}
+                {skus.used.toLocaleString()} /{" "}
+                {skus.limit === null ? "—" : skus.limit === -1 ? "Unlimited" : skus.limit.toLocaleString()}
               </span>
             </div>
             <div className="h-2 w-full rounded-full bg-(--color-border) overflow-hidden">
               <div
                 className={cn(
                   "h-full rounded-full transition-all",
-                  quota.skus.isOverLimit ? "bg-red-500" : "bg-blue-500"
+                  skus.isOverLimit ? "bg-red-500" : "bg-blue-500"
                 )}
                 style={{
                   width: `${
-                    quota.skus.limit === -1 ? 15 : Math.min(100, (quota.skus.used / quota.skus.limit) * 100)
+                    skus.limit === null ? 0 : skus.limit === -1 ? 15 : Math.min(100, (skus.used / skus.limit) * 100)
                   }%`,
                 }}
               />
             </div>
             <p className="text-caption text-(--color-text-muted)">
-              {quota.skus.limit === -1
-                ? "Unlimited catalog size"
-                : `${Math.max(0, quota.skus.limit - quota.skus.used).toLocaleString()} product slots remaining`}
+              {skus.limit === null
+                ? "No plan"
+                : skus.limit === -1
+                  ? "Unlimited catalog size"
+                  : `${Math.max(0, skus.limit - skus.used).toLocaleString()} product slots remaining`}
             </p>
           </div>
 

@@ -2,7 +2,8 @@ export type PlanTier = "starter" | "growth" | "professional" | "enterprise";
 
 export type BillingCycle = "monthly" | "annual";
 
-export type SubscriptionStatus = "trialing" | "active" | "canceled" | "past_due";
+// Where an org's plan comes from — see src/lib/subscriptions/write-access.ts.
+export type PlanSource = "demo" | "subscription" | "allow-list" | "none";
 
 export interface PlanFeature {
   id: string;
@@ -30,24 +31,21 @@ export interface PlanDefinition {
 
 export interface OrgSubscription {
   orgId: string;
-  plan: PlanTier;
-  status: SubscriptionStatus;
-  billingCycle: BillingCycle;
-  trialEndsAt: string; // ISO Date string
+  plan: PlanTier | null; // null = "No plan"
+  source: PlanSource;
   aiQueriesUsed: number;
   aiQueriesLimit: number;
-  createdAt: string;
 }
 
 export interface QuotaUsage {
   warehouses: {
     used: number;
-    limit: number;
+    limit: number | null; // null = no plan, -1 = unlimited
     isOverLimit: boolean;
   };
   skus: {
     used: number;
-    limit: number;
+    limit: number | null; // null = no plan, -1 = unlimited
     isOverLimit: boolean;
   };
   aiQueries: {

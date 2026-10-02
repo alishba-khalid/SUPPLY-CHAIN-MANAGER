@@ -124,7 +124,7 @@ export default async function InventoryPage({
             <SuggestedPosPanel
               suggestions={suggestions}
               isStarter={subscription.plan === "starter"}
-              planId={subscription.plan}
+              planId={subscription.plan ?? undefined}
             />
 
             <div className="flex flex-wrap items-center justify-between gap-3">
