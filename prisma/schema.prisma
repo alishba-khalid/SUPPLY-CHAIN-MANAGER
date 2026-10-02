@@ -264,3 +264,49 @@ model ForecastResult {
   @@map("forecast_results")
 }
 
+
+// One row per Polar subscription (Polar is the merchant of record). Written
+// only by the Polar webhook and the post-checkout re-sync — never by settings
+// code. An org can have several rows over time (cancel, then buy again);
+// it may write if ANY of its rows grants access — see
+// src/lib/subscriptions/write-access.ts. `org_id` is the Clerk org id, sent
+// to Polar as the checkout's external customer id.
+model OrgSubscription {
+  id                  Int       @id @default(autoincrement())
+  orgId               String    @map("org_id")
+  polarSubscriptionId String    @unique @map("polar_subscription_id")
+  polarCustomerId     String    @map("polar_customer_id")
+  polarProductId      String    @map("polar_product_id")
+  // PlanTier ("starter" | "growth" | "professional"), mapped from the product.
+  plan                String
+  // Polar's subscription status as sent (active, trialing, past_due,
+  // canceled, unpaid, incomplete, incomplete_expired).
+  status              String
+  currentPeriodEnd    DateTime? @map("current_period_end")
+  // true = canceled by the customer, access continues until currentPeriodEnd.
+  cancelAtPeriodEnd   Boolean   @default(false) @map("cancel_at_period_end")
+  // Set when Polar ends (revokes) the subscription — access stops then.
+  endedAt             DateTime? @map("ended_at")
+  // When the status first became past_due; cleared once it leaves past_due.
+  // Starts the PAST_DUE_GRACE_DAYS clock.
+  pastDueSince        DateTime? @map("past_due_since")
+  // Polar's modified_at of the event last applied. Older events are ignored,
+  // so a late or re-delivered webhook can never roll the state back.
+  polarModifiedAt     DateTime  @map("polar_modified_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  @@index([orgId])
+  @@map("org_subscriptions")
+}
+
+// Every Polar webhook delivery already applied, keyed by its webhook-id
+// header. Polar retries up to 10 times; a repeat id is acknowledged and
+// skipped instead of being applied twice.
+model PolarWebhookEvent {
+  webhookId  String   @id @map("webhook_id")
+  type       String
+  receivedAt DateTime @default(now()) @map("received_at")
+
+  @@map("polar_webhook_events")
+}
