@@ -1,7 +1,9 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import type { models } from "@polar-sh/sdk/2026-10";
+import { billingErrorMessage, isBillingErrorCode } from "@/lib/subscriptions/billing-messages";
 import {
+  describePolarError,
   getPolarClient,
   planForProductId,
   polarEnvironment,
@@ -106,5 +108,29 @@ describe("subscriptionStateFromPolar", () => {
     const res = subscriptionStateFromPolar(fresh, env);
     assert.ok(res.ok);
     if (res.ok) assert.deepEqual(res.state.modifiedAt, new Date("2026-10-02T10:00:00Z"));
+  });
+});
+
+describe("describePolarError", () => {
+  test("logs only the error class and HTTP status, never the error's contents", () => {
+    const err = Object.assign(new Error("Bearer polar_secret_value"), { name: "PolarClientError", statusCode: 401 });
+    assert.equal(describePolarError(err), "PolarClientError (HTTP 401)");
+    assert.doesNotMatch(describePolarError(err), /secret|Bearer/);
+    assert.equal(describePolarError("nope"), "unknown error");
+  });
+});
+
+describe("billing error messages", () => {
+  test("a missing product id names the plan and says nothing was charged", () => {
+    assert.equal(
+      billingErrorMessage("not-configured", "growth"),
+      "Checkout isn't set up for the Growth plan yet. Nothing was charged.",
+    );
+  });
+
+  test("only fixed codes are accepted, and a bogus ?plan= is never echoed", () => {
+    assert.equal(isBillingErrorCode("not-configured"), true);
+    assert.equal(isBillingErrorCode("<script>"), false);
+    assert.equal(billingErrorMessage("not-configured", "<b>evil</b>"), "Checkout isn't set up yet. Nothing was charged.");
   });
 });

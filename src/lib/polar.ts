@@ -111,3 +111,14 @@ export function subscriptionStateFromPolar(
     },
   };
 }
+
+/**
+ * A loggable description of a failed Polar call: the error class and HTTP
+ * status only. Never log the error object itself — request details could
+ * carry the Authorization header.
+ */
+export function describePolarError(err: unknown): string {
+  if (!(err instanceof Error)) return "unknown error";
+  const status = (err as { statusCode?: unknown }).statusCode;
+  return typeof status === "number" ? `${err.name} (HTTP ${status})` : err.name;
+}
