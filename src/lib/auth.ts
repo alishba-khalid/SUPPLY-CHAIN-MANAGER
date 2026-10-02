@@ -55,7 +55,9 @@ export const getOrgAccess = cache(async (orgId: string): Promise<OrgAccess> => {
     try {
       subscriptions = await listOrgSubscriptions(orgId);
     } catch (err) {
-      console.error(`[billing] org ${orgId}: could not read subscriptions`, err);
+      console.error(
+        `[billing] org ${orgId}: could not read subscriptions: ${err instanceof Error ? err.name : "unknown error"}`,
+      );
     }
   }
   return resolveOrgAccess({
