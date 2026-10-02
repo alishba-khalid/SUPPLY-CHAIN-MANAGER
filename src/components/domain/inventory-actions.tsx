@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
+import { WriteGate } from "@/components/domain/billing-coming-soon";
 import { SectionImportModal } from "./section-import-modal";
 import { createProductAction, adjustStockAction } from "@/app/actions/domain";
 import type { Warehouse, Supplier } from "@/types/supply-chain";
@@ -116,6 +117,7 @@ export function InventoryActions({
 
       {/* Add Product Modal */}
       <Modal open={productOpen} onClose={() => setProductOpen(false)} title="Add Product to Master Catalog">
+        <WriteGate compact>
         <div className="mb-4 flex items-center justify-between rounded-lg bg-(--color-surface-secondary) p-3 text-small">
           <span className="text-(--color-text-secondary)">Have a CSV or Excel spreadsheet of products?</span>
           <Button
@@ -230,10 +232,12 @@ export function InventoryActions({
             </Button>
           </div>
         </form>
+        </WriteGate>
       </Modal>
 
       {/* Adjust Stock Modal */}
       <Modal open={stockOpen} onClose={() => setStockOpen(false)} title="Update Inventory Stock Balance">
+        <WriteGate compact>
         <form onSubmit={handleAdjustStock} className="space-y-4">
           {error && (
             <div className="flex gap-2 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-small text-red-500">
@@ -304,6 +308,7 @@ export function InventoryActions({
             </Button>
           </div>
         </form>
+        </WriteGate>
       </Modal>
 
       <SectionImportModal open={importProductsOpen} onClose={() => setImportProductsOpen(false)} type="products" />

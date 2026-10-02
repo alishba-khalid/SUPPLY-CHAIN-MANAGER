@@ -98,7 +98,7 @@ export const COMPETITORS: Record<string, CompetitorData> = {
       "Modern, fast user interface with sub-second page loads.",
       "Daily automated health scoring across Inventory, Procurement, Logistics, and Warehouses.",
       "AI Manager capable of explaining score drops and recommending PO pull-forwards.",
-      "14-day free trial with no credit card required.",
+      "Free live demo with sample data, no signup required.",
     ],
     matrix: [
       { feature: "Starting Monthly Price", scm: "$49 / month", competitor: "$349+ / month" },

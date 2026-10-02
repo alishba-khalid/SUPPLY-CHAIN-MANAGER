@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Modal } from "@/components/ui/modal";
+import { WriteGate } from "@/components/domain/billing-coming-soon";
 import { Button } from "@/components/ui/button";
 import { createPoFromSuggestionAction } from "@/app/actions/subscription";
 import type { SuggestedPurchaseOrder } from "@/lib/forecasting/demand-forecast";
@@ -77,6 +78,7 @@ function SuggestedPoForm({ suggestion, open, onClose }: { suggestion: PoDraft; o
 
   return (
     <Modal open={open} onClose={onClose} title="1-Click Purchase Order Generation">
+      <WriteGate compact>
       <div className="space-y-4">
         {error && (
           <div className="flex gap-2 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-small text-red-500">
@@ -201,6 +203,7 @@ function SuggestedPoForm({ suggestion, open, onClose }: { suggestion: PoDraft; o
           </Button>
         </div>
       </div>
+      </WriteGate>
     </Modal>
   );
 }

@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { SITE_NAME, SITE_URL, CONTACT_EMAIL, TRIAL_DAYS } from "@/lib/site-config";
+import { SITE_NAME, SITE_URL, CONTACT_EMAIL } from "@/lib/site-config";
 
 const TITLE = `Terms of Service | ${SITE_NAME}`;
-const DESCRIPTION = `The terms for using ${SITE_NAME}: accounts, trials and billing, your data, acceptable use, termination, liability and how to contact us.`;
-const LAST_UPDATED = "September 18, 2026";
+const DESCRIPTION = `The terms for using ${SITE_NAME}: accounts, plans and billing, your data, acceptable use, termination, liability and how to contact us.`;
+const LAST_UPDATED = "October 2, 2026";
 
 // TODO: this page is unfinished — it has no Governing Law section because no
 // jurisdiction has been confirmed, and no registered legal entity/address.
@@ -68,11 +68,10 @@ export default function TermsPage() {
           </p>
         </Section>
 
-        <Section title="4. Trials, plans, and billing">
+        <Section title="4. Plans and billing">
           <p>
-            New accounts start with a {TRIAL_DAYS}-day trial and no payment details are required to begin. After the
-            trial, you choose a paid plan to continue; if you don&apos;t, your account moves to read-only and no
-            charge is made automatically. Plan limits (warehouses, SKUs, seats) are described on our pricing page and
+            Creating an account is free. Adding your own data requires a paid plan. No charge is ever made
+            automatically: you choose a plan before you are billed. Plan limits (warehouses, SKUs, seats) are described on our pricing page and
             you&apos;ll be notified before you hit one — nothing shuts off without warning. Upgrades and downgrades
             take effect with prorated billing on your next invoice.
           </p>

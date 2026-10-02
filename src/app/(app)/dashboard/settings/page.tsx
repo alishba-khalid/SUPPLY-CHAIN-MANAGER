@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
 import { SmartImporter } from "@/components/domain/smart-importer/smart-importer";
+import { WriteGate } from "@/components/domain/billing-coming-soon";
 import { SettingsTabs } from "@/components/domain/settings-tabs";
 import { BillingView } from "@/components/domain/billing-view";
 import { LoadingState } from "@/components/ui/loading-state";
@@ -51,7 +52,11 @@ export default async function SettingsPage({
           <SettingsTabs
             orgName={orgName}
             orgId={activeOrgId}
-            importer={<SmartImporter />}
+            importer={
+              <WriteGate>
+                <SmartImporter />
+              </WriteGate>
+            }
             billingView={<BillingView subscription={subscription} quota={quota} />}
           />
         </Suspense>

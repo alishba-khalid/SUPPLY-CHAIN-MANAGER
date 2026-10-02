@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { isOrgWriteAllowed } from "@/lib/subscriptions/write-access";
 
 /**
  * The *only* sanctioned source of `orgId` anywhere in this app. It reads
@@ -35,3 +36,17 @@ export async function requireOrgId(): Promise<string> {
 }
 
 
+
+/**
+ * Whether this org may add or change its own data (see
+ * src/lib/subscriptions/write-access.ts). Every server action that writes
+ * org data checks this right after requireOrgId() and returns
+ * WRITE_BLOCKED_MESSAGE when it's false.
+ */
+export function canWriteOrgData(orgId: string): boolean {
+  return isOrgWriteAllowed({
+    orgId,
+    isDemo: isDemoOrg(orgId),
+    envValue: process.env.IMPORT_ALLOWED_ORG_IDS,
+  });
+}

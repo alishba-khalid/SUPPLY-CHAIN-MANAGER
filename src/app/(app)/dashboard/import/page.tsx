@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/ui/page-header";
 import { SmartImporter } from "@/components/domain/smart-importer/smart-importer";
+import { WriteGate } from "@/components/domain/billing-coming-soon";
 
 // The smart importer (rendered here) commits large files in one database
 // transaction via a server action — give it the full function budget.
@@ -14,7 +15,9 @@ export default function ImportPage() {
       />
       <div className="p-8">
         <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-6">
-          <SmartImporter />
+          <WriteGate>
+            <SmartImporter />
+          </WriteGate>
         </div>
       </div>
     </div>

@@ -2,7 +2,6 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { DashboardPreview } from "./dashboard-preview";
-import { TRIAL_DAYS } from "@/lib/site-config";
 
 export function Hero() {
   return (
@@ -23,7 +22,7 @@ export function Hero() {
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Link href="/sign-up" className={buttonVariants({ variant: "primary", size: "lg", className: "w-full sm:w-auto" })}>
-              Start {TRIAL_DAYS}-day trial
+              Get started
               <ArrowRight size={16} />
             </Link>
             <Link href="/dashboard/overview?demo=true" className={buttonVariants({ variant: "secondary", size: "lg", className: "w-full sm:w-auto" })}>
@@ -31,7 +30,7 @@ export function Hero() {
             </Link>
           </div>
           <p className="mt-3 text-small text-(--color-text-muted)">
-            {TRIAL_DAYS}-day free trial · No credit card required
+            Explore the live demo free · Adding your own data needs a paid plan
           </p>
         </div>
 

@@ -17,8 +17,6 @@ export const CONTACT_EMAIL = "alishbakhalid76@gmail.com";
 export const PRIMARY_KEYWORD = "supply chain software for distributors";
 export const TAGLINE = "Your supply chain just hired a manager.";
 
-export const TRIAL_DAYS = 14;
-
 export type BillingPeriod = "monthly" | "annual";
 
 export interface PricingTier {
@@ -83,7 +81,7 @@ export const PRICING_TIERS: PricingTier[] = [
       "Landed cost & scenario modeling (coming soon)",
       "Batch, lot & expiry tracking (coming soon)",
       "Full API & ERP integration (coming soon)",
-      "2,000 AI queries / mo (14-day trial)",
+      "2,000 AI queries / mo",
     ],
     highlighted: false,
   },
