@@ -1,10 +1,16 @@
 import type { PlanDefinition, PlanTier } from "@/types/subscription";
 
+// The one plan catalog: prices, limits and the feature list shown on every
+// plan card (marketing pricing, the in-app Billing view and the plan screen).
+// Each card lists only what the app does today. Warehouse and SKU limits are
+// shown but not yet enforced; seats and AI-query allowances are not listed.
 export const PLAN_DEFINITIONS: Record<PlanTier, PlanDefinition> = {
   starter: {
     id: "starter",
     name: "Starter",
     tagline: "Essential inventory tracking & visibility for single-facility operations.",
+    audience: "Single-warehouse operations getting off spreadsheets",
+    contactUsInstead: false,
     monthlyPrice: 49,
     annualMonthlyPrice: 39,
     warehouseLimit: 1,
@@ -13,20 +19,19 @@ export const PLAN_DEFINITIONS: Record<PlanTier, PlanDefinition> = {
     monthlyAiQueries: 50,
     importRowLimit: 100_000,
     features: [
-      "1 Warehouse facility",
+      "1 warehouse",
       "Up to 500 SKUs",
-      "Inventory tracking & balances",
-      "Purchase order issuing",
-      "Critical stock & delay alerts",
+      "Inventory tracking & alerts",
       "Supplier scorecards & OTIF",
       "CSV / Excel Data Importer",
-      "50 AI Manager queries / month",
     ],
   },
   growth: {
     id: "growth",
     name: "Growth",
     tagline: "Demand forecasting, automated reorders & supplier integration.",
+    audience: "Growing operations automating reorders & forecasting",
+    contactUsInstead: false,
     monthlyPrice: 199,
     annualMonthlyPrice: 159,
     warehouseLimit: 3,
@@ -37,21 +42,18 @@ export const PLAN_DEFINITIONS: Record<PlanTier, PlanDefinition> = {
     highlighted: true,
     features: [
       "Everything in Starter, plus:",
-      "Up to 3 Warehouses",
+      "Up to 3 warehouses",
       "Up to 5,000 SKUs",
-      "Deterministic Demand Forecasting",
-      "Calculated Reorder Points & Safety Stock",
+      "Demand forecasting & safety stock",
       "1-Click Suggested Purchase Orders",
-      "Email & WhatsApp Instant Notifications (coming soon)",
-      "PO Send to Supplier with PDF Export (coming soon)",
-      "REST API (Read-Only) (coming soon)",
-      "500 AI Manager queries / month",
     ],
   },
   professional: {
     id: "professional",
     name: "Professional",
     tagline: "Multi-facility network optimization, landed costs & scenario modeling.",
+    audience: "Multi-facility networks optimizing transfers & margins",
+    contactUsInstead: false,
     monthlyPrice: 649,
     annualMonthlyPrice: 519,
     warehouseLimit: 12,
@@ -61,24 +63,18 @@ export const PLAN_DEFINITIONS: Record<PlanTier, PlanDefinition> = {
     importRowLimit: 2_000_000,
     features: [
       "Everything in Growth, plus:",
-      "Up to 12 Warehouses",
+      "Up to 12 warehouses",
       "Up to 50,000 SKUs",
       "Unlimited team seats",
-      "Inter-Warehouse Transfer Recommendations",
-      "Supply Chain Scenario Planning & Simulation (coming soon)",
-      "Landed Cost & Margin Variance Analysis (coming soon)",
-      "Multi-Tier Approval Thresholds (coming soon)",
-      "Mobile Barcode Scanning & Receiving (coming soon)",
-      "Batch, Lot & Expiry Date Tracking (coming soon)",
-      "Full Read/Write Webhook & REST API (coming soon)",
-      "Accounting & ERP Integrations (coming soon)",
-      "2,000 AI Manager queries / month",
+      "Inter-warehouse transfer recommendations",
     ],
   },
   enterprise: {
     id: "enterprise",
     name: "Enterprise",
     tagline: "Enterprise-grade governance, custom workflows & dedicated support.",
+    audience: "Large enterprises requiring governance and custom workflows",
+    contactUsInstead: true,
     monthlyPrice: 2000,
     annualMonthlyPrice: 1600,
     warehouseLimit: -1, // unlimited
@@ -88,14 +84,8 @@ export const PLAN_DEFINITIONS: Record<PlanTier, PlanDefinition> = {
     importRowLimit: 2_000_000,
     features: [
       "Everything in Professional, plus:",
-      "Unlimited Warehouses & Facilities",
-      "Unlimited SKU Catalog",
-      "SAML / OIDC Single Sign-On (SSO) (coming soon)",
-      "Role-Based Access Control (RBAC) (coming soon)",
-      "Immutable Audit Log & Compliance Export (coming soon)",
-      "Custom Workflow & Event Automations (coming soon)",
-      "Dedicated Account Manager",
-      "99.9% Uptime SLA & 24/7 Phone Support",
+      "Unlimited warehouses & SKUs",
+      "Unlimited team seats",
     ],
   },
 };

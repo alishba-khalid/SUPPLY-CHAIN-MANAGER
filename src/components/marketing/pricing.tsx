@@ -94,7 +94,9 @@ export function Pricing() {
                 <div className="mt-4 pb-4 border-b border-(--color-border)">
                   {tier.contactUsInstead ? (
                     <div>
-                      <span className="text-h1 font-extrabold text-(--color-text-primary)">From $2,000</span>
+                      <span className="text-h1 font-extrabold text-(--color-text-primary)">
+                        From ${tier.monthlyPrice.toLocaleString("en-US")}
+                      </span>
                       <span className="text-body text-(--color-text-secondary)"> / mo</span>
                     </div>
                   ) : (

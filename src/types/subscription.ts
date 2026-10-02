@@ -15,6 +15,8 @@ export interface PlanDefinition {
   id: PlanTier;
   name: string;
   tagline: string;
+  audience: string; // who the plan is for, shown on the plan card
+  contactUsInstead: boolean; // true: no self-serve checkout, priced "From $X"
   monthlyPrice: number;
   annualMonthlyPrice: number; // e.g. $39/mo ($468 billed annually)
   warehouseLimit: number; // -1 for unlimited

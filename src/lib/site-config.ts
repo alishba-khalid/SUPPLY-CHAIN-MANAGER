@@ -7,6 +7,8 @@
  * src/app/(app)/dashboard).
  */
 
+import { PLAN_DEFINITIONS, TIER_ORDER } from "@/lib/subscriptions/tiers";
+
 export const SITE_NAME = "Supply Chain Manager";
 // Single source of truth for the site's canonical URL. Everything that
 // needs it (canonical tags, og:url, sitemap.xml, robots.txt, structured
@@ -22,7 +24,7 @@ export type BillingPeriod = "monthly" | "annual";
 export interface PricingTier {
   id: string;
   name: string;
-  monthlyPrice: number; // USD, 0 for "contact us" tiers
+  monthlyPrice: number; // USD; for "contact us" tiers, the "From $X" starting price
   contactUsInstead: boolean;
   audience: string;
   features: string[];
@@ -31,77 +33,23 @@ export interface PricingTier {
 
 export const ANNUAL_DISCOUNT_PERCENT = 20;
 
-export const PRICING_TIERS: PricingTier[] = [
-  {
-    id: "starter",
-    name: "Starter",
-    monthlyPrice: 49,
-    contactUsInstead: false,
-    audience: "Single-warehouse operations getting off spreadsheets",
-    features: [
-      "1 warehouse",
-      "Up to 500 SKUs",
-      "3 team seats",
-      "Inventory tracking & alerts",
-      "Supplier scorecards & OTIF",
-      "CSV / Excel Data Importer",
-      "50 AI Manager queries / mo",
-    ],
-    highlighted: false,
-  },
-  {
-    id: "growth",
-    name: "Growth",
-    monthlyPrice: 199,
-    contactUsInstead: false,
-    audience: "Growing operations automating reorders & forecasting",
-    features: [
-      "Up to 3 warehouses",
-      "Up to 5,000 SKUs",
-      "10 team seats",
-      "Demand forecasting & safety stock",
-      "1-Click Suggested Purchase Orders",
-      "Email & WhatsApp alerts (coming soon)",
-      "PO Send to Supplier with PDF (coming soon)",
-      "500 AI Manager queries / mo",
-    ],
-    highlighted: true,
-  },
-  {
-    id: "professional",
-    name: "Professional",
-    monthlyPrice: 649,
-    contactUsInstead: false,
-    audience: "Multi-facility networks optimizing transfers & margins",
-    features: [
-      "Up to 12 warehouses",
-      "Up to 50,000 SKUs",
-      "Unlimited team seats",
-      "Inter-warehouse transfer recommendations",
-      "Landed cost & scenario modeling (coming soon)",
-      "Batch, lot & expiry tracking (coming soon)",
-      "Full API & ERP integration (coming soon)",
-      "2,000 AI queries / mo",
-    ],
-    highlighted: false,
-  },
-  {
-    id: "enterprise",
-    name: "Enterprise",
-    monthlyPrice: 2000,
-    contactUsInstead: true,
-    audience: "Large enterprises requiring governance and custom workflows",
-    features: [
-      "Unlimited warehouses & SKUs",
-      "Unlimited team seats",
-      "SAML / OIDC Single Sign-On (SSO) (coming soon)",
-      "Role-Based Access Control & Audit Log (coming soon)",
-      "Custom workflow automations (coming soon)",
-      "Dedicated account manager & SLA",
-    ],
-    highlighted: false,
-  },
-];
+// Built from the one plan catalog (src/lib/subscriptions/tiers.ts) — never
+// copy a price, limit or feature here.
+export const PRICING_TIERS: PricingTier[] = TIER_ORDER.map((id) => {
+  const plan = PLAN_DEFINITIONS[id];
+  return {
+    id,
+    name: plan.name,
+    monthlyPrice: plan.monthlyPrice,
+    contactUsInstead: plan.contactUsInstead,
+    audience: plan.audience,
+    features: plan.features,
+    highlighted: plan.highlighted ?? false,
+  };
+});
+
+/** The lowest self-serve monthly price, for "from $X a month" copy. */
+export const STARTING_MONTHLY_PRICE = PLAN_DEFINITIONS.starter.monthlyPrice;
 
 /**
  * NEEDS REAL VALUES: brand/company name, contact email, primary keyword,
