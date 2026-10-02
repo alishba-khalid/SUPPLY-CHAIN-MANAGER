@@ -2,10 +2,11 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { Check, Lock } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useOrganization } from "@clerk/nextjs";
+import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { PRICING_TIERS } from "@/lib/site-config";
+import { CONTACT_EMAIL, PRICING_TIERS } from "@/lib/site-config";
 import { getWriteAccessAction } from "@/app/actions/smart-import";
 
 // One page can mount several gated forms at once (Inventory has four);
@@ -48,10 +49,12 @@ export function useWriteAccess(): boolean | null {
 /**
  * Shown in place of an upload or data-entry form for orgs that may not add
  * data. Plans and prices come from PRICING_TIERS (the same source as the
- * marketing pricing section); every button is disabled because no billing
- * exists yet — no checkout, no form, no email.
+ * marketing pricing section). Self-serve plans link to Polar checkout
+ * (/api/billing/checkout, org from the session); Enterprise is contact-us.
  */
 export function BillingComingSoon({ compact = false }: { compact?: boolean }) {
+  // Named so nobody pays for the wrong organization.
+  const { organization } = useOrganization();
   return (
     <div className="space-y-5">
       <div className="flex items-start gap-3">
@@ -64,6 +67,11 @@ export function BillingComingSoon({ compact = false }: { compact?: boolean }) {
             Your account is ready and you can explore everything. Adding your own data needs a paid plan. Billing is
             coming soon, so plans can&apos;t be bought yet.
           </p>
+          {organization && (
+            <p className="mt-1 text-small font-medium text-(--color-text-primary)">
+              Organization: {organization.name}
+            </p>
+          )}
         </div>
       </div>
 
@@ -99,14 +107,27 @@ export function BillingComingSoon({ compact = false }: { compact?: boolean }) {
                 </ul>
               )}
             </div>
-            <Button
-              variant={tier.highlighted ? "primary" : "secondary"}
-              size="sm"
-              className="mt-4 w-full"
-              disabled
-            >
-              Billing coming soon
-            </Button>
+            {tier.contactUsInstead ? (
+              <a
+                href={`mailto:${CONTACT_EMAIL}`}
+                className={buttonVariants({ variant: "secondary", size: "sm", className: "mt-4 w-full" })}
+              >
+                Contact us
+              </a>
+            ) : (
+              // A full navigation to the checkout route, which takes the org
+              // from the session and redirects to Polar.
+              <a
+                href={`/api/billing/checkout?plan=${tier.id}`}
+                className={buttonVariants({
+                  variant: tier.highlighted ? "primary" : "secondary",
+                  size: "sm",
+                  className: "mt-4 w-full",
+                })}
+              >
+                Choose {tier.name}
+              </a>
+            )}
           </div>
         ))}
       </div>

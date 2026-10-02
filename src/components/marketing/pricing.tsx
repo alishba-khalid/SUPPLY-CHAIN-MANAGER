@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { Check, ShieldCheck, Download, Zap, XCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { PRICING_TIERS } from "@/lib/site-config";
+import { CONTACT_EMAIL, PRICING_TIERS } from "@/lib/site-config";
 
 export function Pricing() {
   return (
@@ -69,12 +69,18 @@ export function Pricing() {
 
               <div className="mt-8 pt-4 border-t border-(--color-border)">
                 {tier.contactUsInstead ? (
-                  <Button variant="secondary" size="lg" className="w-full" disabled>
-                    Billing coming soon
-                  </Button>
+                  <a
+                    href={`mailto:${CONTACT_EMAIL}`}
+                    className={buttonVariants({ variant: "secondary", size: "lg", className: "w-full" })}
+                  >
+                    Contact us
+                  </a>
                 ) : (
+                  // After sign-up, land on Billing with this plan picked. A new
+                  // user who must first create an organization lands on the
+                  // overview instead (select-org has its own destination).
                   <Link
-                    href="/sign-up"
+                    href={`/sign-up?redirect_url=${encodeURIComponent(`/dashboard/settings?tab=billing&plan=${tier.id}`)}`}
                     className={buttonVariants({
                       variant: tier.highlighted ? "primary" : "secondary",
                       size: "lg",
