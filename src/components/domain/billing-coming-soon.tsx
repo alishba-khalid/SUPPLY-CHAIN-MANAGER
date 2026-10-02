@@ -22,7 +22,7 @@ function checkWriteAccess() {
 /**
  * Whether this org may add or change its own data — null while the check is
  * in flight. UI only: every write action re-checks on the server
- * (canWriteOrgData in src/lib/auth.ts), so this just decides whether to show
+ * (checkOrgWriteAccess in src/lib/auth.ts), so this just decides whether to show
  * a form or the pricing screen.
  */
 export function useWriteAccess(): boolean | null {

@@ -1,28 +1,25 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { isOrgWriteAllowed, parseAllowedOrgIds } from "@/lib/subscriptions/write-access";
+import { isOrgAllowListed, parseAllowedOrgIds } from "@/lib/subscriptions/write-access";
 
-describe("isOrgWriteAllowed", () => {
-  test("the demo org can always write (its writes are simulated or rolled back)", () => {
-    assert.equal(isOrgWriteAllowed({ orgId: "org_demo", isDemo: true, envValue: undefined }), true);
+// The demo org and subscriptions are covered in billing-access.test.ts.
+describe("isOrgAllowListed", () => {
+  test("fails closed: a missing or empty list blocks every org", () => {
+    assert.equal(isOrgAllowListed("org_a", undefined), false);
+    assert.equal(isOrgAllowListed("org_a", ""), false);
+    assert.equal(isOrgAllowListed("org_a", " , ,"), false);
   });
 
-  test("fails closed: a missing or empty list blocks every non-demo org", () => {
-    assert.equal(isOrgWriteAllowed({ orgId: "org_a", isDemo: false, envValue: undefined }), false);
-    assert.equal(isOrgWriteAllowed({ orgId: "org_a", isDemo: false, envValue: "" }), false);
-    assert.equal(isOrgWriteAllowed({ orgId: "org_a", isDemo: false, envValue: " , ," }), false);
-  });
-
-  test("an org on the list can write; others can't", () => {
+  test("an org on the list is allowed; others aren't", () => {
     const envValue = "org_a, org_b ";
-    assert.equal(isOrgWriteAllowed({ orgId: "org_a", isDemo: false, envValue }), true);
-    assert.equal(isOrgWriteAllowed({ orgId: "org_b", isDemo: false, envValue }), true);
-    assert.equal(isOrgWriteAllowed({ orgId: "org_c", isDemo: false, envValue }), false);
+    assert.equal(isOrgAllowListed("org_a", envValue), true);
+    assert.equal(isOrgAllowListed("org_b", envValue), true);
+    assert.equal(isOrgAllowListed("org_c", envValue), false);
   });
 
   test("matches whole ids, not prefixes", () => {
-    assert.equal(isOrgWriteAllowed({ orgId: "org_ab", isDemo: false, envValue: "org_a" }), false);
-    assert.equal(isOrgWriteAllowed({ orgId: "org_a", isDemo: false, envValue: "org_ab" }), false);
+    assert.equal(isOrgAllowListed("org_ab", "org_a"), false);
+    assert.equal(isOrgAllowListed("org_a", "org_ab"), false);
   });
 });
 

@@ -1,6 +1,6 @@
 "use server";
 
-import { requireOrgId, isDemoOrg, canWriteOrgData } from "@/lib/auth";
+import { requireOrgId, isDemoOrg, checkOrgWriteAccess } from "@/lib/auth";
 import { WRITE_BLOCKED_MESSAGE } from "@/lib/subscriptions/write-access";
 import { importData } from "@/data/repositories/import";
 import { parseTemplateRows, type TemplateType } from "@/lib/importer/template-rows";
@@ -17,7 +17,7 @@ export async function importDataAction(
   options: { clearExisting: boolean; firstRowNumber?: number }
 ) {
   const orgId = await requireOrgId();
-  if (!canWriteOrgData(orgId)) {
+  if (!(await checkOrgWriteAccess(orgId))) {
     return { success: false as const, writeBlocked: true as const, error: WRITE_BLOCKED_MESSAGE };
   }
 

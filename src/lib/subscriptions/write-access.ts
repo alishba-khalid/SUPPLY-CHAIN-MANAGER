@@ -45,11 +45,6 @@ export function isOrgAllowListed(orgId: string, envValue: string | undefined): b
   return parseAllowedOrgIds(envValue).has(orgId);
 }
 
-export function isOrgWriteAllowed(opts: { orgId: string; isDemo: boolean; envValue: string | undefined }): boolean {
-  if (opts.isDemo) return true;
-  return isOrgAllowListed(opts.orgId, opts.envValue);
-}
-
 export function isPlanTier(value: string): value is PlanTier {
   return (TIER_ORDER as string[]).includes(value);
 }

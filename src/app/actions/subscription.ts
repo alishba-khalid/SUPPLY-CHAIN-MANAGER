@@ -1,6 +1,6 @@
 "use server";
 
-import { requireOrgId, isDemoOrg, canWriteOrgData } from "@/lib/auth";
+import { requireOrgId, isDemoOrg, checkOrgWriteAccess } from "@/lib/auth";
 import { WRITE_BLOCKED_MESSAGE, BILLING_COMING_SOON_MESSAGE } from "@/lib/subscriptions/write-access";
 import { createPurchaseOrderAction } from "@/app/actions/domain";
 import type { PlanTier, BillingCycle } from "@/types/subscription";
@@ -41,7 +41,7 @@ export async function changePlanAction(_input: { plan: PlanTier; billingCycle?: 
 export async function createPoFromSuggestionAction(suggestion: SuggestedPurchaseOrder) {
   try {
     const orgId = await requireOrgId();
-    if (!canWriteOrgData(orgId)) return { success: false, writeBlocked: true, error: WRITE_BLOCKED_MESSAGE };
+    if (!(await checkOrgWriteAccess(orgId))) return { success: false, writeBlocked: true, error: WRITE_BLOCKED_MESSAGE };
 
     const invalid = invalidSuggestedPoReason({
       supplierId: suggestion.supplierId,
