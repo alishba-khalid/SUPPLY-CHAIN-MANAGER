@@ -19,8 +19,6 @@ export const CONTACT_EMAIL = "alishbakhalid76@gmail.com";
 export const PRIMARY_KEYWORD = "supply chain software for distributors";
 export const TAGLINE = "Your supply chain just hired a manager.";
 
-export type BillingPeriod = "monthly" | "annual";
-
 export interface PricingTier {
   id: string;
   name: string;
@@ -30,8 +28,6 @@ export interface PricingTier {
   features: string[];
   highlighted: boolean;
 }
-
-export const ANNUAL_DISCOUNT_PERCENT = 20;
 
 // Built from the one plan catalog (src/lib/subscriptions/tiers.ts) — never
 // copy a price, limit or feature here.

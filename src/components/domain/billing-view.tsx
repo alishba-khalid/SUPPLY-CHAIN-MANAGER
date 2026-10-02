@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { PLAN_DEFINITIONS, TIER_ORDER } from "@/lib/subscriptions/tiers";
-import type { OrgSubscription, PlanTier, QuotaUsage, BillingCycle } from "@/types/subscription";
+import type { OrgSubscription, PlanTier, QuotaUsage } from "@/types/subscription";
 import { Button } from "@/components/ui/button";
 import { Check, Sparkles, Building2, Package, Bot, Zap, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -14,7 +13,6 @@ export function BillingView({
   subscription: OrgSubscription;
   quota: QuotaUsage;
 }) {
-  const [billingCycle, setBillingCycle] = useState<BillingCycle>(subscription.billingCycle || "monthly");
   // No billing exists yet, so plans can't be bought or switched — every
   // plan button below is disabled and changePlanAction refuses on the server.
   const activePlan: PlanTier = subscription.plan;
@@ -44,7 +42,7 @@ export function BillingView({
           <div className="flex items-center gap-2">
             <span className="text-caption text-(--color-text-muted)">Billing:</span>
             <span className="rounded bg-(--color-surface) px-2.5 py-1 text-caption font-medium border border-(--color-border)">
-              {billingCycle === "annual" ? "Annual (2 Months Free)" : "Monthly"}
+              Monthly
             </span>
           </div>
         </div>
@@ -154,45 +152,12 @@ export function BillingView({
         </div>
       </div>
 
-      {/* Monthly / Annual Toggle */}
-      <div className="flex flex-col items-center justify-center gap-3 pt-2">
-        <div className="inline-flex rounded-lg border border-(--color-border) bg-(--color-surface-secondary) p-1">
-          <button
-            type="button"
-            onClick={() => setBillingCycle("monthly")}
-            className={cn(
-              "rounded-md px-4 py-1.5 text-small font-medium transition-colors",
-              billingCycle === "monthly"
-                ? "bg-(--color-surface) text-(--color-text-primary) shadow-xs"
-                : "text-(--color-text-muted) hover:text-(--color-text-primary)"
-            )}
-          >
-            Monthly Billing
-          </button>
-          <button
-            type="button"
-            onClick={() => setBillingCycle("annual")}
-            className={cn(
-              "flex items-center gap-1.5 rounded-md px-4 py-1.5 text-small font-medium transition-colors",
-              billingCycle === "annual"
-                ? "bg-(--color-surface) text-(--color-text-primary) shadow-xs"
-                : "text-(--color-text-muted) hover:text-(--color-text-primary)"
-            )}
-          >
-            Annual Billing
-            <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-caption font-semibold text-emerald-600 dark:text-emerald-400">
-              2 Months Free
-            </span>
-          </button>
-        </div>
-      </div>
-
       {/* 4-Tier Pricing Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         {TIER_ORDER.map((tierKey) => {
           const plan = PLAN_DEFINITIONS[tierKey];
           const isCurrent = activePlan === tierKey;
-          const price = billingCycle === "annual" ? plan.annualMonthlyPrice : plan.monthlyPrice;
+          const price = plan.monthlyPrice;
 
           return (
             <div
@@ -228,11 +193,6 @@ export function BillingView({
                     </span>
                     <span className="text-small text-(--color-text-muted)">/ month</span>
                   </div>
-                  {billingCycle === "annual" && tierKey !== "enterprise" && (
-                    <p className="mt-1 text-caption text-emerald-600 dark:text-emerald-400">
-                      ${price * 12}/year (billed annually)
-                    </p>
-                  )}
                 </div>
 
                 <div className="mt-5 space-y-2.5">
