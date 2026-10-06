@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, LineChart, Sparkles, CheckCircle2 } from "lucide-react";
+import { ArrowRight, LineChart, CheckCircle2 } from "lucide-react";
 import { SITE_NAME, SITE_URL } from "@/lib/site-config";
 
 const TITLE = `Demand Forecasting for Distributors | ${SITE_NAME}`;

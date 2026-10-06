@@ -1,5 +1,4 @@
-import type { CanonicalFieldDef, CanonicalFieldId, ColumnMappingItem, SheetMapping } from "./types";
-import { cleanString } from "./cleaner";
+import type { CanonicalFieldDef, CanonicalFieldId, ColumnMappingItem } from "./types";
 
 export const CANONICAL_FIELDS: CanonicalFieldDef[] = [
   // Product
