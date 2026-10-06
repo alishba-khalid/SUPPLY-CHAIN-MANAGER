@@ -32,3 +32,16 @@ export async function getSupplierHealthScore(orgId: string): Promise<number | nu
   const performances = await getAllSupplierPerformance(orgId);
   return supplierHealthScore(performances);
 }
+
+/** Adds a supplier, or updates the one with this supplier ID. */
+export async function upsertSupplier(
+  orgId: string,
+  data: { supplierId: string; name: string; leadTimeDays: number; leadTimeMissing: boolean; email: string },
+): Promise<Supplier> {
+  const { supplierId, ...fields } = data;
+  return prisma.supplier.upsert({
+    where: { orgId_supplierId: { orgId, supplierId } },
+    create: { orgId, supplierId, ...fields },
+    update: fields,
+  });
+}

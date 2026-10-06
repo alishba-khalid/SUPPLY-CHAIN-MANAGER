@@ -14,3 +14,17 @@ export async function getProduct(orgId: string, sku: string): Promise<Product | 
   const row = await prisma.product.findUnique({ where: { orgId_sku: { orgId, sku } } });
   return row ? toProduct(row) : undefined;
 }
+
+/** Adds a product, or updates the one with this SKU. */
+export async function upsertProduct(
+  orgId: string,
+  data: { sku: string; name: string; category: string; unitCost: number; supplierId: string },
+): Promise<Product> {
+  const { sku, ...fields } = data;
+  const row = await prisma.product.upsert({
+    where: { orgId_sku: { orgId, sku } },
+    create: { orgId, sku, ...fields },
+    update: fields,
+  });
+  return toProduct(row);
+}

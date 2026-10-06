@@ -74,3 +74,15 @@ export async function getWarehouseHealthScore(orgId: string): Promise<number | n
   const all = await getAllWarehouseHealth(orgId);
   return averageWarehouseHealth(all.map((w) => w.healthScore));
 }
+
+/** Adds a warehouse, or updates the name/capacity of the one with this code. */
+export async function upsertWarehouse(
+  orgId: string,
+  data: { code: string; name: string; capacityUnits: number | null },
+): Promise<Warehouse> {
+  return prisma.warehouse.upsert({
+    where: { orgId_code: { orgId, code: data.code } },
+    create: { orgId, ...data },
+    update: { name: data.name, capacityUnits: data.capacityUnits },
+  });
+}

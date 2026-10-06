@@ -84,3 +84,42 @@ export async function getAveragePoCycleTimeDays(orgId: string): Promise<number |
 export async function getLogisticsHealthScore(orgId: string): Promise<number> {
   return logisticsHealthScore(await getPurchaseOrders(orgId));
 }
+
+export type ReceivePurchaseOrderResult = "received" | "not-found" | "already-received";
+
+/**
+ * Marks an open PO as received and, when a warehouse is given, books its
+ * quantity into that warehouse (an IN transaction plus the on-hand balance).
+ * A PO that was already received is left alone, so its stock is never added
+ * twice — including when two requests race each other.
+ */
+export async function receivePurchaseOrder(
+  orgId: string,
+  data: { poNumber: string; receivedDate: Date; warehouseId?: number },
+): Promise<ReceivePurchaseOrderResult> {
+  const { poNumber, receivedDate, warehouseId } = data;
+  const po = await prisma.purchaseOrder.findUnique({ where: { orgId_poNumber: { orgId, poNumber } } });
+  if (!po) return "not-found";
+  if (po.receivedDate) return "already-received";
+
+  return prisma.$transaction(async (tx) => {
+    // Only an open PO flips to received; the loser of a race matches no row.
+    const flipped = await tx.purchaseOrder.updateMany({
+      where: { orgId, poNumber, receivedDate: null },
+      data: { receivedDate },
+    });
+    if (flipped.count === 0) return "already-received" as const;
+
+    if (warehouseId) {
+      await tx.transaction.create({
+        data: { orgId, sku: po.sku, warehouseId, quantity: po.quantity, direction: "IN", date: receivedDate },
+      });
+      await tx.inventory.upsert({
+        where: { orgId_sku_warehouseId: { orgId, sku: po.sku, warehouseId } },
+        create: { orgId, sku: po.sku, warehouseId, quantityOnHand: po.quantity },
+        update: { quantityOnHand: { increment: po.quantity } },
+      });
+    }
+    return "received" as const;
+  });
+}
