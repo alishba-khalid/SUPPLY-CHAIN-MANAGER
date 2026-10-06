@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { UploadCloud, Building2, ClipboardList, CreditCard } from "lucide-react";
+import { UploadCloud, Building2, ClipboardList, CreditCard, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface SettingsTabsProps {
@@ -13,16 +13,19 @@ interface SettingsTabsProps {
   orgId: string;
   importer?: ReactNode;
   billingView: ReactNode;
+  alertsView: ReactNode;
 }
 
-export function SettingsTabs({ orgName, orgId, billingView }: SettingsTabsProps) {
+type SettingsTab = "billing" | "alerts" | "org";
+
+export function SettingsTabs({ orgName, orgId, billingView, alertsView }: SettingsTabsProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const tabParam = searchParams.get("tab");
   // The URL is the source of truth, so links like ?tab=billing and the
   // back button always show the right tab.
-  const activeTab: "billing" | "org" = tabParam === "org" ? "org" : "billing";
-  const setActiveTab = (tab: "billing" | "org") =>
+  const activeTab: SettingsTab = tabParam === "org" || tabParam === "alerts" ? tabParam : "billing";
+  const setActiveTab = (tab: SettingsTab) =>
     router.replace(`/dashboard/settings?tab=${tab}`, { scroll: false });
 
   useEffect(() => {
@@ -64,11 +67,25 @@ export function SettingsTabs({ orgName, orgId, billingView }: SettingsTabsProps)
           <Building2 size={16} />
           Organization Profile
         </button>
+        <button
+          onClick={() => setActiveTab("alerts")}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2.5 text-body font-medium transition-colors border-b-2 -mb-[2px]",
+            activeTab === "alerts"
+              ? "border-(--color-brand) text-(--color-brand)"
+              : "border-transparent text-(--color-text-secondary) hover:text-(--color-text-primary)"
+          )}
+        >
+          <Mail size={16} />
+          Email Alerts
+        </button>
       </div>
 
       {/* Tab Contents */}
       {activeTab === "billing" ? (
         billingView
+      ) : activeTab === "alerts" ? (
+        alertsView
       ) : (
         <Card className="p-6 space-y-6">
           <div>

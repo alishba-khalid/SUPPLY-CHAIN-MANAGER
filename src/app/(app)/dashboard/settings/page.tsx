@@ -9,6 +9,8 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { getOrgSubscription, getOrgQuotaUsage } from "@/data/repositories/subscription";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { isDemoOrg, requireOrgId } from "@/lib/auth";
+import { EmailAlertsSettings } from "@/components/domain/email-alerts-settings";
+import { getEmailAlertSettingsAction } from "@/app/actions/integrations";
 
 // The smart importer (rendered here) commits large files in one database
 // transaction via a server action — give it the full function budget.
@@ -44,9 +46,10 @@ export default async function SettingsPage({
   // placeholder id, so the plan shown is the one checkout would change.
   const billingOrgId = await requireOrgId();
   const billingOrgName = isDemoOrg(billingOrgId) ? null : orgName;
-  const [subscription, quota] = await Promise.all([
+  const [subscription, quota, emailAlerts] = await Promise.all([
     getOrgSubscription(billingOrgId),
     getOrgQuotaUsage(billingOrgId),
+    getEmailAlertSettingsAction(),
   ]);
 
   return (
@@ -63,6 +66,7 @@ export default async function SettingsPage({
               </WriteGate>
             }
             billingView={<BillingView subscription={subscription} quota={quota} orgName={billingOrgName} />}
+            alertsView={<EmailAlertsSettings initial={emailAlerts.settings} available={emailAlerts.available} />}
           />
         </Suspense>
       </div>
