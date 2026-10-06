@@ -1,8 +1,8 @@
 "use client";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { useState } from "react";
-import { Search } from "lucide-react";
+import { Search, X } from "lucide-react";
+import { SavedViews } from "./saved-views";
 import type { Supplier, Warehouse } from "@/types/supply-chain";
 
 const STATUS_OPTIONS = [
@@ -28,7 +28,8 @@ export function InventoryFilters({ warehouses, suppliers }: { warehouses: Wareho
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [search, setSearch] = useState(searchParams.get("search") ?? "");
+  const urlSearch = searchParams.get("search") ?? "";
+  const hasFilters = ["search", "warehouseId", "status", "abcClass", "supplierId", "sortKey", "sortDir"].some((k) => searchParams.has(k));
 
   function setParam(key: string, value: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -43,15 +44,18 @@ export function InventoryFilters({ warehouses, suppliers }: { warehouses: Wareho
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          setParam("search", search);
+          setParam("search", String(new FormData(e.currentTarget).get("search") ?? "").trim());
         }}
         className="flex items-center"
       >
         <div className="relative">
           <Search size={15} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-(--color-text-muted)" />
+          {/* Keyed on the URL's search so opening a saved view or clearing
+              filters refreshes the box. */}
           <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            key={urlSearch}
+            name="search"
+            defaultValue={urlSearch}
             placeholder="Search SKU or name…"
             className="h-9 w-56 rounded-md border border-(--color-border) bg-(--color-surface) pl-8 pr-3 text-body text-(--color-text-primary) placeholder:text-(--color-text-muted)"
           />
@@ -99,6 +103,21 @@ export function InventoryFilters({ warehouses, suppliers }: { warehouses: Wareho
           </option>
         ))}
       </select>
+
+      {hasFilters && (
+        <button
+          type="button"
+          onClick={() => {
+            router.push(pathname, { scroll: false });
+          }}
+          className="inline-flex h-9 items-center gap-1 rounded-md px-2 text-small text-(--color-text-secondary) hover:text-(--color-text-primary)"
+        >
+          <X size={14} />
+          Clear filters
+        </button>
+      )}
+
+      <SavedViews storageKey="scm.inventory.views" />
     </div>
   );
 }
