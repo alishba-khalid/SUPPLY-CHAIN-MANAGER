@@ -2,9 +2,9 @@
 
 /**
  * Server actions behind Settings → Email alerts and Import → Automatic
- * refresh. The screens are finished; these are stubs that tell the user the
- * feature isn't switched on yet. Each one has a BACKEND TODO describing what
- * to build. Keep the signatures — the screens depend on them.
+ * refresh. Automatic refresh is built (bottom of this file). Email alerts
+ * are still stubs that tell the user the feature isn't switched on yet; each
+ * has a BACKEND TODO describing what to build. Keep the signatures.
  *
  * Shared rules for every action:
  *   - orgId always comes from requireOrgId() (session), never from input.
@@ -19,10 +19,26 @@ import {
   type DataSource,
   type EmailAlertSettings,
   type NewDataSource,
+  type DataSourceProvider,
+  type RefreshSchedule,
 } from "@/types/integrations";
+import type { TemplateType } from "@/lib/importer/template-rows";
+import { revalidatePath } from "next/cache";
+import { checkRateLimit, getRequestIp } from "@/lib/rate-limit";
+import { linkProblem } from "@/lib/sync/source-url";
+import { refreshSource, testSource } from "@/lib/sync/data-source-sync";
+import {
+  MAX_SOURCES_PER_ORG,
+  countDataSources,
+  deleteDataSource,
+  getDataSource,
+  insertDataSource,
+  listDataSources,
+  recordDataSourceRefresh,
+} from "@/data/repositories/data-sources";
 
 const EMAIL_NOT_AVAILABLE = "Email alerts aren't switched on yet — your settings can't be saved for now.";
-const SYNC_NOT_AVAILABLE = "Automatic refresh isn't switched on yet — links can't be saved for now.";
+
 const DEMO_MESSAGE = "Demo mode — nothing is saved.";
 
 function notAvailable<T>(error: string): ActionResult<T> {
@@ -76,47 +92,94 @@ export async function sendTestAlertEmailAction(): Promise<ActionResult> {
 }
 
 // ----------------------------------------------------------- Automatic refresh
+//
+// Built: links are stored in `data_sources` and refreshed by
+// src/lib/sync/data-source-sync.ts (manual import rules; never clears data).
+// A daily cron (/api/cron/refresh-data-sources) refreshes "daily" sources.
 
-/**
- * BACKEND TODO: list rows from a `data_sources` table (id, org_id, provider,
- * url, data_type, schedule, last_refreshed_at, last_result, created_at).
- */
+const PROVIDERS: DataSourceProvider[] = ["google_sheets", "onedrive", "csv_url"];
+const TYPES: TemplateType[] = ["warehouses", "suppliers", "products", "inventory", "purchase_orders", "transactions"];
+const SCHEDULES: RefreshSchedule[] = ["daily", "manual"];
+const TEST_LIMIT = 20; // link tests per IP per 10 minutes
+const TEST_WINDOW_MS = 10 * 60 * 1000;
+
+/** Rejects anything the screen couldn't have sent. */
+function cleanSource(input: NewDataSource): NewDataSource | string {
+  if (!PROVIDERS.includes(input?.provider)) return "Choose where the file lives.";
+  if (!TYPES.includes(input?.dataType)) return "Choose what the file holds.";
+  if (!SCHEDULES.includes(input?.schedule)) return "Choose how often to refresh.";
+  const url = String(input?.url ?? "").trim();
+  const problem = linkProblem(input.provider, url);
+  if (problem) return problem;
+  return { provider: input.provider, url, dataType: input.dataType, schedule: input.schedule };
+}
+
 export async function listDataSourcesAction(): Promise<{ available: boolean; sources: DataSource[] }> {
-  await requireOrgId();
-  return { available: false, sources: [] };
+  const orgId = await requireOrgId();
+  if (isDemoOrg(orgId)) return { available: true, sources: [] };
+  try {
+    return { available: true, sources: await listDataSources(orgId) };
+  } catch (err) {
+    // e.g. the data_sources migration isn't applied to this database yet.
+    console.error(`[sync] org ${orgId}: could not list data sources: ${err instanceof Error ? err.name : "unknown error"}`);
+    return { available: false, sources: [] };
+  }
 }
 
-/**
- * BACKEND TODO: validate the URL (https only; Google Sheets "publish to web"
- * CSV links, OneDrive/SharePoint download links, or any CSV URL — never
- * fetch private/internal addresses), insert the row, then run a first
- * refresh. A refresh downloads the file and passes the rows to the same
- * import path as a manual upload (importDataAction rules for this
- * data_type), so a refresh can never invent values the importer wouldn't.
- * A daily cron route refreshes every `schedule = "daily"` source.
- */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export async function saveDataSourceAction(_source: NewDataSource): Promise<ActionResult<DataSource>> {
+export async function saveDataSourceAction(input: NewDataSource): Promise<ActionResult<DataSource>> {
   const blocked = await gateWrite();
   if (blocked) return blocked;
-  return notAvailable(SYNC_NOT_AVAILABLE);
+  const orgId = await requireOrgId();
+  const source = cleanSource(input);
+  if (typeof source === "string") return { ok: false, error: source };
+  if ((await countDataSources(orgId)) >= MAX_SOURCES_PER_ORG) {
+    return { ok: false, error: `Up to ${MAX_SOURCES_PER_ORG} links per workspace. Remove one first.` };
+  }
+
+  // Only save a link that works today, then import it straight away.
+  const first = await refreshSource(orgId, source.provider, source.url, source.dataType);
+  if (!first.ok) return { ok: false, error: first.error };
+  const saved = await insertDataSource(orgId, source);
+  const updated = await recordDataSourceRefresh(orgId, saved.id, first.message);
+  revalidateImportedPages();
+  return { ok: true, value: updated ?? saved };
 }
 
-/** BACKEND TODO: delete the row (scoped to the org). */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export async function removeDataSourceAction(_id: string): Promise<ActionResult> {
+export async function removeDataSourceAction(id: string): Promise<ActionResult> {
   const blocked = await gateWrite();
   if (blocked) return blocked;
-  return notAvailable(SYNC_NOT_AVAILABLE);
+  const orgId = await requireOrgId();
+  if (!(await deleteDataSource(orgId, String(id)))) return { ok: false, error: "That link was already removed." };
+  revalidatePath("/dashboard/import");
+  return { ok: true, value: undefined };
 }
 
-/**
- * BACKEND TODO: fetch the link server-side (timeout ~10s, size cap), parse
- * it with the importer's reader, and report the row count and whether the
- * headers fit the chosen data type — without saving anything.
- */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export async function testDataSourceAction(_source: NewDataSource): Promise<ActionResult<{ rows: number; note: string }>> {
+export async function refreshDataSourceAction(id: string): Promise<ActionResult<DataSource>> {
+  const blocked = await gateWrite();
+  if (blocked) return blocked;
+  const orgId = await requireOrgId();
+  const source = await getDataSource(orgId, String(id));
+  if (!source) return { ok: false, error: "That link no longer exists." };
+  const res = await refreshSource(orgId, source.provider, source.url, source.dataType);
+  const updated = await recordDataSourceRefresh(orgId, source.id, res.ok ? res.message : `Failed: ${res.error}`);
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidateImportedPages();
+  return { ok: true, value: updated ?? source };
+}
+
+export async function testDataSourceAction(input: NewDataSource): Promise<ActionResult<{ rows: number; note: string }>> {
   await requireOrgId();
-  return notAvailable(SYNC_NOT_AVAILABLE);
+  const source = cleanSource(input);
+  if (typeof source === "string") return { ok: false, error: source };
+  const ip = await getRequestIp();
+  const rate = await checkRateLimit(`sync-test:ip:${ip}`, TEST_LIMIT, TEST_WINDOW_MS);
+  if (!rate.allowed) return { ok: false, error: "Too many link tests — please wait a few minutes." };
+  const res = await testSource(source.provider, source.url, source.dataType);
+  return res.ok ? { ok: true, value: { rows: res.rows, note: res.message } } : { ok: false, error: res.error };
+}
+
+function revalidateImportedPages() {
+  for (const path of ["overview", "inventory", "procurement", "suppliers", "warehouses", "logistics", "analytics", "import"]) {
+    revalidatePath(`/dashboard/${path}`);
+  }
 }
