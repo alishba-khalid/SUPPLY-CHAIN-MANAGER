@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { RelatedGuides } from "@/components/marketing/related-guides";
 import { ArrowRight, ShoppingCart, CheckCircle2 } from "lucide-react";
 import { SITE_NAME, SITE_URL } from "@/lib/site-config";
 
@@ -69,6 +70,7 @@ export default function PurchaseOrdersPage() {
             </div>
           </div>
         </div>
+        <RelatedGuides slugs={["reorder-point-formula", "reorder-expedite-or-transfer"]} />
       </section>
     </div>
   );
