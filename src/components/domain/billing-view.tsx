@@ -90,7 +90,7 @@ export function BillingView({
       <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-6 space-y-4">
         <h3 className="font-semibold text-body text-(--color-text-primary)">Network & Resource Usage</h3>
         <p className="text-small text-(--color-text-muted)">
-          How much of your plan's warehouse and SKU allowance this workspace is using.
+          How much of your plan&apos;s warehouse and SKU allowance this workspace is using.
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
