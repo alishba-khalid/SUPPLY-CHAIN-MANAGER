@@ -6,7 +6,7 @@ import { billingErrorMessage, isBillingErrorCode } from "@/lib/subscriptions/bil
 import { CONTACT_EMAIL } from "@/lib/site-config";
 import type { OrgSubscription, PlanSource, PlanTier, QuotaUsage } from "@/types/subscription";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { AlertCircle, Check, Sparkles, Building2, Package, Bot } from "lucide-react";
+import { AlertCircle, Check, Sparkles, Building2, Package } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const SOURCE_NOTE: Record<PlanSource, string> = {
@@ -90,10 +90,10 @@ export function BillingView({
       <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-6 space-y-4">
         <h3 className="font-semibold text-body text-(--color-text-primary)">Network & Resource Usage</h3>
         <p className="text-small text-(--color-text-muted)">
-          Supply Chain Manager scales with your supply chain complexity (warehouses and SKU count), not user seats.
+          How much of your plan's warehouse and SKU allowance this workspace is using.
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
           {/* Warehouses Meter */}
           <div className="space-y-2 rounded-lg border border-(--color-border) p-4 bg-(--color-surface-secondary)">
             <div className="flex items-center justify-between text-small font-medium text-(--color-text-primary)">
@@ -156,37 +156,6 @@ export function BillingView({
                 : skus.limit === -1
                   ? "Unlimited catalog size"
                   : `${Math.max(0, skus.limit - skus.used).toLocaleString()} product slots remaining`}
-            </p>
-          </div>
-
-          {/* AI Queries Meter */}
-          <div className="space-y-2 rounded-lg border border-(--color-border) p-4 bg-(--color-surface-secondary)">
-            <div className="flex items-center justify-between text-small font-medium text-(--color-text-primary)">
-              <span className="flex items-center gap-2">
-                <Bot size={16} className="text-purple-500" /> Monthly AI Queries
-              </span>
-              <span>
-                {quota.aiQueries.used} /{" "}
-                {quota.aiQueries.limit === -1 ? "Custom" : quota.aiQueries.limit.toLocaleString()}
-              </span>
-            </div>
-            <div className="h-2 w-full rounded-full bg-(--color-border) overflow-hidden">
-              <div
-                className={cn(
-                  "h-full rounded-full transition-all",
-                  quota.aiQueries.isOverLimit ? "bg-red-500" : "bg-purple-500"
-                )}
-                style={{
-                  width: `${
-                    quota.aiQueries.limit === -1
-                      ? 25
-                      : Math.min(100, (quota.aiQueries.used / quota.aiQueries.limit) * 100)
-                  }%`,
-                }}
-              />
-            </div>
-            <p className="text-caption text-(--color-text-muted)">
-              {quota.aiQueries.remaining.toLocaleString()} natural language queries left this cycle
             </p>
           </div>
         </div>

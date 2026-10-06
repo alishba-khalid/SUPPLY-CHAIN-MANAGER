@@ -4,11 +4,12 @@ import { PLAN_DEFINITIONS } from "@/lib/subscriptions/tiers";
 import { getOrgAccess } from "@/lib/auth";
 
 // AI-query counting is unchanged by billing and still lives in memory: it
-// resets whenever a server instance restarts and starts every org at 14.
+// resets whenever a server instance restarts. It starts at 0 (never a
+// made-up count) and is not shown on the Billing page because it isn't real.
 // Making it real is a separate item. An org with "No plan" keeps the AI
 // allowance every org had before billing (Growth's) rather than losing it.
 const AI_ALLOWANCE_PLAN_WITHOUT_PLAN: PlanTier = "growth";
-const AI_QUERIES_USED_AT_START = 14;
+const AI_QUERIES_USED_AT_START = 0;
 const aiQueriesUsedStore = new Map<string, number>();
 
 function aiAllowancePlan(plan: PlanTier | null): PlanTier {
