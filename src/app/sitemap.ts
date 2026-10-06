@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { SITE_URL } from "@/lib/site-config";
 import { COMPETITORS } from "@/lib/competitors-data";
+import { BLOG_POSTS } from "@/lib/blog/posts";
 
 // When each page's content last changed. Update the date when you edit a
 // page — a date that moves on every deploy tells search engines nothing.
@@ -30,6 +31,15 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.8,
   }));
 
+  // Each post carries its own updated date (src/lib/blog/posts.ts).
+  const blogEntries: MetadataRoute.Sitemap = BLOG_POSTS.map((post) => ({
+    url: `${SITE_URL}/blog/${post.slug}`,
+    lastModified: new Date(post.updated),
+    changeFrequency: "monthly",
+    priority: 0.7,
+  }));
+  const blogUpdated = new Date(BLOG_POSTS.map((p) => p.updated).sort().at(-1)!);
+
   return [
     {
       url: SITE_URL,
@@ -39,6 +49,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
     ...competitorEntries,
     ...featureEntries,
+    {
+      url: `${SITE_URL}/blog`,
+      lastModified: blogUpdated,
+      changeFrequency: "weekly",
+      priority: 0.8,
+    },
+    ...blogEntries,
     {
       url: `${SITE_URL}/about`,
       lastModified: ABOUT_UPDATED,

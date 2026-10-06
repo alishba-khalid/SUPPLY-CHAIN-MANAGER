@@ -20,6 +20,7 @@ const COMPARISON_LINKS = [
 
 const COMPANY_LINKS = [
   { href: "/about", label: "About" },
+  { href: "/blog", label: "Guides" },
   { href: "/privacy", label: "Privacy" },
   { href: "/terms", label: "Terms" },
   { href: "/security", label: "Security" },

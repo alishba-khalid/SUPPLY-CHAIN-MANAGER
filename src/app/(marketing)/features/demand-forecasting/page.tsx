@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { RelatedGuides } from "@/components/marketing/related-guides";
 import { ArrowRight, LineChart, CheckCircle2 } from "lucide-react";
 import { SITE_NAME, SITE_URL } from "@/lib/site-config";
 
@@ -73,6 +74,7 @@ export default function DemandForecastingPage() {
             </div>
           </div>
         </div>
+        <RelatedGuides slugs={["safety-stock-formula", "reorder-point-formula"]} />
       </section>
     </div>
   );
