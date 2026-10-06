@@ -1,5 +1,5 @@
 import { headers } from "next/headers";
-import { prisma } from "@/lib/prisma";
+import { incrementRateLimitBucket } from "@/data/repositories/rate-limits";
 
 /**
  * Best-effort caller identity for public, unauthenticated endpoints (demo
@@ -18,9 +18,8 @@ export async function getRequestIp(): Promise<string> {
 /**
  * Fixed-window rate limit backed by Postgres so it holds across serverless
  * instances and cold starts (an in-memory counter does not — every
- * invocation can land on a different instance). Atomic via a single
- * INSERT ... ON CONFLICT DO UPDATE ... RETURNING, so concurrent requests
- * racing the same key still get a correct count.
+ * invocation can land on a different instance). Atomic (see incrementRateLimitBucket), so
+ * concurrent requests racing the same key still get a correct count.
  *
  * `key` should already encode both the scope (what's being limited) and the
  * identity (IP, org, "global") — this function only adds the time window.
@@ -34,14 +33,7 @@ export async function checkRateLimit(
   const windowEnds = new Date(Math.ceil(now / windowMs) * windowMs);
   const bucketKey = `${key}:${windowEnds.toISOString()}`;
 
-  const rows = await prisma.$queryRaw<{ count: number }[]>`
-    INSERT INTO rate_limit_buckets (key, count, window_ends, updated_at)
-    VALUES (${bucketKey}, 1, ${windowEnds}, NOW())
-    ON CONFLICT (key) DO UPDATE SET count = rate_limit_buckets.count + 1, updated_at = NOW()
-    RETURNING count
-  `;
-
-  const count = rows[0]?.count ?? 1;
+  const count = await incrementRateLimitBucket(bucketKey, windowEnds);
   return {
     allowed: count <= limit,
     remaining: Math.max(0, limit - count),
