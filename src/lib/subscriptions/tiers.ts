@@ -8,7 +8,7 @@ export const PLAN_DEFINITIONS: Record<PlanTier, PlanDefinition> = {
   starter: {
     id: "starter",
     name: "Starter",
-    tagline: "Essential inventory tracking & visibility for single-facility operations.",
+    tagline: "Inventory tracking, alerts and supplier scorecards for one warehouse.",
     audience: "Single-warehouse operations getting off spreadsheets",
     contactUsInstead: false,
     monthlyPrice: 49,
@@ -29,7 +29,7 @@ export const PLAN_DEFINITIONS: Record<PlanTier, PlanDefinition> = {
   growth: {
     id: "growth",
     name: "Growth",
-    tagline: "Demand forecasting, automated reorders & supplier integration.",
+    tagline: "Demand forecasting, safety stock and 1-click suggested purchase orders.",
     audience: "Growing operations automating reorders & forecasting",
     contactUsInstead: false,
     monthlyPrice: 199,
@@ -51,8 +51,8 @@ export const PLAN_DEFINITIONS: Record<PlanTier, PlanDefinition> = {
   professional: {
     id: "professional",
     name: "Professional",
-    tagline: "Multi-facility network optimization, landed costs & scenario modeling.",
-    audience: "Multi-facility networks optimizing transfers & margins",
+    tagline: "Multi-warehouse planning with inter-warehouse transfer recommendations.",
+    audience: "Multi-warehouse networks balancing stock between sites",
     contactUsInstead: false,
     monthlyPrice: 649,
     annualMonthlyPrice: 519,
@@ -72,8 +72,8 @@ export const PLAN_DEFINITIONS: Record<PlanTier, PlanDefinition> = {
   enterprise: {
     id: "enterprise",
     name: "Enterprise",
-    tagline: "Enterprise-grade governance, custom workflows & dedicated support.",
-    audience: "Large enterprises requiring governance and custom workflows",
+    tagline: "Unlimited warehouses, SKUs and seats, with pricing agreed with you.",
+    audience: "Large networks that outgrow the Professional limits",
     contactUsInstead: true,
     monthlyPrice: 2000,
     annualMonthlyPrice: 1600,
