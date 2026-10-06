@@ -67,7 +67,9 @@ export async function getImportRowLimit(orgId: string, isDemo: boolean): Promise
   ]);
   return resolveImportRowLimit({
     plan: subscription.plan,
-    isDemoOrTrial: isDemo || subscription.status === "trialing",
+    // Only a paid Polar plan lifts the default limit; the demo and the
+    // allow-list override keep it (unchanged from before billing).
+    isDemoOrTrial: isDemo || subscription.source !== "subscription",
     orgOverride: org?.importRowLimitOverride,
   });
 }

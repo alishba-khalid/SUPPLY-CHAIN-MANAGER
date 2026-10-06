@@ -1,23 +1,23 @@
 "use client";
 
 import { SignIn } from "@clerk/nextjs";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+
+const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
 /** Surfaces a visible error when Clerk fails to initialise.
  *  Without this, a missing / wrong publishable key produces a silent blank page. */
 function ClerkInitGuard({ children }: { children: React.ReactNode }) {
-  const [error, setError] = useState<string | null>(null);
+  // NEXT_PUBLIC_ values are inlined at build time, so the server and the
+  // browser see the same key and this is decided during render.
+  const error =
+    !PUBLISHABLE_KEY || PUBLISHABLE_KEY.trim() === ""
+      ? "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY is missing from this deployment. " +
+        "Add a pk_live_ key in your Vercel environment variables and redeploy."
+      : null;
 
   useEffect(() => {
-    const key = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
-    if (!key || key.trim() === "") {
-      setError(
-        "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY is missing from this deployment. " +
-          "Add a pk_live_ key in your Vercel environment variables and redeploy."
-      );
-      return;
-    }
-    if (key.startsWith("pk_test_")) {
+    if (PUBLISHABLE_KEY?.startsWith("pk_test_")) {
       // Development key deployed to production — Clerk will reject it on the
       // production domain.  Surface a warning rather than silently failing.
       console.warn(

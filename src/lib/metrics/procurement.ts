@@ -8,8 +8,7 @@
  * legible and the limitation stays visible at its source.
  */
 import type { Product, PurchaseOrder } from "@/types/supply-chain";
-import { isOnTime, isInFull, isOtif, poOnTimeRate, purchaseOrderValue } from "./supplier";
-import { isWithinTrailingWindow } from "@/lib/dates";
+import { poOnTimeRate, purchaseOrderValue } from "./supplier";
 
 const TRAILING_WINDOW_DAYS = 90;
 

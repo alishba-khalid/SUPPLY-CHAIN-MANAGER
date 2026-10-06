@@ -22,7 +22,7 @@ import { RecomputeForecastsButton } from "@/components/domain/recompute-forecast
 import { classifyDemandVariability, type DemandVariabilityClass } from "@/lib/metrics/inventory";
 import { requireOrgId } from "@/lib/auth";
 import { checkPageRateLimit } from "@/lib/rate-limit";
-import { Waves, Clock } from "lucide-react";
+import { Clock } from "lucide-react";
 
 export interface ProjectionGridEntry {
   projection: SkuWarehouseProjection;

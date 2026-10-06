@@ -8,6 +8,7 @@ import { BillingView } from "@/components/domain/billing-view";
 import { LoadingState } from "@/components/ui/loading-state";
 import { getOrgSubscription, getOrgQuotaUsage } from "@/data/repositories/subscription";
 import { auth, clerkClient } from "@clerk/nextjs/server";
+import { isDemoOrg, requireOrgId } from "@/lib/auth";
 
 // The smart importer (rendered here) commits large files in one database
 // transaction via a server action — give it the full function budget.
@@ -39,9 +40,13 @@ export default async function SettingsPage({
     orgName = "Development Mock Workspace";
   }
 
+  // Billing always uses the session's org (or the demo org), never a
+  // placeholder id, so the plan shown is the one checkout would change.
+  const billingOrgId = await requireOrgId();
+  const billingOrgName = isDemoOrg(billingOrgId) ? null : orgName;
   const [subscription, quota] = await Promise.all([
-    getOrgSubscription(activeOrgId),
-    getOrgQuotaUsage(activeOrgId),
+    getOrgSubscription(billingOrgId),
+    getOrgQuotaUsage(billingOrgId),
   ]);
 
   return (
@@ -57,7 +62,7 @@ export default async function SettingsPage({
                 <SmartImporter />
               </WriteGate>
             }
-            billingView={<BillingView subscription={subscription} quota={quota} />}
+            billingView={<BillingView subscription={subscription} quota={quota} orgName={billingOrgName} />}
           />
         </Suspense>
       </div>

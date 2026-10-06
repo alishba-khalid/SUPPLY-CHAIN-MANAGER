@@ -34,7 +34,7 @@ export const FAQ_ITEMS: AccordionItem[] = [
   {
     question: "Can I try it before paying?",
     answer:
-      "Yes. The live demo runs on a real sample dataset with no signup, so you can see stockout projections and reorder recommendations first. Adding your own data needs a paid plan. Billing is coming soon.",
+      "Yes. The live demo runs on a real sample dataset with no signup, so you can see stockout projections and reorder recommendations first. Adding your own data needs a paid plan, billed monthly. You can cancel anytime.",
   },
 ];
 

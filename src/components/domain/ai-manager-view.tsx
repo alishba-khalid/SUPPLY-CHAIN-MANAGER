@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import type { OrgSubscription, QuotaUsage } from "@/types/subscription";
 import type { SupplyChainHealthBreakdown, SupplyChainAlert } from "@/types/supply-chain";
 import { askAiManagerAction } from "@/app/actions/ai-manager";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Bot, Sparkles, Send, ArrowRight, Zap, CheckCircle2, AlertTriangle, ShieldCheck } from "lucide-react";
+import { Bot, Sparkles, Send, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -50,6 +50,8 @@ export function AIManagerView({
   const [input, setInput] = useState("");
   const [remainingQueries, setRemainingQueries] = useState(quota.aiQueries.remaining);
   const [isPending, startTransition] = useTransition();
+  // Message ids only need to be unique within this chat.
+  const messageSeq = useRef(0);
 
   const QUICK_PROMPTS = [
     "What are our critical stockout risks?",
@@ -66,9 +68,9 @@ export function AIManagerView({
       setMessages((prev) => [
         ...prev,
         {
-          id: `err-${Date.now()}`,
+          id: `err-${++messageSeq.current}`,
           sender: "ai",
-          text: `⚠️ You have reached your monthly limit of AI queries for the ${subscription.plan.toUpperCase()} tier (${quota.aiQueries.limit} queries/mo). Please upgrade your plan in Settings to continue querying.`,
+          text: `⚠️ You have reached your monthly limit of AI queries for the ${(subscription.plan ?? "no plan").toUpperCase()} tier (${quota.aiQueries.limit} queries/mo). Please upgrade your plan in Settings to continue querying.`,
           timestamp: "Just now",
           suggestedAction: {
             label: "Upgrade Plan",
@@ -80,7 +82,7 @@ export function AIManagerView({
     }
 
     const userMsg: ChatMessage = {
-      id: `usr-${Date.now()}`,
+      id: `usr-${++messageSeq.current}`,
       sender: "user",
       text: textToSend,
       timestamp: "Just now",
@@ -98,7 +100,7 @@ export function AIManagerView({
         setMessages((prev) => [
           ...prev,
           {
-            id: `err-${Date.now()}`,
+            id: `err-${++messageSeq.current}`,
             sender: "ai",
             text: `⚠️ ${res.error ?? "Something went wrong — please try again."}`,
             timestamp: "Just now",
@@ -111,7 +113,7 @@ export function AIManagerView({
       setMessages((prev) => [
         ...prev,
         {
-          id: `ai-${Date.now()}`,
+          id: `ai-${++messageSeq.current}`,
           sender: "ai",
           text: res.reply!,
           timestamp: "Just now",
@@ -136,7 +138,7 @@ export function AIManagerView({
                 AI Supply Chain Copilot
               </h3>
               <span className="rounded-full bg-purple-500/10 px-2 py-0.5 text-caption font-semibold text-purple-600 dark:text-purple-400 capitalize">
-                {subscription.plan} Tier
+                {subscription.plan === null ? "No plan" : `${subscription.plan} Tier`}
               </span>
             </div>
             <p className="text-small text-(--color-text-muted)">

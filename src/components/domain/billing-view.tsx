@@ -1,24 +1,44 @@
 "use client";
 
-import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { PLAN_DEFINITIONS, TIER_ORDER } from "@/lib/subscriptions/tiers";
-import type { OrgSubscription, PlanTier, QuotaUsage, BillingCycle } from "@/types/subscription";
-import { Button } from "@/components/ui/button";
-import { Check, Sparkles, Building2, Package, Bot, Zap, ShieldCheck } from "lucide-react";
+import { billingErrorMessage, isBillingErrorCode } from "@/lib/subscriptions/billing-messages";
+import { CONTACT_EMAIL } from "@/lib/site-config";
+import type { OrgSubscription, PlanSource, PlanTier, QuotaUsage } from "@/types/subscription";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { AlertCircle, Check, Sparkles, Building2, Package } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+const SOURCE_NOTE: Record<PlanSource, string> = {
+  subscription: "Billed monthly through Polar. Change plan, update your card or cancel in Manage billing.",
+  "allow-list": "Access granted manually. Choose a plan below to start paying for it.",
+  demo: "Live demo. Plans can't be bought here.",
+  none: "Choose a plan to add your own data.",
+};
 
 export function BillingView({
   subscription,
   quota,
+  orgName,
 }: {
   subscription: OrgSubscription;
   quota: QuotaUsage;
+  /** Shown so nobody pays for the wrong organization; null in the demo. */
+  orgName: string | null;
 }) {
-  const [billingCycle, setBillingCycle] = useState<BillingCycle>(subscription.billingCycle || "monthly");
-  // No billing exists yet, so plans can't be bought or switched — every
-  // plan button below is disabled and changePlanAction refuses on the server.
-  const activePlan: PlanTier = subscription.plan;
-  const currentPlanDef = PLAN_DEFINITIONS[activePlan];
+  // null = "No plan" (never paid and not on the allow-list). Buying happens
+  // in /api/billing/checkout, changing or cancelling in /api/billing/portal;
+  // both take the org from the session.
+  const activePlan: PlanTier | null = subscription.plan;
+  const source = subscription.source;
+  const currentPlanDef = activePlan === null ? null : PLAN_DEFINITIONS[activePlan];
+  const wh = quota.warehouses;
+  const skus = quota.skus;
+
+  const searchParams = useSearchParams();
+  const errorCode = searchParams.get("billing_error") ?? "";
+  const requestedPlan = searchParams.get("plan");
+  const errorMessage = isBillingErrorCode(errorCode) ? billingErrorMessage(errorCode, requestedPlan) : null;
 
   return (
     <div className="space-y-8">
@@ -32,32 +52,48 @@ export function BillingView({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-semibold text-body text-(--color-text-primary)">
-                  {currentPlanDef.name} Plan
+                  {currentPlanDef === null ? "No plan" : `${currentPlanDef.name} Plan`}
                 </h3>
               </div>
-              <p className="text-small text-(--color-text-secondary)">
-                Billing is coming soon. Plans can&apos;t be purchased yet.
-              </p>
+              {orgName && (
+                <p className="text-small font-medium text-(--color-text-primary)">Organization: {orgName}</p>
+              )}
+              <p className="text-small text-(--color-text-secondary)">{SOURCE_NOTE[source]}</p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-caption text-(--color-text-muted)">Billing:</span>
-            <span className="rounded bg-(--color-surface) px-2.5 py-1 text-caption font-medium border border-(--color-border)">
-              {billingCycle === "annual" ? "Annual (2 Months Free)" : "Monthly"}
-            </span>
+            {source === "subscription" ? (
+              <a href="/api/billing/portal" className={buttonVariants({ variant: "secondary", size: "sm" })}>
+                Manage billing
+              </a>
+            ) : (
+              <>
+                <span className="text-caption text-(--color-text-muted)">Billing:</span>
+                <span className="rounded bg-(--color-surface) px-2.5 py-1 text-caption font-medium border border-(--color-border)">
+                  Monthly
+                </span>
+              </>
+            )}
           </div>
         </div>
       </div>
+
+      {errorMessage && (
+        <div role="alert" className="flex gap-2 rounded-lg border border-red-500/20 bg-red-500/10 p-4 text-small text-red-600 dark:text-red-400">
+          <AlertCircle size={16} className="mt-0.5 shrink-0" />
+          <span>{errorMessage}</span>
+        </div>
+      )}
 
       {/* Quota & Usage Meter Section */}
       <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-6 space-y-4">
         <h3 className="font-semibold text-body text-(--color-text-primary)">Network & Resource Usage</h3>
         <p className="text-small text-(--color-text-muted)">
-          Supply Chain Manager scales with your supply chain complexity (warehouses and SKU count), not user seats.
+          How much of your plan&apos;s warehouse and SKU allowance this workspace is using.
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
           {/* Warehouses Meter */}
           <div className="space-y-2 rounded-lg border border-(--color-border) p-4 bg-(--color-surface-secondary)">
             <div className="flex items-center justify-between text-small font-medium text-(--color-text-primary)">
@@ -65,28 +101,28 @@ export function BillingView({
                 <Building2 size={16} className="text-(--color-brand)" /> Warehouses
               </span>
               <span>
-                {quota.warehouses.used} / {quota.warehouses.limit === -1 ? "Unlimited" : quota.warehouses.limit}
+                {wh.used} / {wh.limit === null ? "—" : wh.limit === -1 ? "Unlimited" : wh.limit}
               </span>
             </div>
             <div className="h-2 w-full rounded-full bg-(--color-border) overflow-hidden">
               <div
                 className={cn(
                   "h-full rounded-full transition-all",
-                  quota.warehouses.isOverLimit ? "bg-red-500" : "bg-(--color-brand)"
+                  wh.isOverLimit ? "bg-red-500" : "bg-(--color-brand)"
                 )}
                 style={{
                   width: `${
-                    quota.warehouses.limit === -1
-                      ? 20
-                      : Math.min(100, (quota.warehouses.used / quota.warehouses.limit) * 100)
+                    wh.limit === null ? 0 : wh.limit === -1 ? 20 : Math.min(100, (wh.used / wh.limit) * 100)
                   }%`,
                 }}
               />
             </div>
             <p className="text-caption text-(--color-text-muted)">
-              {quota.warehouses.limit === -1
-                ? "Unlimited facilities allowed"
-                : `${Math.max(0, quota.warehouses.limit - quota.warehouses.used)} facility slots available`}
+              {wh.limit === null
+                ? "No plan"
+                : wh.limit === -1
+                  ? "Unlimited facilities allowed"
+                  : `${Math.max(0, wh.limit - wh.used)} facility slots available`}
             </p>
           </div>
 
@@ -97,93 +133,31 @@ export function BillingView({
                 <Package size={16} className="text-blue-500" /> Active SKUs
               </span>
               <span>
-                {quota.skus.used.toLocaleString()} /{" "}
-                {quota.skus.limit === -1 ? "Unlimited" : quota.skus.limit.toLocaleString()}
+                {skus.used.toLocaleString()} /{" "}
+                {skus.limit === null ? "—" : skus.limit === -1 ? "Unlimited" : skus.limit.toLocaleString()}
               </span>
             </div>
             <div className="h-2 w-full rounded-full bg-(--color-border) overflow-hidden">
               <div
                 className={cn(
                   "h-full rounded-full transition-all",
-                  quota.skus.isOverLimit ? "bg-red-500" : "bg-blue-500"
+                  skus.isOverLimit ? "bg-red-500" : "bg-blue-500"
                 )}
                 style={{
                   width: `${
-                    quota.skus.limit === -1 ? 15 : Math.min(100, (quota.skus.used / quota.skus.limit) * 100)
+                    skus.limit === null ? 0 : skus.limit === -1 ? 15 : Math.min(100, (skus.used / skus.limit) * 100)
                   }%`,
                 }}
               />
             </div>
             <p className="text-caption text-(--color-text-muted)">
-              {quota.skus.limit === -1
-                ? "Unlimited catalog size"
-                : `${Math.max(0, quota.skus.limit - quota.skus.used).toLocaleString()} product slots remaining`}
+              {skus.limit === null
+                ? "No plan"
+                : skus.limit === -1
+                  ? "Unlimited catalog size"
+                  : `${Math.max(0, skus.limit - skus.used).toLocaleString()} product slots remaining`}
             </p>
           </div>
-
-          {/* AI Queries Meter */}
-          <div className="space-y-2 rounded-lg border border-(--color-border) p-4 bg-(--color-surface-secondary)">
-            <div className="flex items-center justify-between text-small font-medium text-(--color-text-primary)">
-              <span className="flex items-center gap-2">
-                <Bot size={16} className="text-purple-500" /> Monthly AI Queries
-              </span>
-              <span>
-                {quota.aiQueries.used} /{" "}
-                {quota.aiQueries.limit === -1 ? "Custom" : quota.aiQueries.limit.toLocaleString()}
-              </span>
-            </div>
-            <div className="h-2 w-full rounded-full bg-(--color-border) overflow-hidden">
-              <div
-                className={cn(
-                  "h-full rounded-full transition-all",
-                  quota.aiQueries.isOverLimit ? "bg-red-500" : "bg-purple-500"
-                )}
-                style={{
-                  width: `${
-                    quota.aiQueries.limit === -1
-                      ? 25
-                      : Math.min(100, (quota.aiQueries.used / quota.aiQueries.limit) * 100)
-                  }%`,
-                }}
-              />
-            </div>
-            <p className="text-caption text-(--color-text-muted)">
-              {quota.aiQueries.remaining.toLocaleString()} natural language queries left this cycle
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Monthly / Annual Toggle */}
-      <div className="flex flex-col items-center justify-center gap-3 pt-2">
-        <div className="inline-flex rounded-lg border border-(--color-border) bg-(--color-surface-secondary) p-1">
-          <button
-            type="button"
-            onClick={() => setBillingCycle("monthly")}
-            className={cn(
-              "rounded-md px-4 py-1.5 text-small font-medium transition-colors",
-              billingCycle === "monthly"
-                ? "bg-(--color-surface) text-(--color-text-primary) shadow-xs"
-                : "text-(--color-text-muted) hover:text-(--color-text-primary)"
-            )}
-          >
-            Monthly Billing
-          </button>
-          <button
-            type="button"
-            onClick={() => setBillingCycle("annual")}
-            className={cn(
-              "flex items-center gap-1.5 rounded-md px-4 py-1.5 text-small font-medium transition-colors",
-              billingCycle === "annual"
-                ? "bg-(--color-surface) text-(--color-text-primary) shadow-xs"
-                : "text-(--color-text-muted) hover:text-(--color-text-primary)"
-            )}
-          >
-            Annual Billing
-            <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-caption font-semibold text-emerald-600 dark:text-emerald-400">
-              2 Months Free
-            </span>
-          </button>
         </div>
       </div>
 
@@ -191,15 +165,18 @@ export function BillingView({
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         {TIER_ORDER.map((tierKey) => {
           const plan = PLAN_DEFINITIONS[tierKey];
-          const isCurrent = activePlan === tierKey;
-          const price = billingCycle === "annual" ? plan.annualMonthlyPrice : plan.monthlyPrice;
+          // "Current" only for a plan being paid for (or the demo's); an
+          // allow-listed org's Growth is an override it can still buy.
+          const isCurrent = activePlan === tierKey && (source === "subscription" || source === "demo");
+          const isRequested = requestedPlan === tierKey && !isCurrent;
+          const price = plan.monthlyPrice;
 
           return (
             <div
               key={tierKey}
               className={cn(
                 "relative flex flex-col justify-between rounded-xl border p-6 bg-(--color-surface) transition-all",
-                isCurrent
+                isCurrent || isRequested
                   ? "border-(--color-brand) ring-2 ring-(--color-brand)/20 shadow-md"
                   : "border-(--color-border) hover:border-(--color-border-hover)"
               )}
@@ -224,15 +201,10 @@ export function BillingView({
                 <div className="mt-4 pb-4 border-b border-(--color-border)">
                   <div className="flex items-baseline gap-1">
                     <span className="text-3xl font-extrabold text-(--color-text-primary)">
-                      {tierKey === "enterprise" ? "$2,000+" : `$${price}`}
+                      {plan.contactUsInstead ? `$${plan.monthlyPrice.toLocaleString("en-US")}+` : `$${price}`}
                     </span>
                     <span className="text-small text-(--color-text-muted)">/ month</span>
                   </div>
-                  {billingCycle === "annual" && tierKey !== "enterprise" && (
-                    <p className="mt-1 text-caption text-emerald-600 dark:text-emerald-400">
-                      ${price * 12}/year (billed annually)
-                    </p>
-                  )}
                 </div>
 
                 <div className="mt-5 space-y-2.5">
@@ -255,10 +227,28 @@ export function BillingView({
                   <Button variant="secondary" className="w-full" disabled>
                     Current Plan
                   </Button>
-                ) : (
-                  <Button variant={plan.highlighted ? "primary" : "secondary"} className="w-full" disabled>
-                    Billing coming soon
+                ) : source === "demo" ? (
+                  <Button variant="secondary" className="w-full" disabled>
+                    Not available in the demo
                   </Button>
+                ) : plan.contactUsInstead ? (
+                  <a href={`mailto:${CONTACT_EMAIL}`} className={buttonVariants({ variant: "secondary", className: "w-full" })}>
+                    Contact us
+                  </a>
+                ) : source === "subscription" ? (
+                  <a href="/api/billing/portal" className={buttonVariants({ variant: "secondary", className: "w-full" })}>
+                    Change plan
+                  </a>
+                ) : (
+                  <a
+                    href={`/api/billing/checkout?plan=${tierKey}`}
+                    className={buttonVariants({
+                      variant: plan.highlighted || isRequested ? "primary" : "secondary",
+                      className: "w-full",
+                    })}
+                  >
+                    Choose {plan.name}
+                  </a>
                 )}
               </div>
             </div>

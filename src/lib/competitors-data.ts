@@ -1,3 +1,8 @@
+import { PLAN_DEFINITIONS } from "@/lib/subscriptions/tiers";
+
+// Our side of every price comparison comes from the plan catalog.
+const STARTER_PRICE = PLAN_DEFINITIONS.starter.monthlyPrice;
+
 export interface CompetitorFeature {
   feature: string;
   scm: boolean | string;
@@ -27,7 +32,7 @@ export const COMPETITORS: Record<string, CompetitorData> = {
     metaTitle: "Supply Chain Manager vs Inventory Planner (2026 Comparison)",
     metaDescription: "Comparing Supply Chain Manager vs Inventory Planner. Discover why distributors choose Supply Chain Manager for demand forecasting, supplier OTIF tracking, and transparent pricing.",
     summary: "Inventory Planner is built primarily for e-commerce brands and charges steep fees based on SKU counts and connected stores. Supply Chain Manager provides demand forecasting, lead-time tracking, and automated purchase order generation tailored for wholesale distributors at a transparent fixed price.",
-    pricingSCM: "From $49/mo (Flat pricing)",
+    pricingSCM: `From $${STARTER_PRICE}/mo (Flat pricing)`,
     pricingCompetitor: "From $249+/mo (SKU-tiered pricing)",
     keyDifferences: [
       "Transparent, fixed monthly pricing without surprise fees for growing SKU catalogs.",
@@ -36,7 +41,7 @@ export const COMPETITORS: Record<string, CompetitorData> = {
       "Faster onboarding — drop messy spreadsheets and get instant health scores.",
     ],
     matrix: [
-      { feature: "Starting Monthly Price", scm: "$49 / month", competitor: "$249+ / month" },
+      { feature: "Starting Monthly Price", scm: `$${STARTER_PRICE} / month`, competitor: "$249+ / month" },
       { feature: "Demand Forecasting Engine", scm: true, competitor: true },
       { feature: "Supplier OTIF & Performance Scorecards", scm: true, competitor: false, note: "Inventory Planner focuses primarily on sales forecasting" },
       { feature: "AI Operations Assistant", scm: true, competitor: false },
@@ -62,7 +67,7 @@ export const COMPETITORS: Record<string, CompetitorData> = {
     metaTitle: "Supply Chain Manager vs Katana MRP (2026 Comparison)",
     metaDescription: "Comparing Supply Chain Manager vs Katana Cloud Manufacturing. See why non-manufacturing wholesale distributors choose Supply Chain Manager.",
     summary: "Katana MRP is built for shop-floor manufacturing and bill-of-materials (BOM) management. If you are a distributor or wholesaler buying and reselling finished goods, Katana adds unnecessary complexity. Supply Chain Manager streamlines distribution, supplier OTIF tracking, and reorder projections.",
-    pricingSCM: "From $49/mo",
+    pricingSCM: `From $${STARTER_PRICE}/mo`,
     pricingCompetitor: "From $359+/mo",
     keyDifferences: [
       "Purpose-built for distribution networks rather than shop-floor assembly.",
@@ -71,7 +76,7 @@ export const COMPETITORS: Record<string, CompetitorData> = {
       "Conversational AI Manager for grounded operational insights.",
     ],
     matrix: [
-      { feature: "Starting Monthly Price", scm: "$49 / month", competitor: "$359+ / month" },
+      { feature: "Starting Monthly Price", scm: `$${STARTER_PRICE} / month`, competitor: "$359+ / month" },
       { feature: "Wholesale & Distribution Focus", scm: true, competitor: false, note: "Katana is designed for shop-floor manufacturing" },
       { feature: "Supplier Lead Time & OTIF Analytics", scm: true, competitor: false },
       { feature: "Multi-Warehouse Stock Reordering", scm: true, competitor: true },
@@ -92,7 +97,7 @@ export const COMPETITORS: Record<string, CompetitorData> = {
     metaTitle: "Supply Chain Manager vs Unleashed Software (2026 Comparison)",
     metaDescription: "Comparing Supply Chain Manager vs Unleashed Software. Discover the modern alternative for inventory, procurement, and forecasting.",
     summary: "Unleashed is a feature-rich legacy inventory tool, but its complex navigation and slow reporting can slow down daily operations. Supply Chain Manager offers a modern, high-speed interface with daily health scores, AI-assisted querying, and instant stockout projections.",
-    pricingSCM: "From $49/mo",
+    pricingSCM: `From $${STARTER_PRICE}/mo`,
     pricingCompetitor: "From $349+/mo",
     keyDifferences: [
       "Modern, fast user interface with sub-second page loads.",
@@ -101,7 +106,7 @@ export const COMPETITORS: Record<string, CompetitorData> = {
       "Free live demo with sample data, no signup required.",
     ],
     matrix: [
-      { feature: "Starting Monthly Price", scm: "$49 / month", competitor: "$349+ / month" },
+      { feature: "Starting Monthly Price", scm: `$${STARTER_PRICE} / month`, competitor: "$349+ / month" },
       { feature: "Modern Fast Interface", scm: true, competitor: false, note: "Unleashed relies on multi-tab legacy menus" },
       { feature: "Daily Health Score & Alerts", scm: true, competitor: false },
       { feature: "AI Manager Assistant", scm: true, competitor: false },
@@ -122,7 +127,7 @@ export const COMPETITORS: Record<string, CompetitorData> = {
     metaTitle: "Supply Chain Manager vs StockTrim (2026 Comparison)",
     metaDescription: "Comparing Supply Chain Manager vs StockTrim. See why operations teams prefer Supply Chain Manager for complete visibility.",
     summary: "While StockTrim focuses heavily on inventory calculations, Supply Chain Manager combines stockout forecasting with end-to-end operational metrics: supplier OTIF reliability, warehouse space utilization, procurement spend analysis, and an AI Operations Manager.",
-    pricingSCM: "From $49/mo",
+    pricingSCM: `From $${STARTER_PRICE}/mo`,
     pricingCompetitor: "From $99+/mo",
     keyDifferences: [
       "Complete 360° visibility: Inventory, Suppliers, Procurement, Logistics, and Warehouses.",
@@ -131,7 +136,7 @@ export const COMPETITORS: Record<string, CompetitorData> = {
       "Generous SKU and warehouse limits on every pricing tier.",
     ],
     matrix: [
-      { feature: "Starting Monthly Price", scm: "$49 / month", competitor: "$99+ / month" },
+      { feature: "Starting Monthly Price", scm: `$${STARTER_PRICE} / month`, competitor: "$99+ / month" },
       { feature: "Demand Forecasting", scm: true, competitor: true },
       { feature: "Supplier OTIF & Lead-Time Analysis", scm: true, competitor: false },
       { feature: "Warehouse Capacity & Utilization Metrics", scm: true, competitor: false },
@@ -152,7 +157,7 @@ export const COMPETITORS: Record<string, CompetitorData> = {
     metaTitle: "Supply Chain Manager vs Cin7 Core / DEAR (2026 Comparison)",
     metaDescription: "Comparing Supply Chain Manager vs Cin7 Core. Find out why growing distributors pick Supply Chain Manager.",
     summary: "Cin7 Core (formerly DEAR Inventory) is a broad mid-market ERP system that requires months of setup and costly implementation partners. Supply Chain Manager focuses on core supply chain execution — forecasting, reordering, supplier tracking — and gets you up and running in an afternoon.",
-    pricingSCM: "From $49/mo",
+    pricingSCM: `From $${STARTER_PRICE}/mo`,
     pricingCompetitor: "From $325+/mo",
     keyDifferences: [
       "Set up in an afternoon instead of months of ERP consulting.",
@@ -161,7 +166,7 @@ export const COMPETITORS: Record<string, CompetitorData> = {
       "Lightweight, lightning-fast web dashboard.",
     ],
     matrix: [
-      { feature: "Starting Monthly Price", scm: "$49 / month", competitor: "$325+ / month" },
+      { feature: "Starting Monthly Price", scm: `$${STARTER_PRICE} / month`, competitor: "$325+ / month" },
       { feature: "Setup Time", scm: "1 Afternoon", competitor: "1 - 3 Months" },
       { feature: "Demand Forecasting & Safety Stock", scm: true, competitor: true },
       { feature: "Supplier Reliability Scorecards", scm: true, competitor: false },

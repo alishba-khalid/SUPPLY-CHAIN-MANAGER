@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { PageHeader } from "@/components/ui/page-header";
 
 function getGreetingForHour(hour: number): string {
@@ -9,14 +9,14 @@ function getGreetingForHour(hour: number): string {
   return "Good evening";
 }
 
-export function OverviewHeader({ userName }: { userName?: string | null }) {
-  const [greeting, setGreeting] = useState(() => {
-    return getGreetingForHour(new Date().getHours());
-  });
+const noSubscribe = () => () => {};
+const browserGreeting = () => getGreetingForHour(new Date().getHours());
+// The server doesn't know the visitor's time zone, so it renders a neutral
+// greeting; the browser swaps in its local one after hydration (no mismatch).
+const serverGreeting = () => "Welcome back";
 
-  useEffect(() => {
-    setGreeting(getGreetingForHour(new Date().getHours()));
-  }, []);
+export function OverviewHeader({ userName }: { userName?: string | null }) {
+  const greeting = useSyncExternalStore(noSubscribe, browserGreeting, serverGreeting);
 
   return (
     <PageHeader

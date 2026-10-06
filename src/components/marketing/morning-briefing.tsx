@@ -1,5 +1,5 @@
 import { Card } from "@/components/ui/card";
-import { Sparkles, CheckCircle2 } from "lucide-react";
+import { Sparkles } from "lucide-react";
 
 const STEPS = [
   { step: "1. Reads", description: "Reads trailing transaction velocity across every warehouse facility." },

@@ -366,3 +366,16 @@ export async function getInventoryTable(orgId: string, params: InventoryTablePar
     hasAnyTransactionHistory: transactionCount > 0,
   };
 }
+
+/** Sets the on-hand quantity of one SKU at one warehouse (creating the row if needed). */
+export async function setStockLevel(
+  orgId: string,
+  data: { sku: string; warehouseId: number; quantityOnHand: number },
+): Promise<InventoryRecord> {
+  const { sku, warehouseId, quantityOnHand } = data;
+  return prisma.inventory.upsert({
+    where: { orgId_sku_warehouseId: { orgId, sku, warehouseId } },
+    create: { orgId, sku, warehouseId, quantityOnHand },
+    update: { quantityOnHand },
+  });
+}

@@ -12,8 +12,8 @@ const FEATURES_UPDATED: Record<string, Date> = {
   "purchase-orders": new Date("2026-09-20"),
 };
 const ABOUT_UPDATED = new Date("2026-09-28");
-// The legal pages' own "Last updated" date.
-const LEGAL_UPDATED = new Date("2026-09-18");
+// The legal pages' own "Last updated" dates.
+const LEGAL_UPDATED = new Date("2026-10-06");
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const competitorEntries: MetadataRoute.Sitemap = Object.keys(COMPETITORS).map((slug) => ({

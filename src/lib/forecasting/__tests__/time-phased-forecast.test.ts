@@ -9,7 +9,7 @@ import {
   OVERSTOCK_MULTIPLE,
   classifyInventoryStatus,
 } from "@/lib/metrics/inventory";
-import { computeSupplierPerformance, poOnTimeRate } from "@/lib/metrics/supplier";
+import { computeSupplierPerformance } from "@/lib/metrics/supplier";
 import { todayISODate, addDays } from "@/lib/dates";
 import { getAlerts } from "@/lib/insights/alerts";
 import type {
@@ -19,7 +19,6 @@ import type {
   Product,
   PurchaseOrder,
   Supplier,
-  SupplierPerformance,
   Warehouse,
 } from "@/types/supply-chain";
 

@@ -4,7 +4,7 @@ import { SITE_NAME, SITE_URL, CONTACT_EMAIL } from "@/lib/site-config";
 
 const TITLE = `Security | ${SITE_NAME}`;
 const DESCRIPTION = `Where ${SITE_NAME} hosts data, how it's encrypted, who can access it, and how to request deletion or export.`;
-const LAST_UPDATED = "September 18, 2026";
+const LAST_UPDATED = "October 6, 2026";
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -103,9 +103,10 @@ export default function SecurityPage() {
             <li>Vercel — application hosting and compute</li>
             <li>Neon — database hosting</li>
             <li>Clerk — authentication and account management</li>
+            <li>Polar — subscription payments, invoices and the billing portal</li>
           </ul>
-          {/* TODO: add to this list if/when a new subprocessor is wired up,
-              e.g. an email/SMS provider for alerts or a payments processor. */}
+          {/* Add to this list when a new subprocessor is wired up,
+              e.g. an email/SMS provider for alerts. */}
         </Section>
 
         {/* Certifications section intentionally omitted: no third-party

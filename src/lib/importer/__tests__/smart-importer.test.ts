@@ -1,11 +1,9 @@
 import { test, describe } from "node:test";
 import assert from "node:assert";
-import * as fs from "fs";
-import * as path from "path";
-import { readWorkbookBuffer, detectHeaderRowIndex } from "../reader";
-import { generateSheetColumnMappings, matchHeaderToCanonical, normalizeHeaderString } from "../mapping";
-import { cleanNumericValue, cleanDateValue, excelSerialToDate } from "../cleaner";
-import { calculateEntitySimilarity, clusterFuzzyEntities, calculateTokenPrefixScore } from "../deduplicator";
+import { readWorkbookBuffer } from "../reader";
+import { generateSheetColumnMappings, matchHeaderToCanonical } from "../mapping";
+import { cleanNumericValue, cleanDateValue } from "../cleaner";
+import { calculateEntitySimilarity, clusterFuzzyEntities } from "../deduplicator";
 import { extractEntitiesFromWorkbook } from "../extractor";
 import { createMessyWorkbookBuffer } from "../../../../fixtures/generate-messy-fixture";
 
@@ -187,7 +185,8 @@ describe("Smart Data Importer Test Suite (S1-S8, I1-I7)", () => {
     for (const count of counts) {
       const start = Date.now();
       const transactions = [];
-      const baseDate = new Date();
+      // Format once: the benchmark is about building and chunking rows, not date formatting.
+      const day = new Date().toISOString().slice(0, 10);
 
       for (let i = 0; i < count; i++) {
         transactions.push({
@@ -195,7 +194,7 @@ describe("Smart Data Importer Test Suite (S1-S8, I1-I7)", () => {
           warehouseCode: `WH-${(i % 5) + 1}`,
           quantity: (i % 50) + 1,
           direction: i % 2 === 0 ? ("IN" as const) : ("OUT" as const),
-          date: baseDate.toISOString().slice(0, 10),
+          date: day,
         });
       }
 
@@ -203,7 +202,7 @@ describe("Smart Data Importer Test Suite (S1-S8, I1-I7)", () => {
       const CHUNK_SIZE = 1000;
       let chunksCount = 0;
       for (let i = 0; i < transactions.length; i += CHUNK_SIZE) {
-        const chunk = transactions.slice(i, i + CHUNK_SIZE);
+        transactions.slice(i, i + CHUNK_SIZE);
         chunksCount++;
       }
 

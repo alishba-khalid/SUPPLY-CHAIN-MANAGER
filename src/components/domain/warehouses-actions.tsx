@@ -30,7 +30,7 @@ export function WarehousesActions() {
       const res = await createWarehouseAction({
         code,
         name,
-        capacityUnits: Number(capacityUnits) || 0,
+        capacityUnits: capacityUnits.trim() === "" ? null : Number(capacityUnits),
       });
 
       if (res.success) {

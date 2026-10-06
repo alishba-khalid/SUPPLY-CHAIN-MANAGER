@@ -16,7 +16,6 @@ import {
   CheckCircle2,
   ArrowLeft,
   Upload,
-  Info,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type {
@@ -27,7 +26,6 @@ import type {
   ExtractedInventory,
   ExtractedPurchaseOrder,
   ExtractedTransaction,
-  RejectedRowRecord,
 } from "@/lib/importer/types";
 
 interface PreviewStepProps {

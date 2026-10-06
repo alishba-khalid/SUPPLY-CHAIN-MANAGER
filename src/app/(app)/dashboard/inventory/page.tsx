@@ -36,6 +36,11 @@ export default async function InventoryPage({
   const orgId = await requireOrgId();
   const raw = await searchParams;
   const one = (v: string | string[] | undefined): string | undefined => (Array.isArray(v) ? v[0] : v);
+  // Hand-edited URLs (?page=1.5, ?warehouseId=abc) must not reach the SQL query.
+  const positiveInt = (v: string | undefined): number | undefined => {
+    const n = Number(v);
+    return v && Number.isSafeInteger(n) && n >= 1 ? n : undefined;
+  };
 
   const warehouseIdParam = one(raw.warehouseId);
   const statusParam = one(raw.status);
@@ -46,12 +51,12 @@ export default async function InventoryPage({
   const sortDirParam = one(raw.sortDir);
   const pageParam = one(raw.page);
 
-  const warehouseId = warehouseIdParam ? Number(warehouseIdParam) : undefined;
+  const warehouseId = positiveInt(warehouseIdParam);
   const status = STATUSES.includes(statusParam as InventoryRowStatus) ? (statusParam as InventoryRowStatus) : undefined;
   const abcClass = abcClassParam === "A" || abcClassParam === "B" || abcClassParam === "C" ? abcClassParam : undefined;
   const sortKey = SORT_KEYS.includes(sortKeyParam as InventoryTableSortKey) ? (sortKeyParam as InventoryTableSortKey) : "status";
   const sortDir = sortDirParam === "desc" ? "desc" : "asc";
-  const page = Math.max(1, Number(pageParam) || 1);
+  const page = positiveInt(pageParam) ?? 1;
 
   const [table, warehouses, suppliers, products, insights, records, purchaseOrders, transactions, subscription] = await Promise.all([
     getInventoryTable(orgId, {
@@ -124,7 +129,7 @@ export default async function InventoryPage({
             <SuggestedPosPanel
               suggestions={suggestions}
               isStarter={subscription.plan === "starter"}
-              planId={subscription.plan}
+              planId={subscription.plan ?? undefined}
             />
 
             <div className="flex flex-wrap items-center justify-between gap-3">

@@ -38,8 +38,8 @@ export function InventoryActions({
 
   function handleCreateProduct(e: React.FormEvent) {
     e.preventDefault();
-    if (!sku || !name || !supplierId) {
-      setError("Please fill out SKU, Product Name, and select a Supplier.");
+    if (!sku || !name || !supplierId || unitCost.trim() === "") {
+      setError("Please fill out SKU, Product Name, Unit Cost, and select a Supplier.");
       return;
     }
     setError(null);
@@ -49,7 +49,7 @@ export function InventoryActions({
         sku,
         name,
         category,
-        unitCost: Number(unitCost) || 0,
+        unitCost: Number(unitCost),
         supplierId,
       });
 
@@ -77,7 +77,7 @@ export function InventoryActions({
       const res = await adjustStockAction({
         sku: stockSku,
         warehouseId: Number(stockWarehouseId),
-        quantityOnHand: Number(quantityOnHand) || 0,
+        quantityOnHand: Number(quantityOnHand),
       });
 
       if (res.success) {
@@ -159,15 +159,17 @@ export function InventoryActions({
             </div>
             <div>
               <label className="block text-caption font-medium text-(--color-text-secondary) uppercase tracking-wider mb-1">
-                Unit Cost ($)
+                Unit Cost ($) *
               </label>
               <input
                 type="number"
                 step="0.01"
+                min="0"
                 placeholder="24.50"
                 value={unitCost}
                 onChange={(e) => setUnitCost(e.target.value)}
                 className="w-full rounded-md border border-(--color-border) bg-(--color-surface-secondary) px-3 py-2 text-body text-(--color-text-primary) focus:border-(--color-brand) focus:outline-none"
+                required
               />
             </div>
           </div>

@@ -16,7 +16,7 @@ export function SuppliersActions() {
 
   const [supplierId, setSupplierId] = useState("");
   const [name, setName] = useState("");
-  const [leadTimeDays, setLeadTimeDays] = useState("14");
+  const [leadTimeDays, setLeadTimeDays] = useState("");
   const [email, setEmail] = useState("");
 
   function handleCreate(e: React.FormEvent) {
@@ -31,14 +31,14 @@ export function SuppliersActions() {
       const res = await createSupplierAction({
         supplierId,
         name,
-        leadTimeDays: Number(leadTimeDays) || 14,
+        leadTimeDays: leadTimeDays.trim() === "" ? null : Number(leadTimeDays),
         email,
       });
 
       if (res.success) {
         setSupplierId("");
         setName("");
-        setLeadTimeDays("14");
+        setLeadTimeDays("");
         setEmail("");
         setAddOpen(false);
       } else {
@@ -105,7 +105,7 @@ export function SuppliersActions() {
               </label>
               <input
                 type="number"
-                placeholder="14"
+                placeholder="Blank if unknown"
                 value={leadTimeDays}
                 onChange={(e) => setLeadTimeDays(e.target.value)}
                 className="w-full rounded-md border border-(--color-border) bg-(--color-surface-secondary) px-3 py-2 text-body text-(--color-text-primary) focus:border-(--color-brand) focus:outline-none"

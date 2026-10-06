@@ -67,7 +67,7 @@ export function ForecastAccuracyClient({
       </div>
 
       {/* KPI Summary Cards */}
-      <ForecastAccuracyCards summary={forecastData.summary} isFallback={forecastData.isFallback} />
+      <ForecastAccuracyCards summary={forecastData.summary} />
 
       {/* Recharts Trend Curve & Bias Spread */}
       <ForecastTrendChart results={forecastData.results} />

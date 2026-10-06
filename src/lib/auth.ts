@@ -1,7 +1,9 @@
 import { auth } from "@clerk/nextjs/server";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { isOrgWriteAllowed } from "@/lib/subscriptions/write-access";
+import { cache } from "react";
+import { resolveOrgAccess, type OrgAccess } from "@/lib/subscriptions/write-access";
+import { listOrgSubscriptions } from "@/data/repositories/org-subscriptions";
 
 /**
  * The *only* sanctioned source of `orgId` anywhere in this app. It reads
@@ -38,15 +40,39 @@ export async function requireOrgId(): Promise<string> {
 
 
 /**
- * Whether this org may add or change its own data (see
- * src/lib/subscriptions/write-access.ts). Every server action that writes
- * org data checks this right after requireOrgId() and returns
- * WRITE_BLOCKED_MESSAGE when it's false.
+ * This org's plan and whether it may add or change its own data (see
+ * src/lib/subscriptions/write-access.ts). Deduplicated per request.
+ *
+ * If the subscription lookup fails (e.g. org_subscriptions doesn't exist yet
+ * because the migration hasn't been applied to this database), it's logged
+ * and the org is judged without subscriptions — the demo org and the
+ * IMPORT_ALLOWED_ORG_IDS override keep working instead of every write failing.
  */
-export function canWriteOrgData(orgId: string): boolean {
-  return isOrgWriteAllowed({
+export const getOrgAccess = cache(async (orgId: string): Promise<OrgAccess> => {
+  const isDemo = isDemoOrg(orgId);
+  let subscriptions: Awaited<ReturnType<typeof listOrgSubscriptions>> = [];
+  if (!isDemo) {
+    try {
+      subscriptions = await listOrgSubscriptions(orgId);
+    } catch (err) {
+      console.error(
+        `[billing] org ${orgId}: could not read subscriptions: ${err instanceof Error ? err.name : "unknown error"}`,
+      );
+    }
+  }
+  return resolveOrgAccess({
     orgId,
-    isDemo: isDemoOrg(orgId),
-    envValue: process.env.IMPORT_ALLOWED_ORG_IDS,
+    isDemo,
+    allowListEnv: process.env.IMPORT_ALLOWED_ORG_IDS,
+    subscriptions,
+    now: new Date(),
   });
+});
+
+/**
+ * Every server action that writes org data awaits this right after
+ * requireOrgId() and returns WRITE_BLOCKED_MESSAGE when it's false.
+ */
+export async function checkOrgWriteAccess(orgId: string): Promise<boolean> {
+  return (await getOrgAccess(orgId)).canWrite;
 }

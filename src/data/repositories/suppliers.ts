@@ -1,5 +1,6 @@
 import type { PurchaseOrder, Supplier, SupplierPerformance } from "@/types/supply-chain";
 import { prisma } from "@/lib/prisma";
+import { isDuplicateKeyError, type InsertResult } from "@/lib/procurement/po-number";
 import { computeSupplierPerformance, supplierHealthScore } from "@/lib/metrics/supplier";
 import { toPurchaseOrder } from "./procurement";
 
@@ -31,4 +32,18 @@ export async function getAllSupplierPerformance(orgId: string): Promise<Supplier
 export async function getSupplierHealthScore(orgId: string): Promise<number | null> {
   const performances = await getAllSupplierPerformance(orgId);
   return supplierHealthScore(performances);
+}
+
+/** Adds a supplier. Never updates: an existing supplier ID is reported as a duplicate. */
+export async function insertSupplier(
+  orgId: string,
+  data: { supplierId: string; name: string; leadTimeDays: number; leadTimeMissing: boolean; email: string },
+): Promise<InsertResult<Supplier>> {
+  try {
+    const row = await prisma.supplier.create({ data: { orgId, ...data } });
+    return { ok: true, value: row };
+  } catch (error) {
+    if (isDuplicateKeyError(error)) return { ok: false, duplicate: true };
+    throw error;
+  }
 }

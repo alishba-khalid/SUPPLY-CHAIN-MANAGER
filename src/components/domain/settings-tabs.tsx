@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, ReactNode, useEffect } from "react";
+import { ReactNode, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
@@ -15,20 +15,19 @@ interface SettingsTabsProps {
   billingView: ReactNode;
 }
 
-export function SettingsTabs({ orgName, orgId, importer, billingView }: SettingsTabsProps) {
+export function SettingsTabs({ orgName, orgId, billingView }: SettingsTabsProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const initialTab = (searchParams.get("tab") as "billing" | "org") || "billing";
-  const [activeTab, setActiveTab] = useState<"billing" | "org">(initialTab === "org" ? "org" : "billing");
+  const tabParam = searchParams.get("tab");
+  // The URL is the source of truth, so links like ?tab=billing and the
+  // back button always show the right tab.
+  const activeTab: "billing" | "org" = tabParam === "org" ? "org" : "billing";
+  const setActiveTab = (tab: "billing" | "org") =>
+    router.replace(`/dashboard/settings?tab=${tab}`, { scroll: false });
 
   useEffect(() => {
-    const tabParam = searchParams.get("tab");
-    if (tabParam === "import") {
-      router.replace("/dashboard/import");
-    } else if (tabParam === "org" || tabParam === "billing") {
-      setActiveTab(tabParam);
-    }
-  }, [searchParams, router]);
+    if (tabParam === "import") router.replace("/dashboard/import");
+  }, [tabParam, router]);
 
   return (
     <div className="space-y-6">

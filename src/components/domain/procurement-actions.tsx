@@ -55,8 +55,8 @@ export function ProcurementActions({
         poNumber,
         supplierId,
         sku,
-        quantity: Number(quantity) || 0,
-        unitPrice: Number(unitPrice) || 0,
+        quantity: Number(quantity),
+        unitPrice: Number(unitPrice),
         orderDate,
         expectedDate,
       });
