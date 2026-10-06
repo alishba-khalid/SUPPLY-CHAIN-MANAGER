@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Search, AlertTriangle, Truck } from "lucide-react";
+import { ExportButton } from "@/components/ui/export-button";
 import type { PurchaseOrder, Product, Supplier } from "@/types/supply-chain";
 
 interface LogisticsTableProps {
@@ -68,6 +69,24 @@ export function LogisticsTable({ openPOs, products, suppliers }: LogisticsTableP
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search PO, product SKU, or supplier..."
             className="h-9 w-72 rounded-md border border-(--color-border) bg-(--color-surface) pl-8 pr-3 text-body text-(--color-text-primary) placeholder:text-(--color-text-muted)"
+          />
+        </div>
+        <div className="ml-auto">
+          <ExportButton
+            fileBase="inbound-shipments"
+            sheetName="Inbound shipments"
+            rows={filteredRows}
+            columns={[
+              { header: "PO number", value: (r) => r.poNumber },
+              { header: "Supplier ID", value: (r) => r.supplierId },
+              { header: "Supplier", value: (r) => supplierMap.get(r.supplierId)?.name },
+              { header: "SKU", value: (r) => r.sku },
+              { header: "Product", value: (r) => productMap.get(r.sku)?.name },
+              { header: "Quantity", value: (r) => r.quantity },
+              { header: "Order date", value: (r) => r.orderDate },
+              { header: "Expected date", value: (r) => r.expectedDate },
+              { header: "Days until due (negative = overdue)", value: (r) => r.daysDifference },
+            ]}
           />
         </div>
       </div>

@@ -6,6 +6,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Search } from "lucide-react";
 import type { PurchaseOrder, Product, Supplier } from "@/types/supply-chain";
+import { ExportButton } from "@/components/ui/export-button";
 
 interface ProcurementTableProps {
   purchaseOrders: PurchaseOrder[];
@@ -136,6 +137,29 @@ export function ProcurementTable({ purchaseOrders, products, suppliers }: Procur
           <option value="pending">Pending</option>
           <option value="overdue">Overdue</option>
         </select>
+
+        <div className="ml-auto">
+          <ExportButton
+            fileBase="purchase-orders"
+            sheetName="Purchase orders"
+            rows={filteredRows}
+            columns={[
+              { header: "PO number", value: (r) => r.poNumber },
+              { header: "Supplier ID", value: (r) => r.supplierId },
+              { header: "Supplier", value: (r) => supplierMap.get(r.supplierId)?.name },
+              { header: "SKU", value: (r) => r.sku },
+              { header: "Product", value: (r) => productMap.get(r.sku)?.name },
+              { header: "Quantity", value: (r) => r.quantity },
+              { header: "Unit price", value: (r) => r.unitPrice },
+              { header: "Total value", value: (r) => r.totalValue },
+              { header: "Price variance %", value: (r) => (r.priceVar === null ? null : Math.round(r.priceVar * 10) / 10) },
+              { header: "Order date", value: (r) => r.orderDate },
+              { header: "Expected date", value: (r) => r.expectedDate },
+              { header: "Received date", value: (r) => r.receivedDate },
+              { header: "Status", value: (r) => r.statusLabel },
+            ]}
+          />
+        </div>
       </div>
 
       {/* Table */}

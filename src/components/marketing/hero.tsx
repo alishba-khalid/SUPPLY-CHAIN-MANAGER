@@ -9,7 +9,7 @@ export function Hero() {
       <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2 lg:gap-8">
         <div>
           <p className="text-caption font-semibold uppercase tracking-wide text-(--color-brand)">
-            Supply chain software for distributors
+            Supply chain software for distributors and wholesalers
           </p>
           <h1 className="mt-3 text-display text-(--color-text-primary)">
             You&apos;re not buying software. You&apos;re hiring a manager.

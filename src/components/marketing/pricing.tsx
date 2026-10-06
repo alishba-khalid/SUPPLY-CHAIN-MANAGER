@@ -12,7 +12,8 @@ export function Pricing() {
       <div className="mx-auto max-w-2xl text-center">
         <h2 className="text-h1 text-(--color-text-primary)">What it costs to keep on payroll</h2>
         <p className="mt-3 text-body-lg text-(--color-text-secondary)">
-          Try everything in the live demo first, free. Paid plans unlock adding your own data. Billed monthly, cancel anytime.
+          Try everything in the live demo first, free. Paid plans unlock adding your own data. Billed monthly in US
+          dollars, cancel anytime. Sales tax or VAT is added at checkout where your country requires it.
         </p>
       </div>
 
@@ -45,13 +46,13 @@ export function Pricing() {
                       <span className="text-h1 font-extrabold text-(--color-text-primary)">
                         From ${tier.monthlyPrice.toLocaleString("en-US")}
                       </span>
-                      <span className="text-body text-(--color-text-secondary)"> / mo</span>
+                      <span className="text-body text-(--color-text-secondary)"> USD / mo</span>
                     </div>
                   ) : (
                     <>
                       <div className="flex items-baseline gap-1">
                         <span className="text-3xl font-extrabold text-(--color-text-primary)">${tier.monthlyPrice}</span>
-                        <span className="text-body text-(--color-text-secondary)"> / month</span>
+                        <span className="text-body text-(--color-text-secondary)"> USD / month</span>
                       </div>
                     </>
                   )}

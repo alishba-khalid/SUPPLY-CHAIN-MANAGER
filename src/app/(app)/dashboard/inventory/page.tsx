@@ -5,6 +5,7 @@ import { InventorySummaryCards } from "@/components/domain/inventory-summary-car
 import { LeadTimeWarningBanner } from "@/components/domain/lead-time-warning-banner";
 import { InventoryFilters } from "@/components/domain/inventory-filters";
 import { InventoryTable } from "@/components/domain/inventory-table";
+import { InventoryExport } from "@/components/domain/inventory-export";
 import { InventoryPagination } from "@/components/domain/inventory-pagination";
 import { InventoryActions } from "@/components/domain/inventory-actions";
 import {
@@ -134,6 +135,9 @@ export default async function InventoryPage({
 
             <div className="flex flex-wrap items-center justify-between gap-3">
               <InventoryFilters warehouses={warehouses} suppliers={suppliers} />
+              <InventoryExport
+                filters={{ warehouseId, status, abcClass, supplierId: supplierIdParam, search: searchParam, sortKey, sortDir }}
+              />
             </div>
 
             <InventoryTable rows={table.rows} currentParams={currentParams} sortKey={sortKey} sortDir={sortDir} />

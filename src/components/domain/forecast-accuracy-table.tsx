@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import type { SeriesForecastResult } from "@/lib/forecasting/python-client";
 import type { Product, Warehouse } from "@/types/supply-chain";
 import { Search, ArrowUpDown, Info } from "lucide-react";
+import { ExportButton } from "@/components/ui/export-button";
 
 interface ForecastAccuracyTableProps {
   results: SeriesForecastResult[];
@@ -81,6 +82,24 @@ export function ForecastAccuracyTable({
           </p>
         </div>
 
+        <div className="flex flex-wrap items-center gap-3">
+        <ExportButton
+          fileBase="forecast-accuracy"
+          sheetName="Forecast accuracy"
+          rows={sorted}
+          columns={[
+            { header: "SKU", value: (r) => r.sku },
+            { header: "Product", value: (r) => productMap.get(r.sku)?.name },
+            { header: "Warehouse", value: (r) => warehouseMap.get(r.warehouse) ?? r.warehouse },
+            { header: "Segment (ABC/XYZ)", value: (r) => `${r.abc_class}${r.xyz_class}` },
+            { header: "Winning model", value: (r) => r.method_selected },
+            { header: "WAPE %", value: (r) => Math.round(r.accuracy.wape * 1000) / 10 },
+            { header: "Bias (units/day)", value: (r) => Math.round(r.accuracy.bias * 100) / 100 },
+            { header: "MASE", value: (r) => Math.round(r.accuracy.mase * 1000) / 1000 },
+            { header: "Policy hint", value: (r) => r.policy_hint },
+            { header: "Local fallback", value: (r) => (r.is_fallback ? "Yes" : "No") },
+          ]}
+        />
         <div className="relative min-w-[240px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-(--color-text-muted)" size={16} />
           <input
@@ -90,6 +109,7 @@ export function ForecastAccuracyTable({
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full rounded-md border border-(--color-border) bg-(--color-surface) py-1.5 pl-9 pr-3 text-small text-(--color-text-primary) placeholder:text-(--color-text-muted) focus:border-(--color-brand) focus:outline-none"
           />
+        </div>
         </div>
       </div>
 

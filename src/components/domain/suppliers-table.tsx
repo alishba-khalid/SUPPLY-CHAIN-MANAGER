@@ -5,11 +5,32 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Search } from "lucide-react";
 import type { Supplier, SupplierPerformance } from "@/types/supply-chain";
+import { ExportButton, type ExportColumn } from "@/components/ui/export-button";
 
 interface SuppliersTableProps {
   suppliers: Supplier[];
   performances: SupplierPerformance[];
 }
+
+type SupplierRow = Supplier & {
+  eligiblePO: number;
+  otif: number | null;
+  otifCount: number;
+  actualLeadTime: number | null;
+  spend: number;
+};
+
+const EXPORT_COLUMNS: ExportColumn<SupplierRow>[] = [
+  { header: "Supplier ID", value: (r) => r.supplierId },
+  { header: "Name", value: (r) => r.name },
+  { header: "Email", value: (r) => r.email },
+  { header: "POs received (90d)", value: (r) => r.eligiblePO },
+  { header: "OTIF %", value: (r) => (r.otif === null ? null : Math.round(r.otif * 10) / 10) },
+  { header: "On-time in-full POs", value: (r) => r.otifCount },
+  { header: "Actual lead time (days)", value: (r) => (r.actualLeadTime === null ? null : Math.round(r.actualLeadTime * 10) / 10) },
+  { header: "Contract lead time (days)", value: (r) => (r.leadTimeMissing ? null : r.leadTimeDays) },
+  { header: "Spend (90d)", value: (r) => r.spend },
+];
 
 export function SuppliersTable({ suppliers, performances }: SuppliersTableProps) {
   const [search, setSearch] = useState("");
@@ -18,7 +39,7 @@ export function SuppliersTable({ suppliers, performances }: SuppliersTableProps)
     return new Map(performances.map((p) => [p.supplierId, p]));
   }, [performances]);
 
-  const tableRows = useMemo(() => {
+  const tableRows = useMemo((): SupplierRow[] => {
     return suppliers.map((supplier) => {
       const perf = performanceMap.get(supplier.supplierId);
       return {
@@ -42,7 +63,7 @@ export function SuppliersTable({ suppliers, performances }: SuppliersTableProps)
 
   return (
     <div className="space-y-4">
-      {/* Search Filter */}
+      {/* Search Filter + Export */}
       <div className="flex items-center gap-3">
         <div className="relative">
           <Search size={15} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-(--color-text-muted)" />
@@ -52,6 +73,9 @@ export function SuppliersTable({ suppliers, performances }: SuppliersTableProps)
             placeholder="Search supplier name or ID..."
             className="h-9 w-64 rounded-md border border-(--color-border) bg-(--color-surface) pl-8 pr-3 text-body text-(--color-text-primary) placeholder:text-(--color-text-muted)"
           />
+        </div>
+        <div className="ml-auto">
+          <ExportButton fileBase="suppliers" sheetName="Suppliers" columns={EXPORT_COLUMNS} rows={filteredRows} />
         </div>
       </div>
 

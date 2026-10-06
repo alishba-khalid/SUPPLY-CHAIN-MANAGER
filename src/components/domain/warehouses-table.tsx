@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import type { Warehouse } from "@/types/supply-chain";
 import type { WarehouseHealth } from "@/data/repositories/warehouses";
 import { knownCapacity } from "@/lib/metrics/warehouse";
+import { ExportButton } from "@/components/ui/export-button";
 
 interface WarehousesTableProps {
   warehouses: Warehouse[];
@@ -57,6 +58,22 @@ export function WarehousesTable({ warehouses, healthRecords }: WarehousesTablePr
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search warehouse code or name..."
             className="h-9 w-64 rounded-md border border-(--color-border) bg-(--color-surface) pl-8 pr-3 text-body text-(--color-text-primary) placeholder:text-(--color-text-muted)"
+          />
+        </div>
+        <div className="ml-auto">
+          <ExportButton
+            fileBase="warehouses"
+            sheetName="Warehouses"
+            rows={filteredRows}
+            columns={[
+              { header: "Code", value: (r) => r.code },
+              { header: "Name", value: (r) => r.name },
+              { header: "Capacity (units)", value: (r) => r.capacityUnits },
+              { header: "On-hand units", value: (r) => r.onHandUnits },
+              { header: "Utilization %", value: (r) => r.utilizationPercent },
+              { header: "Stock health score", value: (r) => r.issueRateScore },
+              { header: "Health score", value: (r) => r.healthScore },
+            ]}
           />
         </div>
       </div>
