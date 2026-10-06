@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronsLeft, ChevronsRight } from "lucide-react";
@@ -9,38 +9,43 @@ import { Logo } from "@/components/Logo";
 import { NAV_ITEMS, BOTTOM_NAV_ITEMS } from "./nav-items";
 
 const STORAGE_KEY = "scm.sidebar.collapsed";
+const CHANGE_EVENT = "scm-sidebar-change";
+
+// The collapsed flag lives in localStorage. Reading it through
+// useSyncExternalStore keeps server HTML expanded and switches after
+// hydration without a mismatch, and keeps other tabs in sync.
+function subscribe(onChange: () => void) {
+  window.addEventListener("storage", onChange);
+  window.addEventListener(CHANGE_EVENT, onChange);
+  return () => {
+    window.removeEventListener("storage", onChange);
+    window.removeEventListener(CHANGE_EVENT, onChange);
+  };
+}
+
+function readCollapsed(): boolean {
+  try {
+    return window.localStorage.getItem(STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
 
 export function Sidebar() {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-    try {
-      if (window.localStorage.getItem(STORAGE_KEY) === "1") {
-        setCollapsed(true);
-      }
-    } catch {
-      // ignore
-    }
-  }, []);
+  const isCollapsed = useSyncExternalStore(subscribe, readCollapsed, () => false);
 
   const toggle = () => {
-    const next = !collapsed;
-    setCollapsed(next);
     try {
-      window.localStorage.setItem(STORAGE_KEY, next ? "1" : "0");
+      window.localStorage.setItem(STORAGE_KEY, isCollapsed ? "0" : "1");
     } catch {
       // ignore
     }
+    window.dispatchEvent(new Event(CHANGE_EVENT));
   };
-
-  const isCollapsed = mounted && collapsed;
 
   return (
     <aside
-      suppressHydrationWarning
       className={cn(
         "hidden shrink-0 flex-col border-r border-(--color-border) bg-(--color-surface) transition-[width] duration-150 md:flex",
         isCollapsed ? "w-16" : "w-60",
@@ -98,6 +103,8 @@ export function Sidebar() {
           );
         })}
         <button
+          type="button"
+          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           onClick={toggle}
           className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-small text-(--color-text-muted) hover:bg-(--color-surface-secondary) hover:text-(--color-text-primary)"
         >
