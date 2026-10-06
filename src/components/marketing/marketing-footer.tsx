@@ -3,11 +3,13 @@ import { Logo } from "@/components/Logo";
 import { SITE_NAME, CONTACT_EMAIL } from "@/lib/site-config";
 
 const PRODUCT_LINKS = [
+  { href: "/features", label: "All features" },
+  { href: "/how-it-works", label: "How it works" },
   { href: "/features/demand-forecasting", label: "Demand Forecasting" },
   { href: "/features/supplier-scorecards", label: "Supplier Scorecards" },
   { href: "/features/purchase-orders", label: "1-Click Purchase Orders" },
-  { href: "/#pricing", label: "Pricing" },
-  { href: "/#faq", label: "FAQ" },
+  { href: "/pricing", label: "Pricing" },
+  { href: "/faq", label: "FAQ" },
 ];
 
 const COMPARISON_LINKS = [

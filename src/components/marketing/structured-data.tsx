@@ -26,6 +26,16 @@ export function StructuredData() {
     // lib/site-config.ts. Search engines treat schema prices as facts.
   };
 
+  return (
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(organization) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(softwareApplication) }} />
+    </>
+  );
+}
+
+/** FAQPage markup — only on /faq, so search engines see one copy of the questions. */
+export function FaqStructuredData() {
   const faqPage = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
@@ -39,11 +49,5 @@ export function StructuredData() {
     })),
   };
 
-  return (
-    <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(organization) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(softwareApplication) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(faqPage) }} />
-    </>
-  );
+  return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(faqPage) }} />;
 }
