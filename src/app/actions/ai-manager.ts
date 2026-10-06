@@ -83,9 +83,14 @@ export async function askAiManagerAction(rawQuestion: string): Promise<AiManager
   let suggestedAction: { label: string; href: string } | undefined;
 
   if (lower.includes("stockout") || lower.includes("risk") || lower.includes("low")) {
-    const stockouts = alerts.filter((a) => a.severity === "critical" || a.severity === "warning");
-    reply = `There are currently ${stockouts.length} active inventory alerts requiring attention. The most urgent is ${stockouts[0]?.title || "none"}.`;
-    recommendation = `Action: Issue purchase orders for positions with days until stockout lower than supplier lead times to avoid production halts.`;
+    // Stock-level alerts only (not overstock, supplier or health alerts),
+    // already ranked most urgent first.
+    const stockouts = alerts.filter((a) => a.group === "stockout" || a.group === "low_stock");
+    reply =
+      stockouts.length === 0
+        ? "There are no stockout or low-stock alerts right now."
+        : `There ${stockouts.length === 1 ? "is 1 stockout or low-stock alert" : `are ${stockouts.length} stockout or low-stock alerts`} requiring attention. The most urgent is ${stockouts[0].title}.`;
+    recommendation = `Action: Issue purchase orders for positions with days until stockout lower than supplier lead times to avoid running out.`;
     suggestedAction = { label: "View Low Stock in Inventory", href: "/dashboard/inventory?status=understock" };
   } else if (lower.includes("supplier") || lower.includes("otif") || lower.includes("delivery")) {
     reply =
@@ -95,8 +100,12 @@ export async function askAiManagerAction(rawQuestion: string): Promise<AiManager
     recommendation = `Action: Investigate suppliers with sub-80% OTIF rates and adjust safety stock lead times accordingly.`;
     suggestedAction = { label: "Open Supplier Scorecards", href: "/dashboard/suppliers" };
   } else if (lower.includes("overstock") || lower.includes("capital") || lower.includes("tied up")) {
-    const overstocks = alerts.filter((a) => a.title.includes("cover") && a.description.includes("tied up"));
-    reply = `Found ${overstocks.length} overstock positions exceeding healthy holding thresholds. Overstock costs carry and ties up working capital.`;
+    // Overstock is rolled up into one aggregate alert whose title carries the
+    // position count and the capital tied up (src/lib/insights/alerts.ts).
+    const overstock = alerts.find((a) => a.group === "overstock");
+    reply = overstock
+      ? `${overstock.title}. Overstock carries holding cost and ties up working capital.`
+      : "No positions are above their overstock threshold right now.";
     recommendation = `Action: Delay scheduled purchase orders for high-cover SKUs to liberate cash flow.`;
     suggestedAction = { label: "Review Overstock Inventory", href: "/dashboard/inventory?status=overstock" };
   } else {
