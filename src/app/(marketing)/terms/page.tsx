@@ -4,7 +4,7 @@ import { SITE_NAME, SITE_URL, CONTACT_EMAIL } from "@/lib/site-config";
 
 const TITLE = `Terms of Service | ${SITE_NAME}`;
 const DESCRIPTION = `The terms for using ${SITE_NAME}: accounts, plans and billing, your data, acceptable use, termination, liability and how to contact us.`;
-const LAST_UPDATED = "October 2, 2026";
+const LAST_UPDATED = "October 6, 2026";
 
 // TODO: this page is unfinished — it has no Governing Law section because no
 // jurisdiction has been confirmed, and no registered legal entity/address.
@@ -70,8 +70,10 @@ export default function TermsPage() {
 
         <Section title="4. Plans and billing">
           <p>
-            Creating an account is free. Adding your own data requires a paid plan. No charge is ever made
-            automatically: you choose a plan before you are billed. Plan limits (warehouses, SKUs, seats) are described on our pricing page and
+            Creating an account is free. Adding your own data requires a paid plan. You are never charged until
+            you choose a plan at checkout. Paid plans are billed monthly through our payments provider, Polar, and
+            renew automatically each month until you cancel. You can cancel at any time from the billing portal;
+            your plan stays active until the end of the period you&apos;ve paid for. Plan limits (warehouses, SKUs, seats) are described on our pricing page and
             you&apos;ll be notified before you hit one — nothing shuts off without warning. Upgrades and downgrades
             take effect with prorated billing on your next invoice.
           </p>
