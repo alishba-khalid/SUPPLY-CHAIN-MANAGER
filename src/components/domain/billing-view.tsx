@@ -203,7 +203,7 @@ export function BillingView({
                     <span className="text-3xl font-extrabold text-(--color-text-primary)">
                       {plan.contactUsInstead ? `$${plan.monthlyPrice.toLocaleString("en-US")}+` : `$${price}`}
                     </span>
-                    <span className="text-small text-(--color-text-muted)">/ month</span>
+                    <span className="text-small text-(--color-text-muted)">USD / month</span>
                   </div>
                 </div>
 

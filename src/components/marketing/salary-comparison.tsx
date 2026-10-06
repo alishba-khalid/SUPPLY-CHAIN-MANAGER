@@ -9,7 +9,7 @@ export function SalaryComparison() {
         </h2>
         <p className="mt-5 text-body-lg text-(--color-text-primary) font-medium leading-relaxed">
           A manual spreadsheet review takes 5 to 10 hours of expensive planner time every week.
-          Supply Chain Manager starts from <strong className="text-(--color-brand) font-bold">${STARTING_MONTHLY_PRICE} a month</strong>,
+          Supply Chain Manager starts from <strong className="text-(--color-brand) font-bold">US${STARTING_MONTHLY_PRICE} a month</strong>,
           evaluates 90 days of transactions across every warehouse before you sit down, and delivers the
           exact decisions needed today.
         </p>
