@@ -310,3 +310,23 @@ model PolarWebhookEvent {
 
   @@map("polar_webhook_events")
 }
+
+// A published Google Sheets / OneDrive / CSV link that is re-imported on a
+// schedule (Import → Automatic refresh). The file goes through the same
+// template import as a manual upload; a refresh never clears existing data.
+model DataSource {
+  id              String    @id
+  orgId           String    @map("org_id")
+  provider        String // google_sheets | onedrive | csv_url
+  url             String
+  dataType        String    @map("data_type") // a TemplateType
+  schedule        String // daily | manual
+  lastRefreshedAt DateTime? @map("last_refreshed_at")
+  lastResult      String?   @map("last_result")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@index([orgId])
+  @@index([schedule])
+  @@map("data_sources")
+}

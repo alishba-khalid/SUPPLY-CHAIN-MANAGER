@@ -4,7 +4,13 @@ import { useState, useTransition } from "react";
 import { AlertCircle, CheckCircle2, Info, Link2, RefreshCw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { removeDataSourceAction, saveDataSourceAction, testDataSourceAction } from "@/app/actions/integrations";
+import {
+  refreshDataSourceAction,
+  removeDataSourceAction,
+  saveDataSourceAction,
+  testDataSourceAction,
+} from "@/app/actions/integrations";
+import { linkProblem } from "@/lib/sync/source-url";
 import {
   DATA_TYPE_LABELS,
   PROVIDER_LABELS,
@@ -34,22 +40,6 @@ const HOW_TO: Record<DataSourceProvider, string[]> = {
   csv_url: ["Paste any https link that downloads a CSV file with headers in the first row."],
 };
 
-/** Quick client-side check so obvious mistakes are caught before saving. */
-function linkProblem(provider: DataSourceProvider, url: string): string | null {
-  let parsed: URL;
-  try {
-    parsed = new URL(url.trim());
-  } catch {
-    return "That isn't a full link — it should start with https://";
-  }
-  if (parsed.protocol !== "https:") return "Use an https:// link.";
-  const host = parsed.hostname;
-  if (provider === "google_sheets" && host !== "docs.google.com") return "Google Sheets links start with https://docs.google.com/";
-  if (provider === "onedrive" && !/(^|\.)(onedrive\.live\.com|1drv\.ms|sharepoint\.com)$/.test(host)) {
-    return "OneDrive links come from onedrive.live.com, 1drv.ms or sharepoint.com.";
-  }
-  return null;
-}
 
 function formatWhen(iso: string | null): string {
   if (!iso) return "Never";
@@ -95,7 +85,23 @@ export function DataSources({ initial, available }: { initial: DataSource[]; ava
       if (res.ok) {
         setSources((s) => [...s, res.value]);
         setUrl("");
-        setMessage({ tone: "success", text: "Link saved. It will refresh on the schedule you picked." });
+        setMessage({
+          tone: "success",
+          text: `Link saved and imported. ${res.value.lastResult ?? ""}`.trim(),
+        });
+      } else {
+        setMessage({ tone: "error", text: res.error });
+      }
+    });
+  }
+
+  function handleRefresh(id: string) {
+    setMessage(null);
+    startTransition(async () => {
+      const res = await refreshDataSourceAction(id);
+      if (res.ok) {
+        setSources((s) => s.map((x) => (x.id === id ? res.value : x)));
+        setMessage({ tone: "success", text: res.value.lastResult ?? "Refreshed." });
       } else {
         setMessage({ tone: "error", text: res.error });
       }
@@ -148,6 +154,9 @@ export function DataSources({ initial, available }: { initial: DataSource[]; ava
                   {s.lastResult ? ` · ${s.lastResult}` : ""}
                 </p>
               </div>
+              <Button type="button" variant="secondary" size="sm" onClick={() => handleRefresh(s.id)} disabled={isPending}>
+                Refresh now
+              </Button>
               <button
                 type="button"
                 aria-label={`Remove ${DATA_TYPE_LABELS[s.dataType]} link`}
@@ -257,7 +266,7 @@ export function DataSources({ initial, available }: { initial: DataSource[]; ava
             Test link
           </Button>
           <Button type="submit" size="sm" disabled={isPending || !url.trim()}>
-            {isPending ? "Working…" : "Save link"}
+            {isPending ? "Working…" : "Save and import now"}
           </Button>
         </div>
       </form>
