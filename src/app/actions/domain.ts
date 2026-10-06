@@ -2,9 +2,9 @@
 
 import { requireOrgId, isDemoOrg, checkOrgWriteAccess } from "@/lib/auth";
 import { WRITE_BLOCKED_MESSAGE } from "@/lib/subscriptions/write-access";
-import { upsertWarehouse } from "@/data/repositories/warehouses";
-import { getSupplier, upsertSupplier } from "@/data/repositories/suppliers";
-import { upsertProduct } from "@/data/repositories/products";
+import { insertWarehouse } from "@/data/repositories/warehouses";
+import { getSupplier, insertSupplier } from "@/data/repositories/suppliers";
+import { insertProduct } from "@/data/repositories/products";
 import { setStockLevel } from "@/data/repositories/inventory";
 import { revalidatePath } from "next/cache";
 import { duplicatePoNumberMessage } from "@/lib/procurement/po-number";
@@ -23,6 +23,11 @@ function parseDay(value: string): Date | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+/** "Add" never overwrites; changes to an existing record go through an import. */
+function alreadyExistsMessage(kind: string, id: string, file: string): string {
+  return `${kind} ${id} already exists, so nothing was changed. To update it, import your ${file} file.`;
 }
 
 function revalidateAllDashboard() {
@@ -64,10 +69,14 @@ export async function createWarehouseAction(data: {
       };
     }
 
-    const warehouse = await upsertWarehouse(orgId, { code, name, capacityUnits });
+    // Insert only: an existing code is an error, never a silent overwrite.
+    const inserted = await insertWarehouse(orgId, { code, name, capacityUnits });
+    if (!inserted.ok) {
+      return { success: false, duplicate: true, error: alreadyExistsMessage("Warehouse", code, "warehouses") };
+    }
 
     revalidateAllDashboard();
-    return { success: true, data: warehouse };
+    return { success: true, data: inserted.value };
   } catch (error) {
     console.error("createWarehouseAction error:", error);
     return { success: false, error: error instanceof Error ? error.message : "Failed to create warehouse." };
@@ -110,10 +119,13 @@ export async function createSupplierAction(data: {
       };
     }
 
-    const supplier = await upsertSupplier(orgId, { supplierId, name, leadTimeDays, leadTimeMissing, email });
+    const inserted = await insertSupplier(orgId, { supplierId, name, leadTimeDays, leadTimeMissing, email });
+    if (!inserted.ok) {
+      return { success: false, duplicate: true, error: alreadyExistsMessage("Supplier", supplierId, "suppliers") };
+    }
 
     revalidateAllDashboard();
-    return { success: true, data: supplier };
+    return { success: true, data: inserted.value };
   } catch (error) {
     console.error("createSupplierAction error:", error);
     return { success: false, error: error instanceof Error ? error.message : "Failed to create supplier." };
@@ -156,10 +168,13 @@ export async function createProductAction(data: {
       return { success: false, error: `Supplier '${supplierId}' not found.` };
     }
 
-    const product = await upsertProduct(orgId, { sku, name, category, unitCost, supplierId });
+    const inserted = await insertProduct(orgId, { sku, name, category, unitCost, supplierId });
+    if (!inserted.ok) {
+      return { success: false, duplicate: true, error: alreadyExistsMessage("Product", sku, "products") };
+    }
 
     revalidateAllDashboard();
-    return { success: true, data: product };
+    return { success: true, data: inserted.value };
   } catch (error) {
     console.error("createProductAction error:", error);
     return { success: false, error: error instanceof Error ? error.message : "Failed to create product." };

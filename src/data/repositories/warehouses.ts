@@ -1,5 +1,6 @@
 import type { Warehouse } from "@/types/supply-chain";
 import { prisma } from "@/lib/prisma";
+import { isDuplicateKeyError, type InsertResult } from "@/lib/procurement/po-number";
 import { getInventoryInsights } from "./inventory";
 import {
   capacityUtilization,
@@ -75,14 +76,20 @@ export async function getWarehouseHealthScore(orgId: string): Promise<number | n
   return averageWarehouseHealth(all.map((w) => w.healthScore));
 }
 
-/** Adds a warehouse, or updates the name/capacity of the one with this code. */
-export async function upsertWarehouse(
+/**
+ * Adds a warehouse. Never updates: a code that already exists in this
+ * workspace is reported as a duplicate, so an existing warehouse is never
+ * silently overwritten.
+ */
+export async function insertWarehouse(
   orgId: string,
   data: { code: string; name: string; capacityUnits: number | null },
-): Promise<Warehouse> {
-  return prisma.warehouse.upsert({
-    where: { orgId_code: { orgId, code: data.code } },
-    create: { orgId, ...data },
-    update: { name: data.name, capacityUnits: data.capacityUnits },
-  });
+): Promise<InsertResult<Warehouse>> {
+  try {
+    const row = await prisma.warehouse.create({ data: { orgId, ...data } });
+    return { ok: true, value: row };
+  } catch (error) {
+    if (isDuplicateKeyError(error)) return { ok: false, duplicate: true };
+    throw error;
+  }
 }

@@ -1,5 +1,6 @@
 import type { Product } from "@/types/supply-chain";
 import { prisma } from "@/lib/prisma";
+import { isDuplicateKeyError, type InsertResult } from "@/lib/procurement/po-number";
 
 function toProduct(row: { id: number; sku: string; name: string; category: string; unitCost: unknown; supplierId: string }): Product {
   return { ...row, unitCost: Number(row.unitCost) };
@@ -15,16 +16,16 @@ export async function getProduct(orgId: string, sku: string): Promise<Product | 
   return row ? toProduct(row) : undefined;
 }
 
-/** Adds a product, or updates the one with this SKU. */
-export async function upsertProduct(
+/** Adds a product. Never updates: an existing SKU is reported as a duplicate. */
+export async function insertProduct(
   orgId: string,
   data: { sku: string; name: string; category: string; unitCost: number; supplierId: string },
-): Promise<Product> {
-  const { sku, ...fields } = data;
-  const row = await prisma.product.upsert({
-    where: { orgId_sku: { orgId, sku } },
-    create: { orgId, sku, ...fields },
-    update: fields,
-  });
-  return toProduct(row);
+): Promise<InsertResult<Product>> {
+  try {
+    const row = await prisma.product.create({ data: { orgId, ...data } });
+    return { ok: true, value: toProduct(row) };
+  } catch (error) {
+    if (isDuplicateKeyError(error)) return { ok: false, duplicate: true };
+    throw error;
+  }
 }
