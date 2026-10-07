@@ -4,10 +4,8 @@ import { SITE_NAME, SITE_URL, CONTACT_EMAIL } from "@/lib/site-config";
 const TITLE = `About | ${SITE_NAME}`;
 const DESCRIPTION = `Why we built ${SITE_NAME}: inventory and purchasing software that tells distributors what to order today, and shows the numbers behind every call.`;
 
-// TODO: this page is unfinished — it's missing a Founder section pending
-// real name/title/bio from the business owner. It's deliberately kept out
-// of the footer nav and sitemap.ts, and noindex'd below, until that section
-// is added back in. Do not link it or index it before then.
+// TODO: a Founder section is pending a real name/title/bio from the business
+// owner. The page is indexed, in sitemap.ts and linked from the footer.
 export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,

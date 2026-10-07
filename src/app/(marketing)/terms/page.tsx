@@ -8,9 +8,7 @@ const LAST_UPDATED = "October 6, 2026";
 
 // TODO: this page is unfinished — it has no Governing Law section because no
 // jurisdiction has been confirmed, and no registered legal entity/address.
-// Have counsel review before relying on it. It's deliberately noindex'd and
-// left out of sitemap.ts until the Governing Law section is restored with a
-// real jurisdiction.
+// Have counsel review before relying on it. (It is indexed and in sitemap.ts.)
 export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
