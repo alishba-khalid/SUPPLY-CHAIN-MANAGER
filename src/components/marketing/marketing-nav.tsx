@@ -9,10 +9,10 @@ import { Logo } from "@/components/Logo";
 import { SITE_NAME } from "@/lib/site-config";
 
 const LINKS = [
-  { href: "/#features", label: "Features" },
-  { href: "/#how-it-works", label: "How it works" },
-  { href: "/#pricing", label: "Pricing" },
-  { href: "/#faq", label: "FAQ" },
+  { href: "/features", label: "Features" },
+  { href: "/how-it-works", label: "How it works" },
+  { href: "/pricing", label: "Pricing" },
+  { href: "/faq", label: "FAQ" },
   { href: "/blog", label: "Guides" },
 ];
 
@@ -37,13 +37,13 @@ export function MarketingNav() {
 
         <nav className="hidden items-center gap-8 md:flex">
           {LINKS.map((link) => (
-            <a
+            <Link
               key={link.href}
               href={link.href}
               className="text-body text-(--color-text-secondary) hover:text-(--color-text-primary)"
             >
               {link.label}
-            </a>
+            </Link>
           ))}
         </nav>
 
@@ -78,14 +78,14 @@ export function MarketingNav() {
         <div className="border-t border-(--color-border) bg-(--color-surface) px-6 py-4 md:hidden">
           <nav className="flex flex-col gap-1">
             {LINKS.map((link) => (
-              <a
+              <Link
                 key={link.href}
                 href={link.href}
                 onClick={() => setOpen(false)}
                 className="rounded-md px-3 py-2 text-body text-(--color-text-secondary) hover:bg-(--color-surface-secondary) hover:text-(--color-text-primary)"
               >
                 {link.label}
-              </a>
+              </Link>
             ))}
           </nav>
           <div className="mt-3 flex flex-col gap-2 border-t border-(--color-border) pt-3">

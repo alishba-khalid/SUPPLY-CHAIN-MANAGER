@@ -6,6 +6,7 @@ import { BLOG_POSTS } from "@/lib/blog/posts";
 // When each page's content last changed. Update the date when you edit a
 // page — a date that moves on every deploy tells search engines nothing.
 const HOME_UPDATED = new Date("2026-09-28");
+const SECTION_PAGES_UPDATED = new Date("2026-10-06");
 const COMPETITORS_UPDATED = new Date("2026-09-20");
 const FEATURES_UPDATED: Record<string, Date> = {
   "demand-forecasting": new Date("2026-09-28"),
@@ -47,6 +48,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "weekly",
       priority: 1,
     },
+    // Standalone pages for what were homepage sections (same content).
+    ...["features", "how-it-works", "pricing", "faq"].map((path) => ({
+      url: `${SITE_URL}/${path}`,
+      lastModified: SECTION_PAGES_UPDATED,
+      changeFrequency: "monthly" as const,
+      priority: 0.9,
+    })),
     ...competitorEntries,
     ...featureEntries,
     {
