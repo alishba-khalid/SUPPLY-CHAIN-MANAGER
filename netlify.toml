@@ -6,8 +6,9 @@
 # FUNCTION_TIME_LIMIT_SECONDS=60 must be set there: Netlify stops every
 # request at 60s, and src/lib/function-time-limit.ts budgets long work by it.
 #
-# The nightly jobs run from .github/workflows/cron.yml: Netlify's scheduled
-# functions stop at 30s, and vercel.json's `crons` only works on Vercel.
+# The nightly jobs run from .github/workflows/ (cron.yml, forecasts.yml):
+# Netlify's scheduled functions stop at 30s, and vercel.json's `crons` only
+# works on Vercel.
 [build]
   command = "npm run build"
 
