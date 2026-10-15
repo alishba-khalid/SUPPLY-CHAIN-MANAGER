@@ -1,0 +1,67 @@
+# Render Blueprint: the web app and the Python forecasting service, both on
+# the free plan. Render's free plan has no cron jobs — the nightly routes are
+# called from .github/workflows/cron.yml instead.
+services:
+  - type: web
+    name: supply-chain-manager
+    runtime: node
+    plan: free
+    # Same AWS region as the Neon database (us-east-1).
+    region: virginia
+    # Test from this branch first; switch to master after "APPROVED: merge".
+    branch: render-migration
+    buildCommand: npm ci && npm run build
+    # next start reads the PORT Render provides.
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # Publishable key: public by design (it ships in the browser bundle).
+      - key: NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+        value: pk_live_Y2xlcmsuc3VwcGx5Y2hhaW5tYW5hZ2VyLmFwcCQ
+      - key: CLERK_SECRET_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: CRON_SECRET
+        generateValue: true
+      - key: FORECAST_SERVICE_URL
+        sync: false
+      - key: FORECAST_SERVICE_SECRET
+        fromService:
+          type: web
+          name: forecasting-service
+          envVarKey: FORECAST_SERVICE_SECRET
+      - key: IMPORT_ALLOWED_ORG_IDS
+        sync: false
+      - key: POLAR_ACCESS_TOKEN
+        sync: false
+      - key: POLAR_ENVIRONMENT
+        sync: false
+      - key: POLAR_WEBHOOK_SECRET
+        sync: false
+      - key: POLAR_PRODUCT_STARTER_MONTHLY
+        sync: false
+      - key: POLAR_PRODUCT_GROWTH_MONTHLY
+        sync: false
+      - key: POLAR_PRODUCT_PROFESSIONAL_MONTHLY
+        sync: false
+
+  - type: web
+    name: forecasting-service
+    runtime: docker
+    plan: free
+    region: virginia
+    # Test from this branch first; switch to master after "APPROVED: merge".
+    branch: render-migration
+    rootDir: forecasting-service
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: FORECAST_SERVICE_SECRET
+        generateValue: true
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://supplychainmanager.app,http://localhost:3005
