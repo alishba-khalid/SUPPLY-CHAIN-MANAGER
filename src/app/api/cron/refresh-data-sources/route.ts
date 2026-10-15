@@ -8,9 +8,10 @@
 import { listDailyDataSources, recordDataSourceRefresh } from "@/data/repositories/data-sources";
 import { refreshSource } from "@/lib/sync/data-source-sync";
 import { checkOrgWriteAccess } from "@/lib/auth";
+import { SOFT_DEADLINE_MS } from "@/lib/function-time-limit";
 
+// Netlify ignores this and stops at 60s; SOFT_DEADLINE_MS follows the host.
 export const maxDuration = 300;
-const SOFT_DEADLINE_MS = 270_000;
 
 function isAuthorized(req: Request): boolean {
   const secret = process.env.CRON_SECRET;

@@ -7,6 +7,7 @@
  * and seed can never disagree on the write path.
  */
 import { upsertForecastResults } from "@/data/repositories/forecasts";
+import { FUNCTION_TIME_LIMIT_MS } from "@/lib/function-time-limit";
 import type { SeriesInput, SeriesForecastResult } from "@/lib/forecasting/python-client";
 
 const FORECAST_URL =
@@ -18,8 +19,9 @@ const FORECAST_SECRET =
 export const BATCH_CHUNK_SIZE = 15;
 // Generous per-chunk budget; a chunk this size should finish in well under
 // 30s even with network overhead, but a cold Python instance shouldn't be
-// able to blow past this and hang the whole batch invocation.
-const CHUNK_TIMEOUT_MS = 60_000;
+// able to blow past this and hang the whole batch invocation. Half the
+// host's request limit where that is shorter (30s on Netlify).
+const CHUNK_TIMEOUT_MS = Math.min(60_000, FUNCTION_TIME_LIMIT_MS / 2);
 
 /** One network call per chunk — throws on failure. The batch loop below decides whether to skip and continue; this function never silently swallows an error into a fallback. */
 async function callForecastService(series: SeriesInput[]): Promise<SeriesForecastResult[]> {
@@ -57,7 +59,8 @@ export interface BatchProgress {
  * Processes series[startCursor .. ] for one org, one chunk of
  * `BATCH_CHUNK_SIZE` at a time, persisting each chunk immediately (so a
  * crash mid-batch keeps whatever already completed). Stops — without
- * throwing — once either every series is processed or `deadline` passes;
+ * throwing — once either every series is processed or a new chunk could
+ * run past `deadline` (a chunk may take up to CHUNK_TIMEOUT_MS);
  * the caller decides what to do with an unfinished run (the cron route
  * schedules a continuation, the manual button and seed script don't need
  * to, since their inputs are always small/unbounded-in-time respectively).
@@ -72,7 +75,7 @@ export async function runForecastBatch(
   let processed = 0;
   const errors: string[] = [];
 
-  while (cursor < seriesList.length && Date.now() < deadline) {
+  while (cursor < seriesList.length && Date.now() + CHUNK_TIMEOUT_MS < deadline) {
     const chunk = seriesList.slice(cursor, cursor + BATCH_CHUNK_SIZE);
     try {
       const results = await callForecastService(chunk);
