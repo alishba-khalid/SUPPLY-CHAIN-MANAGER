@@ -6,6 +6,9 @@
  * without that route's per-request time limit.
  *
  *   FORECAST_SERVICE_URL=http://127.0.0.1:8000 npx tsx scripts/recompute-forecasts.ts
+ *
+ * ORG_ID limits the run to one org (the app's Recompute button sets it).
+ * An ORG_ID with no data is an error, not a silent full run.
  */
 import { getInventoryTransactions } from "../src/data/repositories/inventory";
 import { getProducts } from "../src/data/repositories/products";
@@ -14,7 +17,10 @@ import { buildSeriesInputs } from "../src/lib/forecasting/python-client";
 import { runForecastBatch } from "../src/lib/forecasting/batch-forecast";
 
 async function main() {
-  const orgIds = await getAllOrgIdsWithData();
+  const allOrgIds = await getAllOrgIdsWithData();
+  const only = process.env.ORG_ID?.trim();
+  if (only && !allOrgIds.includes(only)) throw new Error(`ORG_ID ${only} has no data to forecast.`);
+  const orgIds = only ? [only] : allOrgIds;
   let failedOrgs = 0;
 
   for (const orgId of orgIds) {

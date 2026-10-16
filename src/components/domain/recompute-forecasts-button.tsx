@@ -21,7 +21,9 @@ export function RecomputeForecastsButton({ lastComputedAt }: { lastComputedAt: s
   function handleClick() {
     startTransition(async () => {
       const res = await recomputeForecastsAction();
-      if (res.success) {
+      if ("queued" in res && res.queued) {
+        setMessage("Recompute started. New forecasts appear in about 10 minutes; refresh the page then.");
+      } else if (res.success && "processed" in res) {
         setComputedAt(new Date().toISOString());
         setMessage(
           res.isDemo

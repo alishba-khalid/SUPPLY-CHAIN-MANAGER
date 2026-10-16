@@ -3,6 +3,9 @@
 # starts it inside the runner and runs scripts/recompute-forecasts.ts
 # against it, writing results straight to the database.
 #
+# Also started on demand by the app's "Recompute forecasts" button
+# (src/lib/forecasting/github-dispatch.ts) with one org_id.
+#
 # Needs one repository secret: DATABASE_URL (the Production database).
 name: Nightly forecasts
 
@@ -10,6 +13,17 @@ on:
   schedule:
     - cron: "0 6 * * *"
   workflow_dispatch:
+    inputs:
+      org_id:
+        description: "Recompute only this org (leave empty for every org)"
+        type: string
+        required: false
+
+# One run per org at a time; a second click queues behind the first
+# (a per-org group, so one org's queued run never replaces another's).
+concurrency:
+  group: forecasts-${{ inputs.org_id || 'all' }}
+  cancel-in-progress: false
 
 jobs:
   recompute:
@@ -47,6 +61,8 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           FORECAST_SERVICE_URL: http://127.0.0.1:8000
+          # Passed as an env var, never interpolated into the script.
+          ORG_ID: ${{ inputs.org_id }}
         run: npx tsx scripts/recompute-forecasts.ts
 
       - name: Forecasting service log
