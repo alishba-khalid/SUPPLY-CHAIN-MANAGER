@@ -30,6 +30,11 @@ export default function BlogIndexPage() {
       <h1 className="text-h1 text-(--color-text-primary)">Guides for distributors</h1>
       <p className="mt-4 text-body-lg text-(--color-text-secondary)">
         How to decide what to order, when, and from whom — the formulas, worked examples and the mistakes to avoid.
+        {" "}Looking for a single term? Try the{" "}
+        <Link href="/glossary" className="font-medium text-(--color-brand) hover:underline">
+          supply chain glossary
+        </Link>
+        .
       </p>
 
       <ul className="mt-12 space-y-6">

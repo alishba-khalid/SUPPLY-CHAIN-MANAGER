@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { RelatedGuides } from "@/components/marketing/related-guides";
+import { RelatedTerms } from "@/components/marketing/related-terms";
 import { ArrowRight, LineChart, CheckCircle2 } from "lucide-react";
 import { SITE_NAME, SITE_URL } from "@/lib/site-config";
 
@@ -75,6 +76,9 @@ export default function DemandForecastingPage() {
           </div>
         </div>
         <RelatedGuides slugs={["safety-stock-formula", "reorder-point-formula"]} />
+        <div className="mt-6">
+          <RelatedTerms slugs={["forecast-accuracy","wape","mase","crostons-method","seasonality","abc-analysis","xyz-analysis","backtesting"]} />
+        </div>
       </section>
     </div>
   );

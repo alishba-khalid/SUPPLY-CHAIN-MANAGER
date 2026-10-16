@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { RelatedGuides } from "@/components/marketing/related-guides";
+import { RelatedTerms } from "@/components/marketing/related-terms";
 import { ArrowRight, ShoppingCart, CheckCircle2 } from "lucide-react";
 import { SITE_NAME, SITE_URL } from "@/lib/site-config";
 
@@ -71,6 +72,9 @@ export default function PurchaseOrdersPage() {
           </div>
         </div>
         <RelatedGuides slugs={["reorder-point-formula", "reorder-expedite-or-transfer"]} />
+        <div className="mt-6">
+          <RelatedTerms slugs={["purchase-order","economic-order-quantity","minimum-order-quantity","lead-time","inventory-position","po-cycle-time"]} />
+        </div>
       </section>
     </div>
   );
