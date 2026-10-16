@@ -1,0 +1,41 @@
+# Nightly jobs, moved here from vercel.json's `crons` (that file only works on
+# Vercel, and Netlify's scheduled functions stop at 30s). Same schedules, in
+# UTC. Netlify stops each request at 60s; --max-time leaves room for retries.
+# The forecast recompute runs from forecasts.yml instead.
+#
+# Needs two repository secrets: APP_URL (e.g. https://supplychainmanager.app)
+# and CRON_SECRET (same value as the site's CRON_SECRET on Netlify).
+name: Nightly jobs
+
+on:
+  schedule:
+    - cron: "15 3 * * *" # cleanup-import-staging
+    - cron: "0 5 * * *" # refresh-data-sources
+  workflow_dispatch:
+    inputs:
+      job:
+        description: Route under /api/cron/ to call
+        required: true
+        default: cleanup-import-staging
+
+jobs:
+  call:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pick route
+        id: route
+        run: |
+          case "${{ github.event.schedule }}" in
+            "15 3 * * *") echo "path=cleanup-import-staging" >> "$GITHUB_OUTPUT" ;;
+            "0 5 * * *") echo "path=refresh-data-sources" >> "$GITHUB_OUTPUT" ;;
+            *) echo "path=${{ inputs.job }}" >> "$GITHUB_OUTPUT" ;;
+          esac
+      - name: Call route
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl --fail-with-body --silent --show-error --retry 3 --retry-delay 30 \
+            --max-time 330 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$APP_URL/api/cron/${{ steps.route.outputs.path }}"

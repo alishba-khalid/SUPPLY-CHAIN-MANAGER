@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { getOrgSubscription } from "@/data/repositories/subscription";
 import { resolveImportRowLimit } from "@/lib/subscriptions/tiers";
+import { SOFT_DEADLINE_MS } from "@/lib/function-time-limit";
 import {
   CHUNK_MAX_ROWS,
   ENTITY_LABELS,
@@ -39,8 +40,9 @@ const STALE_SESSION_MS = 24 * 60 * 60 * 1000;
 // A commit whose request died mid-flight leaves status "committing" (the DB
 // rolled its transaction back). After this long it may be claimed again.
 const STUCK_COMMIT_MS = 6 * 60 * 1000;
-// Leaves margin inside the pages' maxDuration (300s) for the response.
-const COMMIT_TX_TIMEOUT_MS = 270_000;
+// Leaves margin inside the host's request limit (the pages' maxDuration of
+// 300s on Vercel, 60s on Netlify) for the response.
+const COMMIT_TX_TIMEOUT_MS = SOFT_DEADLINE_MS;
 const MAX_ERRORS_SHOWN = 5;
 // The only placeholder record an import may create: a clearly labelled
 // supplier for products / POs whose rows name no supplier.

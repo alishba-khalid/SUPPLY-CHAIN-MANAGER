@@ -9,12 +9,11 @@ import { buildSeriesInputs } from "@/lib/forecasting/python-client";
 import { getInventoryTransactions } from "@/data/repositories/inventory";
 import { getProducts } from "@/data/repositories/products";
 import { getAllOrgIdsWithData } from "@/data/repositories/forecasts";
+import { SOFT_DEADLINE_MS } from "@/lib/function-time-limit";
 
 // Hobby's hard ceiling (also the default) — see functions/limitations.
+// Netlify ignores it and stops at 60s; SOFT_DEADLINE_MS follows the host.
 export const maxDuration = 300;
-// Leaves a 30s/10% margin inside maxDuration for the response to actually
-// return before Vercel would kill the invocation.
-const SOFT_DEADLINE_MS = 270_000;
 
 function isAuthorized(req: Request): boolean {
   // Vercel attaches this header automatically to Cron-triggered requests
