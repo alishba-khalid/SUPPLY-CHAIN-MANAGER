@@ -1,0 +1,45 @@
+# Deploy the web app to Netlify.
+# Built here on Linux because Netlify's Next.js adapter mangles Windows paths
+# when it bundles the middleware, so `netlify deploy` fails on a Windows PC.
+#
+# A push to netlify-migration makes a draft deploy (its own URL, live site
+# untouched). Production is only by hand from the Actions tab (needs this file
+# on master): tick "production" only after "APPROVED: merge" — each
+# production deploy costs Netlify credits.
+#
+# Needs repository secrets NETLIFY_AUTH_TOKEN (personal access token) and
+# NETLIFY_SITE_ID. App env vars are read from the Netlify site during the build.
+name: Netlify deploy
+
+on:
+  push:
+    branches: [netlify-migration]
+  workflow_dispatch:
+    inputs:
+      production:
+        description: "Deploy to the live site (leave unticked for a draft)"
+        type: boolean
+        default: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build and deploy
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+        run: |
+          npx --yes netlify-cli@27.12.1 deploy \
+            ${{ inputs.production && '--prod' || '' }} \
+            --message "GitHub Actions ${{ github.ref_name }}@${GITHUB_SHA::7}"
