@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { RelatedGuides } from "@/components/marketing/related-guides";
+import { RelatedTerms } from "@/components/marketing/related-terms";
 import { ArrowRight, Truck, CheckCircle2 } from "lucide-react";
 import { SITE_NAME, SITE_URL } from "@/lib/site-config";
 
@@ -71,6 +72,9 @@ export default function SupplierScorecardsPage() {
           </div>
         </div>
         <RelatedGuides slugs={["supplier-otif", "safety-stock-formula"]} />
+        <div className="mt-6">
+          <RelatedTerms slugs={["on-time-delivery-rate","lead-time-variability","po-cycle-time","purchase-price-variance","dual-sourcing","total-cost-of-ownership"]} />
+        </div>
       </section>
     </div>
   );

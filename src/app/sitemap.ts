@@ -10,9 +10,9 @@ const HOME_UPDATED = new Date("2026-09-28");
 const SECTION_PAGES_UPDATED = new Date("2026-10-06");
 const COMPETITORS_UPDATED = new Date("2026-09-20");
 const FEATURES_UPDATED: Record<string, Date> = {
-  "demand-forecasting": new Date("2026-09-28"),
-  "supplier-scorecards": new Date("2026-09-28"),
-  "purchase-orders": new Date("2026-09-20"),
+  "demand-forecasting": new Date("2026-10-16"),
+  "supplier-scorecards": new Date("2026-10-16"),
+  "purchase-orders": new Date("2026-10-16"),
 };
 const ABOUT_UPDATED = new Date("2026-09-28");
 // The legal pages' own "Last updated" dates.
