@@ -7,8 +7,8 @@
 # on master): tick "production" only after "APPROVED: merge" — each
 # production deploy costs Netlify credits.
 #
-# Needs repository secrets NETLIFY_AUTH_TOKEN (personal access token) and
-# NETLIFY_SITE_ID. App env vars are read from the Netlify site during the build.
+# Needs one repository secret: NETLIFY_AUTH_TOKEN (Netlify personal access
+# token). App env vars are read from the Netlify site during the build.
 name: Netlify deploy
 
 on:
@@ -38,7 +38,7 @@ jobs:
       - name: Build and deploy
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+          NETLIFY_SITE_ID: e253996a-bc52-46fc-9b70-a68b27118757 # scm-supplychainmanager
         run: |
           npx --yes netlify-cli@27.12.1 deploy \
             ${{ inputs.production && '--prod' || '' }} \
