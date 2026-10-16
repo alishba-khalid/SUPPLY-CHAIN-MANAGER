@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import type { BlogPost, Block, Inline } from "@/lib/blog/posts";
 import { BLOG_POSTS } from "@/lib/blog/posts";
 import { SITE_NAME, SITE_URL } from "@/lib/site-config";
+import { GLOSSARY_TERMS } from "@/lib/glossary";
 
 /** "2026-10-06" → "October 6, 2026" (UTC, so it never shifts a day). */
 export function formatPostDate(day: string): string {
@@ -15,11 +16,11 @@ export function formatPostDate(day: string): string {
 }
 
 /** Escapes "</" so embedded JSON can never close the surrounding <script> tag. */
-function safeJsonLd(data: unknown): string {
+export function safeJsonLd(data: unknown): string {
   return JSON.stringify(data).replace(/<\//g, "<\\/");
 }
 
-function InlineText({ content }: { content: Inline[] }) {
+export function InlineText({ content }: { content: Inline[] }) {
   return (
     <>
       {content.map((part, i) =>
@@ -73,6 +74,7 @@ function BlockView({ block }: { block: Block }) {
 export function BlogArticle({ post }: { post: BlogPost }) {
   const url = `${SITE_URL}/blog/${post.slug}`;
   const related = BLOG_POSTS.filter((p) => p.slug !== post.slug).slice(0, 3);
+  const terms = GLOSSARY_TERMS.filter((t) => t.guides?.includes(post.slug));
 
   const article = {
     "@context": "https://schema.org",
@@ -145,6 +147,24 @@ export function BlogArticle({ post }: { post: BlogPost }) {
           ))}
         </ul>
       </nav>
+
+      {terms.length > 0 && (
+        <nav aria-label="Related glossary terms" className="mt-12">
+          <h2 className="text-h3 font-semibold text-(--color-text-primary)">Related glossary terms</h2>
+          <ul className="mt-4 flex flex-wrap gap-2">
+            {terms.map((t) => (
+              <li key={t.slug}>
+                <Link
+                  href={`/glossary/${t.slug}`}
+                  className="inline-block rounded-full border border-(--color-border) px-3 py-1 text-small text-(--color-text-secondary) hover:border-(--color-brand) hover:text-(--color-text-primary)"
+                >
+                  {t.term}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
     </article>
   );
 }

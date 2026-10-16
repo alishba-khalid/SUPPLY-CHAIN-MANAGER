@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { SITE_URL } from "@/lib/site-config";
 import { COMPETITORS } from "@/lib/competitors-data";
 import { BLOG_POSTS } from "@/lib/blog/posts";
+import { GLOSSARY_TERMS, GLOSSARY_UPDATED } from "@/lib/glossary";
 
 // When each page's content last changed. Update the date when you edit a
 // page — a date that moves on every deploy tells search engines nothing.
@@ -39,6 +40,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
     changeFrequency: "monthly",
     priority: 0.7,
   }));
+  // Each glossary term carries its own updated date (src/lib/glossary/).
+  const glossaryEntries: MetadataRoute.Sitemap = GLOSSARY_TERMS.map((term) => ({
+    url: `${SITE_URL}/glossary/${term.slug}`,
+    lastModified: new Date(term.updated),
+    changeFrequency: "monthly",
+    priority: 0.6,
+  }));
+
   const blogUpdated = new Date(BLOG_POSTS.map((p) => p.updated).sort().at(-1)!);
 
   return [
@@ -64,6 +73,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.8,
     },
     ...blogEntries,
+    {
+      url: `${SITE_URL}/glossary`,
+      lastModified: new Date(GLOSSARY_UPDATED),
+      changeFrequency: "monthly",
+      priority: 0.7,
+    },
+    ...glossaryEntries,
     {
       url: `${SITE_URL}/about`,
       lastModified: ABOUT_UPDATED,
