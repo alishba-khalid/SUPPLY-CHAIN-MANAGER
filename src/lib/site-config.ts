@@ -19,6 +19,9 @@ export const CONTACT_EMAIL = "alishbakhalid766@gmail.com";
 export const PRIMARY_KEYWORD = "supply chain software for distributors";
 export const TAGLINE = "Your supply chain just hired a manager.";
 
+// How many design-partner places the /design-partner page advertises.
+export const DESIGN_PARTNER_SPOTS = 5;
+
 export interface PricingTier {
   id: string;
   name: string;

@@ -330,3 +330,33 @@ model DataSource {
   @@index([schedule])
   @@map("data_sources")
 }
+
+
+// Public marketing-site submissions. Not tenant data — no orgId, since the
+// people submitting these don't have an account (yet).
+model DesignPartnerApplication {
+  id             Int      @id @default(autoincrement())
+  name           String
+  company        String
+  workEmail      String   @map("work_email")
+  role           String
+  skuCount       Int      @map("sku_count")
+  warehouseCount Int      @map("warehouse_count")
+  currentTool    String   @map("current_tool")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("design_partner_applications")
+}
+
+// Only who asked for the report — the uploaded inventory file itself is
+// processed in the visitor's browser and never reaches the server.
+model HealthCheckLead {
+  id          Int      @id @default(autoincrement())
+  workEmail   String   @map("work_email")
+  companyName String   @map("company_name")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("health_check_leads")
+}

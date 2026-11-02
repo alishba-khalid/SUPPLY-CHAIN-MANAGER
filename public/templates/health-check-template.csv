@@ -1,0 +1,6 @@
+sku,on_hand_qty,unit_cost,avg_daily_demand,lead_time_days
+WIDGET-100,120,4.50,18,21
+WIDGET-200,2400,3.25,6,14
+GASKET-310,45,12.00,4.5,30
+VALVE-420,980,27.80,0,
+BOLT-515,15000,0.18,210,10
