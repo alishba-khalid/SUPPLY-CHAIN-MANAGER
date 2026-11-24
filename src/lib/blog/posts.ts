@@ -352,7 +352,7 @@ export const BLOG_POSTS: BlogPost[] = [
         content: [
           "Supply Chain Manager builds a ",
           { href: "/features/supplier-scorecards", text: "supplier scorecard" },
-          " from your purchase orders: trailing 90-day OTIF per supplier, a spend-weighted overall figure, and alerts for overdue POs. Suppliers with no deliveries in the window show as unknown, never 0%. One limit to know: if your data has no partial-receipt quantity, \"in full\" can only mean \"received\". To see it on sample data, ",
+          " from your purchase orders: trailing 90-day on-time delivery per supplier, a spend-weighted overall figure, and alerts for overdue POs. Suppliers with no deliveries in the window show as unknown, never 0%. An important limit: the app records an order's expected and received dates but not the quantity received, so it cannot see short shipments. Its score measures timeliness only, which is the \"on time\" half of OTIF. To see it on sample data, ",
           DEMO,
           ".",
         ],

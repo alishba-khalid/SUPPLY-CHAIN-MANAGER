@@ -7,7 +7,7 @@ import { SITE_NAME, SITE_URL } from "@/lib/site-config";
 
 const TITLE = `Features for Distributors | ${SITE_NAME}`;
 const DESCRIPTION =
-  "Demand forecasting, reorder points and safety stock, 1-click suggested purchase orders, supplier OTIF scorecards and stockout projections across every warehouse.";
+  "Demand forecasting, reorder points and safety stock, suggested purchase orders, supplier on-time delivery scorecards and stockout projections across every warehouse.";
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 const FEATURE_PAGES = [
   { href: "/features/demand-forecasting", title: "Demand forecasting", body: "Per-SKU model tournament, safety stock and reorder points." },
   { href: "/features/purchase-orders", title: "1-click suggested purchase orders", body: "Turn a reorder recommendation into a PO in one click." },
-  { href: "/features/supplier-scorecards", title: "Supplier scorecards", body: "On-time-in-full rates and real versus contract lead times." },
+  { href: "/features/supplier-scorecards", title: "Supplier scorecards", body: "On-time delivery rates and real versus contract lead times." },
 ];
 
 export default function FeaturesPage() {

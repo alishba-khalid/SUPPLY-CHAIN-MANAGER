@@ -24,7 +24,7 @@ export const FAQ_ITEMS: AccordionItem[] = [
   {
     question: "How does Supply Chain Health work?",
     answer:
-      "It's a single 0–100 score built from five weighted components: inventory (30%), suppliers (20%), procurement (20%), logistics (20%), and warehouses (10%). 80 and up is healthy, 60–79 needs attention, below 60 is critical — and each component is visible on its own, so you can see exactly what's dragging the score down. Supplier performance tracking (on-time-in-full delivery, weighted by spend) feeds directly into it.",
+      "It's a single 0–100 score built from five weighted components: inventory (30%), suppliers (20%), procurement (20%), logistics (20%), and warehouses (10%). 80 and up is healthy, 60–79 needs attention, below 60 is critical — and each component is visible on its own, so you can see exactly what's dragging the score down. Supplier performance tracking (the share of purchase orders delivered by their expected date, weighted by spend) feeds directly into it.",
   },
   {
     question: "Does it buy inventory automatically?",

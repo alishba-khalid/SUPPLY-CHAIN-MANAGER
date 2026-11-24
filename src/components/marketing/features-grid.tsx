@@ -18,7 +18,7 @@ const FEATURES = [
     icon: Truck,
     heading: "Know which suppliers need attention.",
     description:
-      "On-time-in-full delivery tracked from real purchase order history — supplier performance tracking weighted by how much you actually spend with each one.",
+      "On-time delivery tracked from real purchase order history — supplier performance weighted by how much you actually spend with each one.",
   },
   {
     icon: Banknote,

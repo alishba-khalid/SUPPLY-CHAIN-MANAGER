@@ -42,13 +42,13 @@ export const COMPETITORS: Record<string, CompetitorData> = {
     name: "Inventory Planner",
     tagline: "Supply Chain Manager and Inventory Planner compared for wholesale distributors.",
     metaTitle: "Supply Chain Manager vs Inventory Planner (2026 Comparison)",
-    metaDescription: "Supply Chain Manager vs Inventory Planner: forecasting, purchase orders, supplier OTIF and pricing, from each vendor's own site (checked 2026-11-24).",
+    metaDescription: "Supply Chain Manager vs Inventory Planner: forecasting, purchase orders, supplier on-time delivery and pricing, from each vendor's own site (checked 2026-11-24).",
     summary: `Inventory Planner (now part of Sage) describes itself as inventory planning software for retailers, e-commerce brands, wholesalers and manufacturers. Supply Chain Manager is built for distributors and wholesalers, with published monthly prices. Competitor facts on this page come from Inventory Planner's own website and were checked on ${COMPETITORS_CHECKED}.`,
     pricingSCM: `From $${STARTER_PRICE}/mo (plans sized by warehouses and SKUs)`,
     pricingCompetitor: "Not published. Its site says pricing is based on the volume of inventory you manage and asks you to request pricing.",
     keyDifferences: [
       "Published monthly plan prices, so you can see the cost before talking to anyone.",
-      "Supplier on-time-in-full (OTIF) scorecards built from your own purchase order history.",
+      "Supplier on-time delivery scorecards built from your own purchase order history.",
       "A single 0–100 Supply Chain Health score across inventory, suppliers, procurement, logistics and warehouses.",
       "Data importer for CSV and Excel files.",
     ],
@@ -56,7 +56,7 @@ export const COMPETITORS: Record<string, CompetitorData> = {
       { feature: "Starting monthly price", scm: `$${STARTER_PRICE} / month`, competitor: "Not published (request pricing)" },
       { feature: "Demand forecasting", scm: true, competitor: true },
       { feature: "Purchase order creation", scm: "Suggested orders you review and create", competitor: "Yes (claims PO automation)" },
-      { feature: "Supplier OTIF scorecards", scm: true, competitor: NC, note: "Its Copilot page claims it can show overdue on-order items; an OTIF metric was not found." },
+      { feature: "Supplier on-time delivery scorecards", scm: true, competitor: NC, note: "Its Copilot page claims it can show overdue on-order items; an on-time delivery metric was not found." },
       { feature: "AI assistant", scm: true, competitor: "Yes (Sage Copilot, a claim)" },
       { feature: "CSV / Excel import", scm: true, competitor: NC, note: "Its site lists integrations; CSV import was not confirmed." },
       { feature: "Implementation", scm: "Self-serve", competitor: "Required, led by Inventory Planner (its FAQ)" },
@@ -64,7 +64,7 @@ export const COMPETITORS: Record<string, CompetitorData> = {
     faq: [
       {
         question: "Why would a distributor look at Supply Chain Manager instead of Inventory Planner?",
-        answer: "If you want published prices, supplier OTIF scorecards and a health score built for distributors and wholesalers, Supply Chain Manager is designed for that. Inventory Planner serves retailers, e-commerce brands, wholesalers and manufacturers and has a longer feature list in some areas. Try the live demo and compare on your own data.",
+        answer: "If you want published prices, supplier on-time delivery scorecards and a health score built for distributors and wholesalers, Supply Chain Manager is designed for that. Inventory Planner serves retailers, e-commerce brands, wholesalers and manufacturers and has a longer feature list in some areas. Try the live demo and compare on your own data.",
       },
       {
         question: "How do I move my data from Inventory Planner?",
@@ -89,7 +89,7 @@ export const COMPETITORS: Record<string, CompetitorData> = {
     pricingCompetitor: "Free plan ($0, up to 30 SKUs). Advantage plan: custom pricing on an annual contract.",
     keyDifferences: [
       "Built only for buying and reselling goods, with no manufacturing features.",
-      "Supplier on-time-in-full (OTIF) scorecards from your purchase order history.",
+      "Supplier on-time delivery scorecards from your purchase order history.",
       "A 0–100 Supply Chain Health score.",
       "Published monthly prices for every self-serve plan.",
     ],
@@ -97,14 +97,14 @@ export const COMPETITORS: Record<string, CompetitorData> = {
       { feature: "Starting price", scm: `$${STARTER_PRICE} / month`, competitor: "Free (30 SKUs); Advantage is custom" },
       { feature: "Multi-location stock", scm: true, competitor: true },
       { feature: "Reorder points and purchase orders", scm: true, competitor: true },
-      { feature: "Supplier lead time and performance", scm: "OTIF scorecards", competitor: "Lead times and supplier performance tracking (a claim); on-time reporting not confirmed" },
+      { feature: "Supplier lead time and performance", scm: "On-time delivery scorecards", competitor: "Lead times and supplier performance tracking (a claim); on-time reporting not confirmed" },
       { feature: "AI assistant", scm: true, competitor: "Yes (AI assistant on Free; AI replenishment on Advantage)" },
       { feature: "Spreadsheet import", scm: true, competitor: true },
     ],
     faq: [
       {
         question: "Is Katana or Supply Chain Manager better for pure distribution?",
-        answer: "It depends on what you need. Katana has a free plan and a wider product set. Supply Chain Manager is narrower: forecasting, reorder suggestions, supplier OTIF and a health score for distributors and wholesalers. Use the live demo to see whether that fits.",
+        answer: "It depends on what you need. Katana has a free plan and a wider product set. Supply Chain Manager is narrower: forecasting, reorder suggestions, supplier on-time delivery and a health score for distributors and wholesalers. Use the live demo to see whether that fits.",
       },
     ],
     sources: [
@@ -150,11 +150,11 @@ export const COMPETITORS: Record<string, CompetitorData> = {
     tagline: "Supply Chain Manager and StockTrim compared.",
     metaTitle: "Supply Chain Manager vs StockTrim (2026 Comparison)",
     metaDescription: "Supply Chain Manager vs StockTrim: pricing, forecasting, purchase orders and supplier reporting from each vendor's own site (checked 2026-11-24).",
-    summary: `StockTrim is an inventory forecasting product for SMEs in manufacturing, wholesale, retail and e-commerce. It states unlimited users and SKUs on every plan and a 14-day free trial. Supply Chain Manager adds supplier OTIF scorecards and a health score. Competitor facts come from StockTrim's own website, checked on ${COMPETITORS_CHECKED}.`,
+    summary: `StockTrim is an inventory forecasting product for SMEs in manufacturing, wholesale, retail and e-commerce. It states unlimited users and SKUs on every plan and a 14-day free trial. Supply Chain Manager adds supplier on-time delivery scorecards and a health score. Competitor facts come from StockTrim's own website, checked on ${COMPETITORS_CHECKED}.`,
     pricingSCM: `From $${STARTER_PRICE}/mo`,
     pricingCompetitor: "From $49/month billed annually; the price depends on annual revenue band (its pricing page).",
     keyDifferences: [
-      "Supplier on-time-in-full (OTIF) scorecards from purchase order history.",
+      "Supplier on-time delivery scorecards from purchase order history.",
       "A 0–100 Supply Chain Health score across five areas.",
       "Time-phased stockout projections per SKU and warehouse.",
       "Prices set by plan, not by company revenue.",
@@ -164,7 +164,7 @@ export const COMPETITORS: Record<string, CompetitorData> = {
       { feature: "Free trial", scm: "Live demo, no signup", competitor: "14 days, no card (its site)" },
       { feature: "Demand forecasting", scm: true, competitor: true },
       { feature: "Purchase order creation", scm: "Suggested orders you review and create", competitor: true },
-      { feature: "Supplier OTIF reporting", scm: true, competitor: NC, note: "It supports variable lead times as an input; lead-time performance reporting was not confirmed." },
+      { feature: "Supplier on-time delivery reporting", scm: true, competitor: NC, note: "It supports variable lead times as an input; lead-time performance reporting was not confirmed." },
       { feature: "Warehouse capacity metrics", scm: true, competitor: NC },
       { feature: "AI assistant", scm: true, competitor: "Yes (its site)" },
       { feature: "Users and SKUs", scm: "Limited by plan", competitor: "Unlimited on every plan (its site)" },
@@ -172,7 +172,7 @@ export const COMPETITORS: Record<string, CompetitorData> = {
     faq: [
       {
         question: "What makes Supply Chain Manager different from StockTrim?",
-        answer: "Supply Chain Manager adds a health score, supplier on-time-in-full scorecards and warehouse metrics on top of forecasting and reorder suggestions. StockTrim states unlimited users and SKUs on every plan, so compare costs at your own size and revenue.",
+        answer: "Supply Chain Manager adds a health score, supplier on-time delivery scorecards and warehouse metrics on top of forecasting and reorder suggestions. StockTrim states unlimited users and SKUs on every plan, so compare costs at your own size and revenue.",
       },
     ],
     sources: [
@@ -191,7 +191,7 @@ export const COMPETITORS: Record<string, CompetitorData> = {
     pricingCompetitor: "Standard $349/mo, Pro $599/mo, Advanced $1,199/mo (USD, new customers, per its pricing page).",
     keyDifferences: [
       "Narrower scope: replenishment, suppliers and health score, not a full order management system.",
-      "Supplier on-time-in-full (OTIF) scorecards.",
+      "Supplier on-time delivery scorecards.",
       "Demand forecasting is part of the product, not a separate add-on.",
       "Lower entry price.",
     ],
@@ -227,7 +227,7 @@ export const COMPETITORS: Record<string, CompetitorData> = {
     keyDifferences: [
       "Works from file imports, with no ERP connection needed to start.",
       "Published monthly plan prices.",
-      "Supplier on-time-in-full (OTIF) scorecards and a health score.",
+      "Supplier on-time delivery scorecards and a health score.",
       "Try the live demo with no signup.",
     ],
     matrix: [
@@ -236,7 +236,7 @@ export const COMPETITORS: Record<string, CompetitorData> = {
       { feature: "Reorder points, order quantities, safety stock", scm: true, competitor: true },
       { feature: "Supplier order proposals", scm: "Suggested purchase orders", competitor: true },
       { feature: "Free trial", scm: "Live demo, no signup", competitor: NC },
-      { feature: "Supplier OTIF scorecards", scm: true, competitor: NC },
+      { feature: "Supplier on-time delivery scorecards", scm: true, competitor: NC },
     ],
     faq: [
       {
@@ -261,7 +261,7 @@ export const COMPETITORS: Record<string, CompetitorData> = {
     keyDifferences: [
       "Much lower entry price, with published plans.",
       "Self-serve start from file imports.",
-      "Supplier OTIF scorecards and a health score.",
+      "Supplier on-time delivery scorecards and a health score.",
       "No ERP connection is needed to try it.",
     ],
     matrix: [
@@ -269,7 +269,7 @@ export const COMPETITORS: Record<string, CompetitorData> = {
       { feature: "Connects to your ERP", scm: "Not yet; file import", competitor: "Yes, 60+ ERPs (its FAQ, a claim)" },
       { feature: "Demand planning and forecasting", scm: true, competitor: true },
       { feature: "Sales and operations planning (S&OP)", scm: false, competitor: "Yes (its homepage)" },
-      { feature: "Supplier performance", scm: "OTIF scorecards", competitor: "Listed on its homepage" },
+      { feature: "Supplier performance", scm: "On-time delivery scorecards", competitor: "Listed on its homepage" },
       { feature: "Free trial", scm: "Live demo, no signup", competitor: NC },
       { feature: "Implementation time", scm: "Self-serve", competitor: "6–10 weeks (its FAQ)" },
     ],

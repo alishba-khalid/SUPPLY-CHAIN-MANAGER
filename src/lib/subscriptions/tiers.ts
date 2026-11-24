@@ -22,7 +22,7 @@ export const PLAN_DEFINITIONS: Record<PlanTier, PlanDefinition> = {
       "1 warehouse",
       "Up to 500 SKUs",
       "Inventory tracking & alerts",
-      "Supplier scorecards & OTIF",
+      "Supplier scorecards & on-time delivery",
       "CSV / Excel Data Importer",
     ],
   },

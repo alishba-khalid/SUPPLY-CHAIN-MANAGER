@@ -143,7 +143,7 @@ export function CompetitorPage({ data }: { data: CompetitorData }) {
         <div className="rounded-2xl bg-(--color-brand-subtle) border border-(--color-brand)/20 p-8 sm:p-12">
           <h2 className="text-h1 text-(--color-brand-hover)">Ready to switch to {SITE_NAME}?</h2>
           <p className="mt-3 text-body-lg text-(--color-text-secondary) max-w-lg mx-auto">
-            Get your supply chain health score, stockout projections, and supplier OTIF scorecards from your own data.
+            Get your supply chain health score, stockout projections, and supplier on-time delivery scorecards from your own data.
           </p>
           <div className="mt-6">
             <Link

@@ -5,9 +5,9 @@ import { RelatedTerms } from "@/components/marketing/related-terms";
 import { ArrowRight, Truck, CheckCircle2 } from "lucide-react";
 import { SITE_NAME, SITE_URL } from "@/lib/site-config";
 
-const TITLE = `Supplier Performance & OTIF Scorecards | ${SITE_NAME}`;
+const TITLE = `Supplier Performance & On-Time Delivery Scorecards | ${SITE_NAME}`;
 const DESCRIPTION =
-  "Track supplier lead-time delays, On-Time In-Full (OTIF) fulfillment rates, and spend-weighted reliability ratings.";
+  "Track supplier lead-time delays, on-time delivery rates and spend-weighted reliability ratings.";
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -25,7 +25,7 @@ export default function SupplierScorecardsPage() {
           Supplier Analytics
         </span>
         <h1 className="mt-4 text-h1 text-(--color-text-primary)">
-          Supplier Lead Time & OTIF Reliability Scorecards
+          Supplier Lead Time & On-Time Delivery Scorecards
         </h1>
         <p className="mt-4 text-body-lg text-(--color-text-secondary) max-w-2xl mx-auto">
           Identify late vendors before lead-time slippage causes stockout risks across your warehouse network.
@@ -45,9 +45,9 @@ export default function SupplierScorecardsPage() {
       <section className="mx-auto max-w-4xl px-6 mt-16 space-y-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-6 space-y-3">
-            <h3 className="text-h3 font-semibold text-(--color-text-primary)">Spend-Weighted OTIF Rate</h3>
+            <h3 className="text-h3 font-semibold text-(--color-text-primary)">Spend-Weighted On-Time Delivery Rate</h3>
             <p className="text-body text-(--color-text-secondary)">
-              Measures on-time-in-full delivery performance weighted by trailing 90-day spend.
+              Measures the share of purchase orders delivered by their expected date, weighted by trailing 90-day spend. It does not record the quantity received, so it cannot flag short shipments.
             </p>
           </div>
           <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-6 space-y-3">
