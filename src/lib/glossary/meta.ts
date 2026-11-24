@@ -5,6 +5,7 @@ export const MAX_TITLE_LENGTH = 60;
 
 /** The first candidate that fits: full term first, then the short name. */
 export function glossaryMetaTitle(term: GlossaryTerm): string {
+  if (term.metaTitle) return term.metaTitle;
   const suffixes = term.formula
     ? ["Definition, Formula & Example", "Formula & Example", "Definition"]
     : ["Definition & Example", "Meaning & Example", "Definition"];

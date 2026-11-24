@@ -2,14 +2,44 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { GLOSSARY_TERMS, GUIDE_ENTRIES, getTerm, type GlossaryTerm } from "../index";
 import { glossaryMetaTitle, MAX_TITLE_LENGTH } from "../meta";
+import { GLOSSARY_MERGED } from "../merged";
 import { BLOG_POSTS } from "@/lib/blog/posts";
 import type { Inline } from "@/lib/blog/posts";
 
 const allInlines = (t: GlossaryTerm): Inline[] =>
-  [...t.explain, ...t.example, ...t.why, ...t.mistakes, t.inApp ?? []].flat();
+  [
+    ...t.explain,
+    ...t.example,
+    ...t.why,
+    ...t.mistakes,
+    t.inApp ?? [],
+    ...(t.sections ?? []).flatMap((s) => [...(s.paragraphs ?? []), ...(s.bullets ?? [])]),
+    ...(t.faq ?? []).map((f) => f.a),
+  ].flat();
 
-test("at least 100 glossary pages with unique slugs and names", () => {
-  assert.ok(GLOSSARY_TERMS.length >= 100, `only ${GLOSSARY_TERMS.length} terms`);
+const wordCount = (t: GlossaryTerm) => {
+  const text = allInlines(t).map((i) => (typeof i === "string" ? i : i.text)).join(" ");
+  const extra = (t.sections ?? []).flatMap((s) => [...(s.formula ?? []), ...(s.table ? [...s.table.head, ...s.table.rows.flat()] : [])]);
+  return (text + " " + (t.formula ?? []).join(" ") + " " + extra.join(" ")).split(/\s+/).filter(Boolean).length;
+};
+
+test("merged glossary slugs are gone and redirect to a live page", () => {
+  for (const [from, to] of Object.entries(GLOSSARY_MERGED)) {
+    assert.ok(!GLOSSARY_TERMS.some((t) => t.slug === from), `${from} still has its own page`);
+    assert.ok(GLOSSARY_TERMS.some((t) => t.slug === to), `${from} redirects to missing page ${to}`);
+    assert.ok(!(to in GLOSSARY_MERGED), `${from} redirects to ${to}, which is itself redirected`);
+  }
+});
+
+test("rewritten pages (with sections) have at least 500 words and a FAQ", () => {
+  for (const t of GLOSSARY_TERMS.filter((x) => x.sections)) {
+    assert.ok(wordCount(t) >= 500, `${t.slug} has only ${wordCount(t)} words`);
+    assert.ok((t.faq ?? []).length >= 2, `${t.slug} needs a FAQ`);
+  }
+});
+
+test("at least 40 glossary pages with unique slugs and names", () => {
+  assert.ok(GLOSSARY_TERMS.length >= 40, `only ${GLOSSARY_TERMS.length} terms`);
   const slugs = new Set(GLOSSARY_TERMS.map((t) => t.slug));
   assert.equal(slugs.size, GLOSSARY_TERMS.length, "duplicate slug");
   const names = new Set(GLOSSARY_TERMS.map((t) => t.term.toLowerCase()));

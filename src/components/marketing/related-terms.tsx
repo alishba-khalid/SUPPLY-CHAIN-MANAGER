@@ -3,7 +3,7 @@ import { getTerm } from "@/lib/glossary";
 
 /** Links a marketing page to the glossary terms behind it. */
 export function RelatedTerms({ slugs }: { slugs: string[] }) {
-  const terms = slugs.map(getTerm).filter((t) => t !== undefined);
+  const terms = [...new Set(slugs.map(getTerm).filter((t) => t !== undefined))];
   if (terms.length === 0) return null;
 
   return (

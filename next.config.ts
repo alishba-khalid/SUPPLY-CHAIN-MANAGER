@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { GLOSSARY_MERGED } from "./src/lib/glossary/merged";
 
 const OLD_DASHBOARD_PATHS = [
   "overview",
@@ -15,11 +16,18 @@ const OLD_DASHBOARD_PATHS = [
 
 const nextConfig: NextConfig = {
   async redirects() {
-    return OLD_DASHBOARD_PATHS.map((path) => ({
+    const dashboard = OLD_DASHBOARD_PATHS.map((path) => ({
       source: `/${path}`,
       destination: `/dashboard/${path}`,
       permanent: true,
     }));
+    // Glossary terms merged into a fuller page keep their old URL alive.
+    const glossary = Object.entries(GLOSSARY_MERGED).map(([from, to]) => ({
+      source: `/glossary/${from}`,
+      destination: `/glossary/${to}`,
+      permanent: true,
+    }));
+    return [...dashboard, ...glossary];
   },
   // Default position (bottom-left) sits directly on top of the sidebar's
   // "Collapse" control, which is docked in that same corner. Moving the dev

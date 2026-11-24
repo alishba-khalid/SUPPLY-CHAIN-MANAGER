@@ -45,3 +45,6 @@ Applied to src/lib/competitors-data.ts. Old figures ($249+, $359+, $349+, $99+, 
 - Cin7 Core: $349 / $599 / $1,199 per month USD; forecasting is an add-on; "four weeks" onboarding is a claim.
 - EazyStock and Netstock added (see above).
 Not read: Netstock/EazyStock free trial, Unleashed anything. Re-check by 2027-02-24.
+
+## Glossary consolidation log
+- 2026-11-24: forecasting done. 19 terms -> 7 pages (forecast-accuracy, forecast-bias, exponential-smoothing, seasonality, intermittent-demand, bullwhip-effect, demand-planning). 12 slugs redirect (src/lib/glossary/merged.ts, next.config.ts). Remaining: inventory+stock, purchasing, warehouse, finance.
