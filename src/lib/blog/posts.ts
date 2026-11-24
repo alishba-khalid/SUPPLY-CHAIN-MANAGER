@@ -16,7 +16,8 @@ export type Block =
   | { type: "h2"; text: string }
   | { type: "ul"; items: Inline[][] }
   | { type: "formula"; lines: string[] }
-  | { type: "note"; content: Inline[] };
+  | { type: "note"; content: Inline[] }
+  | { type: "table"; head: string[]; rows: string[][] };
 
 export interface BlogPost {
   slug: string;
@@ -29,11 +30,18 @@ export interface BlogPost {
   updated: string; // YYYY-MM-DD
   readingMinutes: number;
   body: Block[];
+  /** Outside sources used for facts in the guide. */
+  sources?: { label: string; url: string }[];
+  /** Slugs of the guides shown at the end, instead of the first three. */
+  related?: string[];
 }
+
+import { GUIDES_A } from "./guides-a";
+import { GUIDES_B } from "./guides-b";
 
 const DEMO = { href: "/dashboard/overview?demo=true", text: "open the live demo" };
 
-export const BLOG_POSTS: BlogPost[] = [
+const CORE_POSTS: BlogPost[] = [
   {
     slug: "reorder-point-formula",
     title: "Reorder Point Formula: How Distributors Decide When to Reorder",
@@ -546,6 +554,8 @@ export const BLOG_POSTS: BlogPost[] = [
     ],
   },
 ];
+
+export const BLOG_POSTS: BlogPost[] = [...CORE_POSTS, ...GUIDES_A, ...GUIDES_B];
 
 export function getPost(slug: string): BlogPost | undefined {
   return BLOG_POSTS.find((post) => post.slug === slug);

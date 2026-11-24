@@ -62,6 +62,33 @@ function BlockView({ block }: { block: Block }) {
           {block.lines.join("\n")}
         </pre>
       );
+    case "table":
+      return (
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full border-collapse text-left text-small">
+            <thead>
+              <tr>
+                {block.head.map((h) => (
+                  <th key={h} className="border-b border-(--color-border) px-3 py-2 font-semibold text-(--color-text-primary)">
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {block.rows.map((row, i) => (
+                <tr key={i}>
+                  {row.map((cell, j) => (
+                    <td key={j} className="border-b border-(--color-border) px-3 py-2 align-top text-(--color-text-secondary)">
+                      {cell}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
     case "note":
       return (
         <p className="mt-4 rounded-lg border-l-4 border-(--color-brand) bg-(--color-surface-secondary) p-4 text-body text-(--color-text-secondary)">
@@ -73,7 +100,7 @@ function BlockView({ block }: { block: Block }) {
 
 export function BlogArticle({ post }: { post: BlogPost }) {
   const url = `${SITE_URL}/blog/${post.slug}`;
-  const related = BLOG_POSTS.filter((p) => p.slug !== post.slug).slice(0, 3);
+  const related = (post.related ? post.related.map((s) => BLOG_POSTS.find((p) => p.slug === s)).filter((p) => p !== undefined) : BLOG_POSTS.filter((p) => p.slug !== post.slug)).slice(0, 3);
   const terms = GLOSSARY_TERMS.filter((t) => t.guides?.includes(post.slug));
 
   const article = {
@@ -120,6 +147,21 @@ export function BlogArticle({ post }: { post: BlogPost }) {
           <BlockView key={i} block={block} />
         ))}
       </div>
+
+      {post.sources && post.sources.length > 0 && (
+        <section className="mt-10">
+          <h2 className="text-h3 font-semibold text-(--color-text-primary)">Sources</h2>
+          <ul className="mt-3 list-disc space-y-1 pl-6 text-small text-(--color-text-secondary)">
+            {post.sources.map((s) => (
+              <li key={s.url}>
+                <a href={s.url} rel="noopener" className="underline">
+                  {s.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <div className="mt-12 rounded-2xl bg-(--color-surface-secondary) p-8">
         <h2 className="text-h3 font-semibold text-(--color-text-primary)">See it on real numbers</h2>

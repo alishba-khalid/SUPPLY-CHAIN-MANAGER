@@ -1,0 +1,2 @@
+Supplier,Orders received (90 days),On time,On-time rate %,Average lead time (days),Lead time spread (days),Quoted lead time (days),Lead time gap %,Average price variance %,Spend (90 days),Short shipments,Notes and action
+Example Supplier Ltd,47,34,=C2/B2*100,12,3.1,8,=(E2-G2)/G2*100,2,62000,,Agree a 14-day quote for product family B
