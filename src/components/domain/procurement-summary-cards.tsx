@@ -18,7 +18,7 @@ export function ProcurementSummaryCards({
       <MetricCard
         label="Procurement Health"
         value={`${health} / 100`}
-        helpText="Speed, cost stability, & supplier OTIF"
+        helpText="Speed, cost stability, & supplier on-time delivery"
       />
       <MetricCard
         label="On-Time Delivery"

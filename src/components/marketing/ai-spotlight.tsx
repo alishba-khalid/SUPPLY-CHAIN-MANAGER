@@ -53,7 +53,8 @@ export function AiSpotlight() {
         <ShieldCheck size={18} className="mt-0.5 shrink-0 text-(--color-brand)" />
         <p className="text-small font-medium text-(--color-text-primary)">
           A human always approves. The AI Manager surfaces and explains the action — it never places
-          an order or contacts a supplier on its own.
+          an order or contacts a supplier on its own. It answers from your own data using fixed rules, not a
+          generative AI model.
         </p>
       </div>
 

@@ -58,7 +58,7 @@ export function buildHealthScoreAlerts(ctx: HealthScoreContext): SupplyChainAler
 
   if (ctx.procurement.score < HEALTH_CRITICAL_THRESHOLD) {
     const parts: [string, number][] = [
-      ["fulfillment (OTIF) rate", ctx.procurement.fulfillment],
+      ["fulfillment (on-time) rate", ctx.procurement.fulfillment],
       ["on-time cycle rate", ctx.procurement.cycleTime],
       ["price stability", ctx.procurement.priceStability],
     ];

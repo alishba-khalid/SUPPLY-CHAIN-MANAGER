@@ -55,7 +55,7 @@ export function AIManagerView({
 
   const QUICK_PROMPTS = [
     "What are our critical stockout risks?",
-    "How is supplier on-time delivery (OTIF)?",
+    "How is supplier on-time delivery?",
     "How much capital is tied up in overstock?",
     "Summarize inventory health across warehouses",
   ];
