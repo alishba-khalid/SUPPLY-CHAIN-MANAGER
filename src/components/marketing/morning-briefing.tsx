@@ -4,7 +4,7 @@ import { Sparkles } from "lucide-react";
 const STEPS = [
   { step: "1. Reads", description: "Reads trailing transaction velocity across every warehouse facility." },
   { step: "2. Flags", description: "Flags SKU-1015 at NDC as falling under 3 days until stockout against a 12-day lead time." },
-  { step: "3. Checks", description: "Detects supplier OTIF fell on SUP-004 from overdue open purchase orders." },
+  { step: "3. Checks", description: "Detects supplier on-time delivery fell on SUP-004 from overdue open purchase orders." },
   { step: "4. Ready", description: "Prioritized decisions are waiting in your dashboard. You approve every single action." },
 ];
 

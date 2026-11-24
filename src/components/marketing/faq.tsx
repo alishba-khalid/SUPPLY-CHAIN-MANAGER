@@ -19,17 +19,17 @@ export const FAQ_ITEMS: AccordionItem[] = [
   {
     question: "How does it decide what to reorder?",
     answer:
-      "Reorder points and suggested order quantities come from your trailing 90-day demand per SKU per warehouse, combined with your supplier's actual lead time — real reorder point software, not a fixed formula you maintain by hand. When stock drops toward that point, a suggested purchase order — quantity, supplier, and cost — is ready for your approval.",
+      "Reorder points and suggested order quantities come from your trailing 90-day demand per SKU per warehouse, combined with your supplier's actual lead time — real reorder point software, not a fixed formula you maintain by hand. When stock drops toward that point, a suggested purchase order is ready for you to review. Where your data lacks a supplier or unit price, you fill it in before creating the order.",
   },
   {
     question: "How does Supply Chain Health work?",
     answer:
-      "It's a single 0–100 score built from five weighted components: inventory (30%), suppliers (20%), procurement (20%), logistics (20%), and warehouses (10%). 80 and up is healthy, 60–79 needs attention, below 60 is critical — and each component is visible on its own, so you can see exactly what's dragging the score down. Supplier performance tracking (on-time-in-full delivery, weighted by spend) feeds directly into it.",
+      "It's a single 0–100 score built from five weighted components: inventory (30%), suppliers (20%), procurement (20%), logistics (20%), and warehouses (10%). 80 and up is healthy, 60–79 needs attention, below 60 is critical — and each component is visible on its own, so you can see exactly what's dragging the score down. Supplier performance tracking (the share of purchase orders delivered by their expected date, weighted by spend) feeds directly into it.",
   },
   {
     question: "Does it buy inventory automatically?",
     answer:
-      "No — you approve every action. It recommends a specific purchase order, a supplier review, or a warehouse transfer, and explains why. Nothing happens until you approve it.",
+      "No — you approve every action. It recommends a specific purchase order, a supplier review, or a warehouse transfer, and explains why. A purchase order is only created when you click to create it, and the app does not send it to your supplier.",
   },
   {
     question: "Can I try it before paying?",

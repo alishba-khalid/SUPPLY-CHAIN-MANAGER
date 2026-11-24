@@ -33,7 +33,7 @@ export function AiSpotlight() {
       value: `${po.daysOverdue} days overdue`,
     })),
     {
-      label: "Orion Electronics OTIF",
+      label: "Orion Electronics on-time delivery",
       value: `${SAMPLE_OTIF_PERCENT}% (trailing 90 days)`,
     },
   ];
@@ -53,7 +53,8 @@ export function AiSpotlight() {
         <ShieldCheck size={18} className="mt-0.5 shrink-0 text-(--color-brand)" />
         <p className="text-small font-medium text-(--color-text-primary)">
           A human always approves. The AI Manager surfaces and explains the action — it never places
-          an order or contacts a supplier on its own.
+          an order or contacts a supplier on its own. It answers from your own data using fixed rules, not a
+          generative AI model.
         </p>
       </div>
 
@@ -73,7 +74,7 @@ export function AiSpotlight() {
 
           <div className="max-w-xl rounded-lg rounded-tl-sm bg-(--color-surface-secondary) px-4 py-2.5 text-body text-(--color-text-primary)">
             &quot;Purchase orders from Orion Electronics (SUP-004) are {overdueSummary} with nothing received,
-            depressing trailing 90-day OTIF to {SAMPLE_OTIF_PERCENT}%. They supply SKU-1009 and SKU-1015.&quot;
+            depressing trailing 90-day on-time delivery to {SAMPLE_OTIF_PERCENT}%. They supply SKU-1009 and SKU-1015.&quot;
           </div>
 
           <div className="overflow-x-auto rounded-lg border border-(--color-border)">

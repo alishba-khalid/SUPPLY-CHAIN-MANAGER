@@ -25,7 +25,7 @@ const EXPORT_COLUMNS: ExportColumn<SupplierRow>[] = [
   { header: "Name", value: (r) => r.name },
   { header: "Email", value: (r) => r.email },
   { header: "POs received (90d)", value: (r) => r.eligiblePO },
-  { header: "OTIF %", value: (r) => (r.otif === null ? null : Math.round(r.otif * 10) / 10) },
+  { header: "On-time %", value: (r) => (r.otif === null ? null : Math.round(r.otif * 10) / 10) },
   { header: "On-time in-full POs", value: (r) => r.otifCount },
   { header: "Actual lead time (days)", value: (r) => (r.actualLeadTime === null ? null : Math.round(r.actualLeadTime * 10) / 10) },
   { header: "Contract lead time (days)", value: (r) => (r.leadTimeMissing ? null : r.leadTimeDays) },
@@ -91,7 +91,7 @@ export function SuppliersTable({ suppliers, performances }: SuppliersTableProps)
                 <th className="px-4 py-2.5 text-left text-caption font-medium uppercase tracking-wide text-(--color-text-muted)">Name</th>
                 <th className="px-4 py-2.5 text-left text-caption font-medium uppercase tracking-wide text-(--color-text-muted)">Email</th>
                 <th className="px-4 py-2.5 text-right text-caption font-medium uppercase tracking-wide text-(--color-text-muted)">POs (90d)</th>
-                <th className="px-4 py-2.5 text-center text-caption font-medium uppercase tracking-wide text-(--color-text-muted)">OTIF Rate</th>
+                <th className="px-4 py-2.5 text-center text-caption font-medium uppercase tracking-wide text-(--color-text-muted)">On-time Rate</th>
                 <th className="px-4 py-2.5 text-left text-caption font-medium uppercase tracking-wide text-(--color-text-muted)">Actual vs Contract Lead Time</th>
                 <th className="px-4 py-2.5 text-right text-caption font-medium uppercase tracking-wide text-(--color-text-muted)">Spend (90d)</th>
               </tr>

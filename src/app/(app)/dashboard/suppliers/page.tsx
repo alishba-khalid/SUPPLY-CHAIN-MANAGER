@@ -33,7 +33,7 @@ export default async function SuppliersPage() {
     <div>
       <PageHeader
         title="Suppliers"
-        description="Supplier scorecards, lead times, spend, and on-time-in-full (OTIF) reliability."
+        description="Supplier scorecards, lead times, spend, and on-time delivery reliability."
         actions={<SuppliersActions />}
       />
 

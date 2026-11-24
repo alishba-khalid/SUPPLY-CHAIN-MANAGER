@@ -22,7 +22,7 @@ export function SuppliersSummaryCards({
       <MetricCard
         label="Supplier Reliability"
         value={health === null ? "No data" : `${health} / 100`}
-        helpText={health === null ? "No received or overdue POs in the last 90 days to score" : "Spend-weighted average OTIF score"}
+        helpText={health === null ? "No received or overdue POs in the last 90 days to score" : "Spend-weighted average on-time delivery score"}
         tooltip={healthExplanation}
         tooltipWide
       />

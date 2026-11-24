@@ -29,7 +29,7 @@ const CARDS = [
     icon: Truck,
     toneClass: "bg-(--color-warning-bg) text-(--color-warning)",
     title: "What's delayed",
-    example: "2 open purchase orders from Orion Electronics (SUP-004) are overdue — trailing OTIF has fallen to 0%.",
+    example: "2 open purchase orders from Orion Electronics (SUP-004) are overdue — trailing on-time delivery has fallen to 0%.",
   },
   {
     icon: Banknote,

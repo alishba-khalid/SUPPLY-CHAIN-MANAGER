@@ -7,7 +7,7 @@ import { SITE_NAME, SITE_URL } from "@/lib/site-config";
 
 const TITLE = `1-Click Suggested Purchase Orders Software | ${SITE_NAME}`;
 const DESCRIPTION =
-  "Generate suggested purchase orders automatically based on demand forecasts, safety stock, and supplier lead times.";
+  "Get suggested purchase orders based on demand forecasts, safety stock and supplier lead times. You review each one and create it in one click.";
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -28,7 +28,7 @@ export default function PurchaseOrdersPage() {
           1-Click Suggested Purchase Orders
         </h1>
         <p className="mt-4 text-body-lg text-(--color-text-secondary) max-w-2xl mx-auto">
-          Turn demand calculations into vendor purchase orders instantly.
+          Turn a stockout warning into a purchase order record in one click, after you review it.
         </p>
 
         <div className="mt-8 flex justify-center gap-4">
@@ -47,7 +47,7 @@ export default function PurchaseOrdersPage() {
           <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-6 space-y-3">
             <h3 className="text-h3 font-semibold text-(--color-text-primary)">Automated Reorder Quantity</h3>
             <p className="text-body text-(--color-text-secondary)">
-              Reorders exact quantities needed to maintain target days-of-cover without over-committing capital.
+              Suggests an order quantity from forecast demand and supplier lead time. You can change the quantity and unit price before you create the order.
             </p>
           </div>
           <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-6 space-y-3">
@@ -67,7 +67,7 @@ export default function PurchaseOrdersPage() {
             </div>
             <div className="flex items-start gap-3">
               <CheckCircle2 className="text-(--color-brand) shrink-0 mt-1" size={18} />
-              <p className="text-body text-(--color-text-primary)">Prevent over-ordering and stockouts simultaneously.</p>
+              <p className="text-body text-(--color-text-primary)">The order is saved in the app. Sending it to your supplier is still done by you.</p>
             </div>
           </div>
         </div>

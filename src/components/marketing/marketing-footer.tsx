@@ -8,16 +8,31 @@ const PRODUCT_LINKS = [
   { href: "/features/demand-forecasting", label: "Demand Forecasting" },
   { href: "/features/supplier-scorecards", label: "Supplier Scorecards" },
   { href: "/features/purchase-orders", label: "1-Click Purchase Orders" },
+  { href: "/features/stockout-projections", label: "Stockout Projections" },
+  { href: "/features/supply-chain-health-score", label: "Health Score" },
+  { href: "/features/multi-warehouse-planning", label: "Multi-Warehouse Planning" },
+  { href: "/features/data-importer", label: "Data Importer" },
+  { href: "/features/automatic-data-refresh", label: "Automatic Refresh" },
+  { href: "/features/ai-manager", label: "AI Manager" },
+  { href: "/tools/reorder-point-calculator", label: "Reorder Point Calculator" },
+  { href: "/tools/safety-stock-calculator", label: "Safety Stock Calculator" },
+  { href: "/tools/eoq-calculator", label: "EOQ Calculator" },
   { href: "/pricing", label: "Pricing" },
   { href: "/faq", label: "FAQ" },
 ];
 
 const COMPARISON_LINKS = [
   { href: "/vs/inventory-planner", label: "vs Inventory Planner" },
-  { href: "/vs/katana", label: "vs Katana MRP" },
+  { href: "/vs/katana", label: "vs Katana" },
   { href: "/vs/unleashed", label: "vs Unleashed" },
   { href: "/vs/stocktrim", label: "vs StockTrim" },
   { href: "/vs/cin7", label: "vs Cin7 Core" },
+  { href: "/vs/eazystock", label: "vs EazyStock" },
+  { href: "/vs/netstock", label: "vs Netstock" },
+  { href: "/vs/fishbowl", label: "vs Fishbowl" },
+  { href: "/vs/inflow", label: "vs inFlow" },
+  { href: "/vs/zoho-inventory", label: "vs Zoho Inventory" },
+  { href: "/vs", label: "All comparisons" },
 ];
 
 const COMPANY_LINKS = [

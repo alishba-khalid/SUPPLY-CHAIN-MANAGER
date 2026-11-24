@@ -20,7 +20,7 @@ const HEALTH_TOOLTIPS = {
   inventory:
     "Average status score across every SKU x warehouse position: healthy=100, overstock=75, slow-moving=70, low stock=60, dead stock=40, stock-out risk=10.",
   procurement:
-    "Weighted blend, trailing 90 days: PO fulfillment (OTIF) rate 40%, on-time cycle rate 30%, price stability vs. baseline cost 30%.",
+    "Weighted blend, trailing 90 days: purchase order timeliness 70% (scored as fulfillment and as cycle rate), price stability vs. baseline cost 30%.",
   logistics:
     "Inbound purchase-order on-time delivery rate, trailing 90 days (this schema has no shipments table, so logistics reuses PO receipt timing).",
   warehouse:

@@ -108,8 +108,22 @@ product's `primarySupplierId`).
 **Example:** Average Daily Demand = 21, Supplier Lead Time = 8 days →
 Safety Lead Time = 4 days → Safety Stock = 21 × 4 = **84 units**.
 
-**Implementation:** `safetyStock`, `safetyLeadTimeDays` in
-`src/lib/metrics/inventory.ts`.
+**Variability-based version (used when demand varies).** When a SKU's daily
+demand has a measurable spread (winsorized standard deviation σ above zero),
+the app sizes safety stock for a 95% cycle service level instead of using the
+half-lead-time rule above:
+
+```
+Safety Stock = z × σ(daily demand) × √(Supplier Lead Time in days)
+z = 1.65 (95% service level, fixed; DEFAULT_SERVICE_LEVEL_Z)
+```
+
+The half-lead-time rule is the fallback when σ is zero or unknown. Average
+daily demand itself is a trimmed mean (top and bottom 5% of active sales days
+dropped), divided by days of actual history up to 90.
+
+**Implementation:** `variabilitySafetyStock`, `safetyStock`,
+`safetyLeadTimeDays` in `src/lib/metrics/inventory.ts`.
 
 ---
 
@@ -121,14 +135,14 @@ should be placed so stock doesn't run out before the replenishment arrives.
 **Formula:**
 
 ```
-Reorder Point = (Average Daily Demand × Supplier Lead Time) + Safety Stock
+Reorder Point = (Average Daily Demand × (Supplier Lead Time + 1 review day)) + Safety Stock
 ```
 
 This is the standard reorder-point formula: expected demand during the
 *full* lead time, plus the safety buffer.
 
 **Example:** Average Daily Demand = 21, Lead Time = 8 days, Safety Stock =
-84 → Reorder Point = (21 × 8) + 84 = **252 units**.
+84 → Reorder Point = (21 × (8 + 1)) + 84 = **273 units**.
 
 **Implementation:** `reorderPoint` in `src/lib/metrics/inventory.ts`.
 
@@ -641,8 +655,9 @@ days_of_stock    = quantity_on_hand / avg_daily_demand
                     null when avg_daily_demand is null or 0 (would be
                     infinite — displayed as "No demand", never computed)
 
-safety_stock     = avg_daily_demand × lead_time_days × 0.5
-reorder_point    = (avg_daily_demand × lead_time_days) + safety_stock
+safety_stock     = z × sigma_daily × sqrt(lead_time_days)   (z = 1.65) when sigma_daily > 0,
+                   else avg_daily_demand × lead_time_days × 0.5
+reorder_point    = avg_daily_demand × (lead_time_days + 1) + safety_stock
                     both null when lead_time_days is unknown — never
                     defaulted to a number
 

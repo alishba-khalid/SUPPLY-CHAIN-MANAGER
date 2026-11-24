@@ -4,9 +4,9 @@ import { BLOG_POSTS } from "@/lib/blog/posts";
 import { SITE_NAME, SITE_URL } from "@/lib/site-config";
 import { formatPostDate } from "@/components/marketing/blog-article";
 
-const TITLE = `Inventory & Purchasing Guides for Distributors | ${SITE_NAME}`;
+const TITLE = "Inventory & Purchasing Guides for Distributors";
 const DESCRIPTION =
-  "Practical guides for wholesale distributors: reorder points, safety stock, supplier OTIF, overstock and fixing projected stockouts — with worked examples.";
+  "Practical guides for wholesale distributors: reorder points, safety stock, supplier lead times, overstock and stockouts, with worked examples and calculators.";
 
 export const metadata: Metadata = {
   title: TITLE,

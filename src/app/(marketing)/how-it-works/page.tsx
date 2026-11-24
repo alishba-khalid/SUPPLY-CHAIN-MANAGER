@@ -6,7 +6,7 @@ import { SITE_NAME, SITE_URL } from "@/lib/site-config";
 
 const TITLE = `How It Works | ${SITE_NAME}`;
 const DESCRIPTION =
-  "Import your spreadsheets, and every morning Supply Chain Manager reviews inventory, suppliers and purchase orders across every warehouse and lists the decisions that need you.";
+  "Import your spreadsheets and each morning Supply Chain Manager reviews stock, suppliers and purchase orders in every warehouse and lists what needs you.";
 
 export const metadata: Metadata = {
   title: TITLE,

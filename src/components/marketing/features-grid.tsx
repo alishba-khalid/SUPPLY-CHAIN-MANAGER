@@ -12,13 +12,13 @@ const FEATURES = [
     icon: ShoppingCart,
     heading: "Know what to buy.",
     description:
-      "Every stockout risk comes with a ready-to-approve purchase order — quantity, supplier, and cost calculated for you.",
+      "Every stockout risk comes with a suggested purchase order — quantity, supplier, and cost filled in from your data, for you to review and create.",
   },
   {
     icon: Truck,
     heading: "Know which suppliers need attention.",
     description:
-      "On-time-in-full delivery tracked from real purchase order history — supplier performance tracking weighted by how much you actually spend with each one.",
+      "On-time delivery tracked from real purchase order history — supplier performance weighted by how much you actually spend with each one.",
   },
   {
     icon: Banknote,

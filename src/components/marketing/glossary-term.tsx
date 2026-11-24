@@ -34,7 +34,9 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export function GlossaryTermArticle({ term }: { term: GlossaryTerm }) {
   const url = `${SITE_URL}/glossary/${term.slug}`;
   const mid = midSentence(term.short);
-  const related = term.related.map(getTerm).filter((t) => t !== undefined);
+  const related = [
+    ...new Set(term.related.map(getTerm).filter((t): t is GlossaryTerm => t !== undefined && t.slug !== term.slug)),
+  ];
   const guides = (term.guides ?? [])
     .map((slug) => BLOG_POSTS.find((p) => p.slug === slug))
     .filter((p) => p !== undefined);
@@ -88,6 +90,52 @@ export function GlossaryTermArticle({ term }: { term: GlossaryTerm }) {
 
       <Paragraphs items={term.explain} />
 
+      {term.sections?.map((sec) => (
+        <Section key={sec.title} title={sec.title}>
+          <Paragraphs items={sec.paragraphs ?? []} />
+          {sec.formula && (
+            <pre className="mt-4 overflow-x-auto rounded-lg border border-(--color-border) bg-(--color-surface-secondary) p-4 font-mono text-small leading-relaxed text-(--color-text-primary)">
+              {sec.formula.join("\n")}
+            </pre>
+          )}
+          {sec.table && (
+            <div className="mt-4 overflow-x-auto">
+              <table className="w-full border-collapse text-left text-small">
+                <thead>
+                  <tr>
+                    {sec.table.head.map((h) => (
+                      <th key={h} className="border-b border-(--color-border) px-3 py-2 font-semibold text-(--color-text-primary)">
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {sec.table.rows.map((row, i) => (
+                    <tr key={i}>
+                      {row.map((cell, j) => (
+                        <td key={j} className="border-b border-(--color-border) px-3 py-2 text-(--color-text-secondary)">
+                          {cell}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {sec.bullets && (
+            <ul className="mt-4 list-disc space-y-2 pl-6 text-body leading-relaxed text-(--color-text-secondary)">
+              {sec.bullets.map((item, i) => (
+                <li key={i}>
+                  <InlineText content={item} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </Section>
+      ))}
+
       {term.formula && (
         <Section title={`How to calculate ${mid}`}>
           <pre className="mt-4 overflow-x-auto rounded-lg border border-(--color-border) bg-(--color-surface-secondary) p-4 font-mono text-small leading-relaxed text-(--color-text-primary)">
@@ -126,6 +174,35 @@ export function GlossaryTermArticle({ term }: { term: GlossaryTerm }) {
             Open the live demo
             <ArrowRight size={16} />
           </Link>
+        </Section>
+      )}
+
+      {term.faq && term.faq.length > 0 && (
+        <Section title={`${term.short}: common questions`}>
+          <dl className="mt-4 space-y-5">
+            {term.faq.map((item) => (
+              <div key={item.q}>
+                <dt className="text-body font-semibold text-(--color-text-primary)">{item.q}</dt>
+                <dd className="mt-1 text-body leading-relaxed text-(--color-text-secondary)">
+                  <InlineText content={item.a} />
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </Section>
+      )}
+
+      {term.sources && term.sources.length > 0 && (
+        <Section title="Sources">
+          <ul className="mt-4 list-disc space-y-1 pl-6 text-small text-(--color-text-secondary)">
+            {term.sources.map((src) => (
+              <li key={src.url}>
+                <a href={src.url} rel="noopener" className="underline">
+                  {src.label}
+                </a>
+              </li>
+            ))}
+          </ul>
         </Section>
       )}
 

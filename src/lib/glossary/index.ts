@@ -1,4 +1,5 @@
 import type { GlossaryCategory, GlossaryTerm } from "./types";
+import { resolveGlossarySlug } from "./merged";
 import { INVENTORY_TERMS } from "./terms-inventory";
 import { STOCK_TERMS } from "./terms-stock";
 import { FORECASTING_TERMS } from "./terms-forecasting";
@@ -20,7 +21,7 @@ export const GLOSSARY_TERMS: GlossaryTerm[] = [
 const BY_SLUG = new Map(GLOSSARY_TERMS.map((t) => [t.slug, t]));
 
 export function getTerm(slug: string): GlossaryTerm | undefined {
-  return BY_SLUG.get(slug);
+  return BY_SLUG.get(resolveGlossarySlug(slug));
 }
 
 /**

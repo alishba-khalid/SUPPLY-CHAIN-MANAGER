@@ -16,7 +16,8 @@ export type Block =
   | { type: "h2"; text: string }
   | { type: "ul"; items: Inline[][] }
   | { type: "formula"; lines: string[] }
-  | { type: "note"; content: Inline[] };
+  | { type: "note"; content: Inline[] }
+  | { type: "table"; head: string[]; rows: string[][] };
 
 export interface BlogPost {
   slug: string;
@@ -29,11 +30,20 @@ export interface BlogPost {
   updated: string; // YYYY-MM-DD
   readingMinutes: number;
   body: Block[];
+  /** Outside sources used for facts in the guide. */
+  sources?: { label: string; url: string }[];
+  /** Slugs of the guides shown at the end, instead of the first three. */
+  related?: string[];
 }
+
+import { GUIDES_A } from "./guides-a";
+import { GUIDES_B } from "./guides-b";
+import { ADDITIONS } from "./additions";
+import { readingMinutes } from "./helpers";
 
 const DEMO = { href: "/dashboard/overview?demo=true", text: "open the live demo" };
 
-export const BLOG_POSTS: BlogPost[] = [
+const CORE_POSTS: BlogPost[] = [
   {
     slug: "reorder-point-formula",
     title: "Reorder Point Formula: How Distributors Decide When to Reorder",
@@ -352,7 +362,7 @@ export const BLOG_POSTS: BlogPost[] = [
         content: [
           "Supply Chain Manager builds a ",
           { href: "/features/supplier-scorecards", text: "supplier scorecard" },
-          " from your purchase orders: trailing 90-day OTIF per supplier, a spend-weighted overall figure, and alerts for overdue POs. Suppliers with no deliveries in the window show as unknown, never 0%. One limit to know: if your data has no partial-receipt quantity, \"in full\" can only mean \"received\". To see it on sample data, ",
+          " from your purchase orders: trailing 90-day on-time delivery per supplier, a spend-weighted overall figure, and alerts for overdue POs. Suppliers with no deliveries in the window show as unknown, never 0%. An important limit: the app records an order's expected and received dates but not the quantity received, so it cannot see short shipments. Its score measures timeliness only, which is the \"on time\" half of OTIF. To see it on sample data, ",
           DEMO,
           ".",
         ],
@@ -546,6 +556,13 @@ export const BLOG_POSTS: BlogPost[] = [
     ],
   },
 ];
+
+export const BLOG_POSTS: BlogPost[] = [...CORE_POSTS, ...GUIDES_A, ...GUIDES_B].map((post) => {
+  const extra = ADDITIONS[post.slug];
+  if (!extra) return post;
+  const body = [...post.body, ...extra];
+  return { ...post, body, readingMinutes: readingMinutes(body) };
+});
 
 export function getPost(slug: string): BlogPost | undefined {
   return BLOG_POSTS.find((post) => post.slug === slug);
