@@ -1,6 +1,6 @@
 # New-page proposal: 30 pages to reach 100 (2026-11-24)
 
-Status: PROPOSAL, nothing built. Needs the owner's yes/no per row.
+Status: rows 1 to 6 (feature pages) BUILT 2026-11-24 and committed locally; rows 7 to 30 still proposed.
 
 ## Where the count stands
 - Sitemap today: 70 URLs (home, 4 section pages, 3 feature pages, 7 compare pages, blog index plus 5 guides, glossary index plus 44 terms, about, terms, privacy, security).

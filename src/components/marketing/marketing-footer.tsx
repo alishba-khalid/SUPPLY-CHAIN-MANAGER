@@ -8,6 +8,12 @@ const PRODUCT_LINKS = [
   { href: "/features/demand-forecasting", label: "Demand Forecasting" },
   { href: "/features/supplier-scorecards", label: "Supplier Scorecards" },
   { href: "/features/purchase-orders", label: "1-Click Purchase Orders" },
+  { href: "/features/stockout-projections", label: "Stockout Projections" },
+  { href: "/features/supply-chain-health-score", label: "Health Score" },
+  { href: "/features/multi-warehouse-planning", label: "Multi-Warehouse Planning" },
+  { href: "/features/data-importer", label: "Data Importer" },
+  { href: "/features/automatic-data-refresh", label: "Automatic Refresh" },
+  { href: "/features/ai-manager", label: "AI Manager" },
   { href: "/pricing", label: "Pricing" },
   { href: "/faq", label: "FAQ" },
 ];

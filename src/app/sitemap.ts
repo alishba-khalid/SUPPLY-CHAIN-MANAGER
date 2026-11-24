@@ -3,6 +3,7 @@ import { SITE_URL } from "@/lib/site-config";
 import { COMPETITORS } from "@/lib/competitors-data";
 import { BLOG_POSTS } from "@/lib/blog/posts";
 import { GLOSSARY_TERMS, GLOSSARY_UPDATED } from "@/lib/glossary";
+import { FEATURE_PAGES } from "@/lib/feature-pages";
 
 // When each page's content last changed. Update the date when you edit a
 // page — a date that moves on every deploy tells search engines nothing.
@@ -26,7 +27,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.8,
   }));
 
-  const featureEntries: MetadataRoute.Sitemap = Object.entries(FEATURES_UPDATED).map(([feature, lastModified]) => ({
+  const featureDates: Record<string, Date> = {
+    ...FEATURES_UPDATED,
+    ...Object.fromEntries(Object.values(FEATURE_PAGES).map((p) => [p.slug, new Date(p.updated)])),
+  };
+  const featureEntries: MetadataRoute.Sitemap = Object.entries(featureDates).map(([feature, lastModified]) => ({
     url: `${SITE_URL}/features/${feature}`,
     lastModified,
     changeFrequency: "monthly",
