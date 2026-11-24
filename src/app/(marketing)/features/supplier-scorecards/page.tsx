@@ -5,7 +5,7 @@ import { RelatedTerms } from "@/components/marketing/related-terms";
 import { ArrowRight, Truck, CheckCircle2 } from "lucide-react";
 import { SITE_NAME, SITE_URL } from "@/lib/site-config";
 
-const TITLE = `Supplier Performance & On-Time Delivery Scorecards | ${SITE_NAME}`;
+const TITLE = "Supplier Performance & On-Time Delivery Scorecards";
 const DESCRIPTION =
   "Track supplier lead-time delays, on-time delivery rates and spend-weighted reliability ratings.";
 

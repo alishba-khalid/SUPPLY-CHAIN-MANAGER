@@ -4,7 +4,7 @@ import { CATEGORY_LABELS, GLOSSARY_TERMS, GUIDE_ENTRIES, type GlossaryCategory }
 import { safeJsonLd } from "@/components/marketing/blog-article";
 import { SITE_NAME, SITE_URL } from "@/lib/site-config";
 
-const TITLE = `Supply Chain & Inventory Glossary for Distributors | ${SITE_NAME}`;
+const TITLE = "Supply Chain & Inventory Glossary for Distributors";
 const DESCRIPTION =
   "Plain-English definitions of inventory, forecasting, purchasing and warehouse terms, with formulas and worked examples for wholesale distributors.";
 
