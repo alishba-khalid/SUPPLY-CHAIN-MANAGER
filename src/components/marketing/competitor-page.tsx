@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Check, X, ArrowRight, ShieldCheck, Zap, Sparkles } from "lucide-react";
-import type { CompetitorData } from "@/lib/competitors-data";
+import { COMPETITORS_CHECKED, type CompetitorData } from "@/lib/competitors-data";
 import { Accordion } from "@/components/ui/accordion";
 import { SITE_NAME } from "@/lib/site-config";
 
@@ -121,12 +121,29 @@ export function CompetitorPage({ data }: { data: CompetitorData }) {
         </section>
       )}
 
+      {/* Sources */}
+      <section className="mx-auto max-w-4xl px-6 mt-16 space-y-3">
+        <h2 className="text-h3 text-(--color-text-primary)">Sources</h2>
+        <p className="text-small text-(--color-text-muted)">
+          Competitor facts were read from the vendor&apos;s own website on {COMPETITORS_CHECKED}. Marketing wording is
+          labelled as a claim, and anything we could not confirm is marked as such. Prices and features change, so
+          check the vendor before you decide.
+        </p>
+        <ul className="list-disc space-y-1 pl-5 text-small text-(--color-text-secondary)">
+          {data.sources.map((s) => (
+            <li key={s.url}>
+              <a href={s.url} rel="nofollow noopener" className="underline">{s.label}</a>
+            </li>
+          ))}
+        </ul>
+      </section>
+
       {/* Bottom CTA */}
       <section className="mx-auto max-w-4xl px-6 mt-20 text-center">
         <div className="rounded-2xl bg-(--color-brand-subtle) border border-(--color-brand)/20 p-8 sm:p-12">
           <h2 className="text-h1 text-(--color-brand-hover)">Ready to switch to {SITE_NAME}?</h2>
           <p className="mt-3 text-body-lg text-(--color-text-secondary) max-w-lg mx-auto">
-            Get your supply chain health score, stockout projections, and supplier OTIF scorecards in an afternoon.
+            Get your supply chain health score, stockout projections, and supplier OTIF scorecards from your own data.
           </p>
           <div className="mt-6">
             <Link

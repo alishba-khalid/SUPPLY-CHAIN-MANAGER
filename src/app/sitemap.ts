@@ -8,7 +8,7 @@ import { GLOSSARY_TERMS, GLOSSARY_UPDATED } from "@/lib/glossary";
 // page — a date that moves on every deploy tells search engines nothing.
 const HOME_UPDATED = new Date("2026-09-28");
 const SECTION_PAGES_UPDATED = new Date("2026-10-06");
-const COMPETITORS_UPDATED = new Date("2026-09-20");
+const COMPETITORS_UPDATED = new Date("2026-11-24");
 const FEATURES_UPDATED: Record<string, Date> = {
   "demand-forecasting": new Date("2026-10-16"),
   "supplier-scorecards": new Date("2026-10-16"),

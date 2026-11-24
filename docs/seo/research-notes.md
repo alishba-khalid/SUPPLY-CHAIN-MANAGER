@@ -35,3 +35,13 @@ Names seen in search results, not yet read: Odoo, NetSuite, Epicor Prophet 21, F
 9. More blog guides: lead time variability, ABC classification for purchasing, demand forecasting for intermittent demand
 
 Still to do: product-claims check against the code, keyword map (one primary per page), read remaining competitor sites, more question research.
+
+## Competitor re-verification (2026-11-24, vendor sites only)
+Applied to src/lib/competitors-data.ts. Old figures ($249+, $359+, $349+, $99+, $325+) were wrong or unsourced and are removed.
+- Inventory Planner: pricing not published (request pricing); AI assistant yes (Sage Copilot, claim); OTIF and CSV import not confirmed; implementation required.
+- Katana: Free plan $0 up to 30 SKUs; Advantage custom, annual contract; AI assistant, multi-location, CSV import yes.
+- Unleashed: site returned HTTP 403, nothing confirmed. Page says so.
+- StockTrim: from $49/mo billed annually, revenue-banded; unlimited users and SKUs; 14-day trial; AI assistant yes.
+- Cin7 Core: $349 / $599 / $1,199 per month USD; forecasting is an add-on; "four weeks" onboarding is a claim.
+- EazyStock and Netstock added (see above).
+Not read: Netstock/EazyStock free trial, Unleashed anything. Re-check by 2027-02-24.

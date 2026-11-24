@@ -14,10 +14,12 @@ const PRODUCT_LINKS = [
 
 const COMPARISON_LINKS = [
   { href: "/vs/inventory-planner", label: "vs Inventory Planner" },
-  { href: "/vs/katana", label: "vs Katana MRP" },
+  { href: "/vs/katana", label: "vs Katana" },
   { href: "/vs/unleashed", label: "vs Unleashed" },
   { href: "/vs/stocktrim", label: "vs StockTrim" },
   { href: "/vs/cin7", label: "vs Cin7 Core" },
+  { href: "/vs/eazystock", label: "vs EazyStock" },
+  { href: "/vs/netstock", label: "vs Netstock" },
 ];
 
 const COMPANY_LINKS = [
