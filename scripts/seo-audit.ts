@@ -27,6 +27,6 @@ console.log("def>160:", rows.filter((r) => r.defLen > 160).map((r) => r.slug).jo
 
 console.log("\n== BLOG ==");
 for (const p of BLOG_POSTS) {
-  const w = p.body.reduce((n, b) => n + (b.type === "p" || b.type === "note" ? words(inl(b.content)) : b.type === "h2" ? words(b.text) : b.type === "ul" ? b.items.reduce((m, i) => m + words(inl(i)), 0) : b.lines.length * 5), 0);
+  const w = p.body.reduce((n, b) => n + (b.type === "p" || b.type === "note" ? words(inl(b.content)) : b.type === "h2" ? words(b.text) : b.type === "ul" ? b.items.reduce((m, i) => m + words(inl(i)), 0) : b.type === "formula" ? b.lines.length * 5 : b.head.length + b.rows.flat().length), 0);
   console.log(p.slug, "words", w, "title", p.metaTitle.length, "desc", p.description.length);
 }
