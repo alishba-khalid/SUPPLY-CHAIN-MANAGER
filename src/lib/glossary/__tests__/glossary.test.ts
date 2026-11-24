@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { GLOSSARY_TERMS, GUIDE_ENTRIES, getTerm, type GlossaryTerm } from "../index";
 import { glossaryMetaTitle, MAX_TITLE_LENGTH } from "../meta";
-import { GLOSSARY_MERGED } from "../merged";
+import { GLOSSARY_MERGED, GLOSSARY_TO_BLOG } from "../merged";
 import { BLOG_POSTS } from "@/lib/blog/posts";
 import type { Inline } from "@/lib/blog/posts";
 
@@ -28,6 +28,14 @@ test("merged glossary slugs are gone and redirect to a live page", () => {
     assert.ok(!GLOSSARY_TERMS.some((t) => t.slug === from), `${from} still has its own page`);
     assert.ok(GLOSSARY_TERMS.some((t) => t.slug === to), `${from} redirects to missing page ${to}`);
     assert.ok(!(to in GLOSSARY_MERGED), `${from} redirects to ${to}, which is itself redirected`);
+  }
+});
+
+test("glossary slugs redirected to a blog guide are gone and the guide exists", () => {
+  for (const [from, to] of Object.entries(GLOSSARY_TO_BLOG)) {
+    assert.ok(!GLOSSARY_TERMS.some((t) => t.slug === from), `${from} still has its own page`);
+    assert.ok(!(from in GLOSSARY_MERGED), `${from} is in both maps`);
+    assert.ok(BLOG_POSTS.some((p) => `/blog/${p.slug}` === to), `${from} redirects to missing guide ${to}`);
   }
 });
 
@@ -93,7 +101,7 @@ test("every internal link resolves", () => {
   const blogSlugs = new Set(BLOG_POSTS.map((p) => p.slug));
   for (const t of GLOSSARY_TERMS) {
     for (const r of t.related) {
-      assert.ok(getTerm(r), `${t.slug} → missing related term ${r}`);
+      assert.ok(getTerm(r) || r in GLOSSARY_TO_BLOG, `${t.slug} → missing related term ${r}`);
       assert.notEqual(r, t.slug, `${t.slug} relates to itself`);
     }
     for (const gSlug of t.guides ?? []) assert.ok(blogSlugs.has(gSlug), `${t.slug} → missing guide ${gSlug}`);

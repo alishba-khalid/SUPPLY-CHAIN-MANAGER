@@ -211,40 +211,6 @@ export const PURCHASING_TERMS: GlossaryTerm[] = [
     updated: U,
   },
   {
-    slug: "lead-time-variability",
-    term: "Lead Time Variability",
-    short: "Lead time variability",
-    category: "purchasing",
-    definition:
-      "Lead time variability is how much a supplier's actual delivery times swing around their average, measured as the spread of past lead times.",
-    explain: [
-      [
-        "Two suppliers can both average 10 days. One delivers in 9 to 11; the other in 5 to 20. The second needs far more safety stock, because you must plan for the late deliveries, not the average.",
-      ],
-      [
-        "Measuring it needs only three dates per purchase order: when it was placed, when it was expected and when it arrived. With those, you can calculate both the average lead time and its spread for every supplier, and see whether late deliveries are random or concentrated on particular items or seasons.",
-      ],
-    ],
-    formula: ["Lead Time Variability = Standard Deviation of actual lead times (days)"],
-    example: [
-      [
-        "Illustrative numbers: supplier A's last receipts took 9, 10, 11, 10 and 10 days (standard deviation about 0.7). Supplier B's took 5, 18, 7, 20 and 10 days (standard deviation roughly 6). Both average 10 to 12 days, but B can be more than a week late with no warning.",
-      ],
-    ],
-    why: [
-      [
-        "Variability, more than the average, causes stockouts. Reducing it, by changing supplier, agreeing delivery windows or ordering earlier, often cuts safety stock more than any forecasting change.",
-      ],
-    ],
-    mistakes: [
-      ["Using only the average lead time in safety stock calculations."],
-      ["Judging a supplier on a handful of receipts."],
-    ],
-    related: ["lead-time", "po-cycle-time", "on-time-delivery-rate", "safety-time", "dual-sourcing"],
-    guides: ["safety-stock-formula", "supplier-otif"],
-    updated: U,
-  },
-  {
     slug: "on-time-delivery-rate",
     term: "On-Time Delivery Rate (OTD)",
     short: "On-time delivery rate",
@@ -469,42 +435,6 @@ export const PURCHASING_TERMS: GlossaryTerm[] = [
       ["Recording receipts days after the goods arrived, which makes suppliers look late."],
     ],
     related: ["three-way-match", "advance-shipping-notice", "putaway", "dock-to-stock-time", "purchase-order"],
-    updated: U,
-  },
-  {
-    slug: "quantity-break",
-    term: "Quantity Break (Volume Discount)",
-    short: "Quantity break",
-    category: "purchasing",
-    definition:
-      "A quantity break is a lower unit price a supplier offers when you buy at or above a set quantity, such as $4.00 each for 500+ units versus $4.40 below.",
-    explain: [
-      [
-        "Price breaks reward bigger orders, but bigger orders mean more stock. The right comparison is the saving on the purchase against the extra carrying cost of holding the additional units until they sell.",
-      ],
-      [
-        "Price breaks can also be combined across SKUs from the same supplier, for example on total order value. In that case, adding a few fast-moving items to an order can earn the break without overstocking any single line, which is usually better than buying extra of one slow item.",
-      ],
-    ],
-    formula: [
-      "Saving = (Price below break − Price at break) × Quantity at break",
-      "Extra carrying cost ≈ Extra average stock × Unit cost × Annual carrying rate × (Holding time in years)",
-    ],
-    example: [
-      [
-        "Illustrative numbers: you need 300 units a month. Ordering 500 instead of 300 earns $0.40 off each, a $200 saving. The extra 200 units take about two-thirds of a month to sell; at a 25% annual carrying rate on $4.00 that costs roughly $11. The break is worth taking.",
-      ],
-    ],
-    why: [
-      [
-        "Breaks are worth taking on steady sellers and often not on slow ones, where the extra stock may sit for months or never sell.",
-      ],
-    ],
-    mistakes: [
-      ["Chasing breaks on slow movers and creating overstock."],
-      ["Ignoring storage space or shelf-life limits."],
-    ],
-    related: ["economic-order-quantity", "minimum-order-quantity", "inventory-carrying-cost", "blanket-purchase-order"],
     updated: U,
   },
   {

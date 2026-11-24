@@ -48,3 +48,6 @@ Not read: Netstock/EazyStock free trial, Unleashed anything. Re-check by 2027-02
 
 ## Glossary consolidation log
 - 2026-11-24: forecasting done. 19 terms -> 7 pages (forecast-accuracy, forecast-bias, exponential-smoothing, seasonality, intermittent-demand, bullwhip-effect, demand-planning). 12 slugs redirect (src/lib/glossary/merged.ts, next.config.ts). Remaining: inventory+stock, purchasing, warehouse, finance.
+- 2026-11-24: inventory + stock done. 34 terms (plus 6 from purchasing/finance/warehouse) -> 16 pages. 24 more slugs redirect; slow-moving-inventory, obsolete-inventory, safety-time redirect to blog guides. 72 glossary pages live. Remaining: purchasing, warehouse, finance.
+- OPEN: docs/metrics.md and blog safety-stock-formula say safety stock = demand x 0.5 x lead time; code (metrics/inventory.ts) uses z x sigma x sqrt(lead time) at 95% when demand varies, else the half-lead-time rule. Fix in the blog batch.
+- OPEN: app has no allocations/holds, backorders, fill rate, min/max levels or UoM conversion; "available" in the UI = quantity on hand.

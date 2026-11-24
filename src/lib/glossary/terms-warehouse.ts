@@ -231,39 +231,6 @@ export const WAREHOUSE_TERMS: GlossaryTerm[] = [
     updated: U,
   },
   {
-    slug: "perfect-order-rate",
-    term: "Perfect Order Rate",
-    short: "Perfect order rate",
-    category: "warehouse",
-    definition:
-      "Perfect order rate is the share of customer orders delivered complete, on time, undamaged and with correct paperwork, all at once.",
-    explain: [
-      [
-        "It multiplies several failure points together, so it is always lower than any single measure. An order that arrives on time but one line short, or complete but with a wrong invoice, is not perfect.",
-      ],
-      [
-        "Which components to include depends on what your customers care about. Some add invoice accuracy or correct pricing; others add delivery within a time window. The value is in choosing a definition that matches the customer's view of a good order and tracking it consistently.",
-      ],
-    ],
-    formula: ["Perfect Order Rate ≈ % on time × % complete × % undamaged × % correct documentation"],
-    example: [
-      [
-        "Illustrative numbers: 95% on time, 96% complete, 99% undamaged and 98% correct paperwork. Perfect order rate ≈ 0.95 × 0.96 × 0.99 × 0.98 ≈ 88%. Roughly one order in eight has some problem.",
-      ],
-    ],
-    why: [
-      [
-        "It is the measure closest to how a customer remembers you. Breaking it into components shows which part of the process to fix first.",
-      ],
-    ],
-    mistakes: [
-      ["Reporting each component separately and never the combined figure."],
-      ["Counting an order as complete once a backorder later ships."],
-    ],
-    related: ["fill-rate", "order-cycle-time", "on-time-delivery-rate", "order-picking"],
-    updated: U,
-  },
-  {
     slug: "less-than-truckload",
     term: "Less-Than-Truckload (LTL) Freight",
     short: "LTL",
@@ -519,38 +486,6 @@ export const WAREHOUSE_TERMS: GlossaryTerm[] = [
       ["Pre-building more kits than demand supports, locking up components."],
     ],
     related: ["unit-of-measure", "sku", "order-picking", "back-to-back-order"],
-    updated: U,
-  },
-  {
-    slug: "unit-of-measure",
-    term: "Unit of Measure (UoM)",
-    short: "Unit of measure",
-    category: "warehouse",
-    definition:
-      "Unit of measure (UoM) is the unit an item is counted in, such as each, box, case or pallet, plus the conversions between them.",
-    explain: [
-      [
-        "Distributors often buy in one unit and sell in another: buy by the case of 12, sell by the each. Every stock figure, forecast and purchase order has to use the right unit, or quantities are wrong by a factor of 12.",
-      ],
-      [
-        "A good rule is to pick one base unit per SKU, usually the smallest unit you sell, and store every other unit as a conversion to it. Purchase orders, receipts, sales and forecasts can then use whatever unit is natural, while every stock calculation runs in the same base unit.",
-      ],
-    ],
-    example: [
-      [
-        "Illustrative: a supplier's price list is per case of 24, but your system records stock in eaches. A reorder of '50' sent without the unit could mean 50 eaches or 1,200, which is the kind of error that creates a year of overstock in one order.",
-      ],
-    ],
-    why: [
-      [
-        "UoM errors are one of the most common causes of bad imports and wildly wrong purchase orders. Storing one base unit and explicit conversions avoids them.",
-      ],
-    ],
-    mistakes: [
-      ["Mixing units in the same column of an import file."],
-      ["Changing a supplier's pack size without updating the conversion."],
-    ],
-    related: ["sku", "kitting", "minimum-order-quantity", "purchase-order"],
     updated: U,
   },
   {

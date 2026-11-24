@@ -20,8 +20,42 @@ export const GLOSSARY_MERGED: Record<string, string> = {
   "crostons-method": "intermittent-demand",
   "coefficient-of-variation": "intermittent-demand",
   "sales-and-operations-planning": "demand-planning",
+  // Inventory and stock (2026-11-24)
+  "lead-time-demand": "lead-time",
+  "lead-time-variability": "lead-time",
+  "minimum-order-quantity": "economic-order-quantity",
+  "quantity-break": "economic-order-quantity",
+  "ordering-cost": "economic-order-quantity",
+  "periodic-review-system": "min-max-inventory",
+  "continuous-review-system": "min-max-inventory",
+  "perfect-order-rate": "fill-rate",
+  backorder: "stockout",
+  "lost-sales": "stockout",
+  "stockout-cost": "stockout",
+  "pipeline-inventory": "cycle-stock",
+  "anticipation-inventory": "cycle-stock",
+  "multi-echelon-inventory": "cycle-stock",
+  "xyz-analysis": "abc-analysis",
+  "sku-rationalization": "abc-analysis",
+  "unit-of-measure": "sku",
+  "available-inventory": "quantity-on-hand",
+  "allocated-inventory": "quantity-on-hand",
+  "inventory-position": "quantity-on-hand",
+  "consignment-inventory": "vendor-managed-inventory",
+};
+
+/** Glossary terms whose topic a blog guide already covers in depth. */
+export const GLOSSARY_TO_BLOG: Record<string, string> = {
+  "slow-moving-inventory": "/blog/overstock-vs-dead-stock",
+  "obsolete-inventory": "/blog/overstock-vs-dead-stock",
+  "safety-time": "/blog/safety-stock-formula",
 };
 
 export function resolveGlossarySlug(slug: string): string {
   return GLOSSARY_MERGED[slug] ?? slug;
+}
+
+/** Where a link to this glossary slug should point. */
+export function glossaryHref(slug: string): string {
+  return GLOSSARY_TO_BLOG[slug] ?? `/glossary/${resolveGlossarySlug(slug)}`;
 }

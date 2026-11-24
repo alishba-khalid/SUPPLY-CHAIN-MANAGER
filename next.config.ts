@@ -1,5 +1,5 @@
 import type { NextConfig } from "next";
-import { GLOSSARY_MERGED } from "./src/lib/glossary/merged";
+import { GLOSSARY_MERGED, GLOSSARY_TO_BLOG } from "./src/lib/glossary/merged";
 
 const OLD_DASHBOARD_PATHS = [
   "overview",
@@ -27,7 +27,12 @@ const nextConfig: NextConfig = {
       destination: `/glossary/${to}`,
       permanent: true,
     }));
-    return [...dashboard, ...glossary];
+    const glossaryToBlog = Object.entries(GLOSSARY_TO_BLOG).map(([from, to]) => ({
+      source: `/glossary/${from}`,
+      destination: to,
+      permanent: true,
+    }));
+    return [...dashboard, ...glossary, ...glossaryToBlog];
   },
   // Default position (bottom-left) sits directly on top of the sidebar's
   // "Collapse" control, which is docked in that same corner. Moving the dev

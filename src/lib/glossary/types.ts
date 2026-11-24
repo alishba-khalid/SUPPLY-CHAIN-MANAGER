@@ -13,7 +13,7 @@
  * compete for the same search.
  */
 import type { Inline } from "@/lib/blog/posts";
-import { resolveGlossarySlug } from "./merged";
+import { glossaryHref } from "./merged";
 
 export type GlossaryCategory = "inventory" | "forecasting" | "purchasing" | "warehouse" | "finance";
 
@@ -72,6 +72,6 @@ export interface GlossaryTerm {
 }
 
 /** Inline link to another glossary term. */
-export const g = (slug: string, text: string): Inline => ({ href: `/glossary/${resolveGlossarySlug(slug)}`, text });
+export const g = (slug: string, text: string): Inline => ({ href: glossaryHref(slug), text });
 /** Inline link to a blog guide. */
 export const guide = (slug: string, text: string): Inline => ({ href: `/blog/${slug}`, text });
