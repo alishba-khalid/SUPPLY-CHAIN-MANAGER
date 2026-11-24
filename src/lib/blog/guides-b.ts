@@ -153,7 +153,7 @@ export const GUIDES_B: BlogPost[] = [
     title: "Your First 90 Days with Inventory Planning Software",
     metaTitle: "First 90 Days with Inventory Planning Software",
     description:
-      "A phased plan for adopting a planning tool without breaking purchasing: week-by-week checks, when to trust its suggestions and when to switch off the spreadsheet.",
+      "A phased plan for adopting a planning tool without breaking purchasing: weekly checks, when to trust its suggestions and when to retire the spreadsheet.",
     related: ["prepare-spreadsheet-data-for-inventory-software", "how-to-choose-inventory-planning-software", "excel-vs-inventory-software-for-distributors"],
     body: [
       P("Most failed software projects fail in the first month, not because of the tool, but because the team either trusts it too early or never trusts it at all. A phased plan avoids both. Vendors' own advice is similar: adopt in steps and test on your real data."),
@@ -340,7 +340,7 @@ export const GUIDES_B: BlogPost[] = [
     title: "Supplier Scorecard Template (Free CSV) and How to Use It",
     metaTitle: "Supplier Scorecard Template (Free CSV Download)",
     description:
-      "A simple supplier scorecard you can fill in from your purchase orders: on-time rate, lead time, price variance, spend and notes. Download the CSV and see how to score.",
+      "A simple supplier scorecard you can fill in from your purchase orders: on-time rate, lead time, price variance and spend. Download the CSV and see how to score.",
     related: ["how-to-run-a-supplier-performance-review", "measure-supplier-lead-time-from-purchase-orders", "supplier-otif"],
     body: [
       P("A supplier scorecard is a one-page summary per supplier. It does not need a platform. A spreadsheet fed from your purchase order data is enough, and it turns a vague feeling about a supplier into numbers you can show them. The template below has the columns most distributors use."),

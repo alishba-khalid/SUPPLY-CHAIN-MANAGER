@@ -38,6 +38,8 @@ export interface BlogPost {
 
 import { GUIDES_A } from "./guides-a";
 import { GUIDES_B } from "./guides-b";
+import { ADDITIONS } from "./additions";
+import { readingMinutes } from "./helpers";
 
 const DEMO = { href: "/dashboard/overview?demo=true", text: "open the live demo" };
 
@@ -555,7 +557,12 @@ const CORE_POSTS: BlogPost[] = [
   },
 ];
 
-export const BLOG_POSTS: BlogPost[] = [...CORE_POSTS, ...GUIDES_A, ...GUIDES_B];
+export const BLOG_POSTS: BlogPost[] = [...CORE_POSTS, ...GUIDES_A, ...GUIDES_B].map((post) => {
+  const extra = ADDITIONS[post.slug];
+  if (!extra) return post;
+  const body = [...post.body, ...extra];
+  return { ...post, body, readingMinutes: readingMinutes(body) };
+});
 
 export function getPost(slug: string): BlogPost | undefined {
   return BLOG_POSTS.find((post) => post.slug === slug);

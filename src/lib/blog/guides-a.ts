@@ -156,7 +156,7 @@ export const GUIDES_A: BlogPost[] = [
     title: "How to Choose Inventory Planning Software: A Buyer's Checklist",
     metaTitle: "How to Choose Inventory Planning Software",
     description:
-      "A practical checklist for distributors comparing inventory planning tools: data, accuracy, integrations, trial on your own files and the questions to ask vendors.",
+      "A checklist for distributors comparing inventory planning tools: data, accuracy, integrations, a trial on your own files and questions to ask vendors.",
     related: ["excel-vs-inventory-software-for-distributors", "prepare-spreadsheet-data-for-inventory-software", "first-90-days-with-inventory-planning-software"],
     sources: [
       { label: "ToolsGroup, Supply chain vendor evaluation checklist", url: "https://www.toolsgroup.com/blog/supply-chain-vendor-evaluation-checklist/" },
