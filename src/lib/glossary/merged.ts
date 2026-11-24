@@ -65,6 +65,14 @@ export const GLOSSARY_MERGED: Record<string, string> = {
   "inventory-accuracy": "cycle-counting",
   "serialized-inventory": "lot-tracking",
   fefo: "lot-tracking",
+  // Finance (2026-11-24)
+  "days-inventory-outstanding": "inventory-turnover",
+  "sell-through-rate": "inventory-turnover",
+  "stock-to-sales-ratio": "inventory-turnover",
+  lifo: "fifo",
+  "weighted-average-cost": "fifo",
+  "open-to-buy": "gmroi",
+  "payment-terms": "cash-to-cash-cycle",
 };
 
 /** Glossary terms whose topic a blog guide already covers in depth. */

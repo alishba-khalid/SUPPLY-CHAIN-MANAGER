@@ -680,37 +680,4 @@ export const PURCHASING_TERMS: GlossaryTerm[] = [
     related: ["total-cost-of-ownership", "lead-time", "purchase-order", "three-way-match", "drop-shipment"],
     updated: U,
   },
-  {
-    slug: "payment-terms",
-    term: "Payment Terms",
-    short: "Payment terms",
-    category: "purchasing",
-    definition:
-      "Payment terms set when a supplier invoice must be paid and any early-payment discount, for example net 30 or 2/10 net 30.",
-    explain: [
-      [
-        "Net 30 means the full amount is due 30 days after the invoice date. 2/10 net 30 means you may take a 2% discount if you pay within 10 days; otherwise the full amount is due in 30.",
-      ],
-      [
-        "Skipping an early-payment discount is effectively borrowing from the supplier at a high rate. For 2/10 net 30, paying on day 30 instead of day 10 costs about 2% for 20 days, which works out to roughly 37% a year.",
-      ],
-    ],
-    formula: ["Annualized cost of skipping the discount ≈ Discount ÷ (1 − Discount) × 365 ÷ (Net days − Discount days)"],
-    example: [
-      [
-        "Illustrative numbers: on a $20,000 invoice at 2/10 net 30, paying by day 10 saves $400. Waiting until day 30 keeps $19,600 in your account for 20 more days at that $400 cost.",
-      ],
-    ],
-    why: [
-      [
-        "Payment terms shape the cash-to-cash cycle. Longer supplier terms fund inventory with the supplier's money; early-payment discounts can be a better return than most uses of spare cash.",
-      ],
-    ],
-    mistakes: [
-      ["Ignoring early-payment discounts without working out their annual rate."],
-      ["Paying early by default and draining cash with no discount."],
-    ],
-    related: ["cash-to-cash-cycle", "three-way-match", "vendor-managed-inventory", "total-cost-of-ownership"],
-    updated: "2026-10-16",
-  },
 ];
