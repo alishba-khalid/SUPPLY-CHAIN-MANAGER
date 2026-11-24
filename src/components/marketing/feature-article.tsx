@@ -6,15 +6,25 @@ import { InlineText, safeJsonLd } from "@/components/marketing/blog-article";
 import type { FeaturePageData } from "@/lib/feature-pages";
 import { SITE_NAME, SITE_URL } from "@/lib/site-config";
 
-export function FeatureArticle({ page }: { page: FeaturePageData }) {
-  const url = `${SITE_URL}/features/${page.slug}`;
+export function FeatureArticle({
+  page,
+  basePath = "features",
+  cta = true,
+  children,
+}: {
+  page: FeaturePageData;
+  basePath?: "features" | "tools";
+  cta?: boolean;
+  children?: React.ReactNode;
+}) {
+  const url = `${SITE_URL}/${basePath}/${page.slug}`;
   const breadcrumbs = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
       { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
-      { "@type": "ListItem", position: 2, name: "Features", item: `${SITE_URL}/features` },
-      { "@type": "ListItem", position: 3, name: page.badge, item: url },
+      ...(basePath === "features" ? [{ "@type": "ListItem", position: 2, name: "Features", item: `${SITE_URL}/features` }] : []),
+      { "@type": "ListItem", position: basePath === "features" ? 3 : 2, name: page.h1, item: url },
     ],
   };
 
@@ -29,6 +39,7 @@ export function FeatureArticle({ page }: { page: FeaturePageData }) {
         </span>
         <h1 className="mt-4 text-h1 text-(--color-text-primary)">{page.h1}</h1>
         <p className="mx-auto mt-4 max-w-2xl text-body-lg text-(--color-text-secondary)">{page.lead}</p>
+        {cta && (
         <div className="mt-8 flex justify-center gap-4">
           <Link
             href="/dashboard/overview?demo=true"
@@ -38,7 +49,10 @@ export function FeatureArticle({ page }: { page: FeaturePageData }) {
             <ArrowRight size={16} />
           </Link>
         </div>
+        )}
       </section>
+
+      {children && <div className="mx-auto mt-10 max-w-3xl px-6">{children}</div>}
 
       <div className="mx-auto mt-16 max-w-3xl space-y-12 px-6">
         {page.sections.map((section) => (

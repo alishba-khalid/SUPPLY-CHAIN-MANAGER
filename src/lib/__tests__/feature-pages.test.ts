@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { FEATURE_PAGES, type FeaturePageData } from "../feature-pages";
+import { TOOL_PAGES } from "../tool-pages";
 import { BLOG_POSTS } from "@/lib/blog/posts";
 import { getTerm } from "@/lib/glossary";
 import type { Inline } from "@/lib/blog/posts";
@@ -21,6 +22,8 @@ function words(p: FeaturePageData): number {
   return parts.join(" ").split(/\s+/).filter(Boolean).length;
 }
 
+const ALL_PAGES = { ...FEATURE_PAGES, ...TOOL_PAGES };
+
 test("six new feature pages exist with unique slugs", () => {
   assert.equal(Object.keys(FEATURE_PAGES).length, 6);
   for (const [key, p] of Object.entries(FEATURE_PAGES)) assert.equal(key, p.slug);
@@ -28,7 +31,7 @@ test("six new feature pages exist with unique slugs", () => {
 
 test("titles and descriptions fit search results", () => {
   const titles = new Set<string>();
-  for (const p of Object.values(FEATURE_PAGES)) {
+  for (const p of Object.values(ALL_PAGES)) {
     assert.ok(p.metaTitle.length >= 20 && p.metaTitle.length <= 60, `${p.slug} title is ${p.metaTitle.length}`);
     assert.ok(p.description.length >= 70 && p.description.length <= 160, `${p.slug} description is ${p.description.length}`);
     assert.ok(!titles.has(p.metaTitle), `duplicate title ${p.metaTitle}`);
@@ -37,7 +40,7 @@ test("titles and descriptions fit search results", () => {
 });
 
 test("each page has 500+ words, honest limits, a FAQ and a table or formula", () => {
-  for (const p of Object.values(FEATURE_PAGES)) {
+  for (const p of Object.values(ALL_PAGES)) {
     assert.ok(words(p) >= 500, `${p.slug} has only ${words(p)} words`);
     assert.ok(p.limits.length >= 3, `${p.slug} needs at least three limits`);
     assert.ok(p.faq.length >= 3, `${p.slug} needs at least three FAQ items`);
@@ -49,7 +52,7 @@ test("internal links and related items resolve", () => {
   const blogSlugs = new Set(BLOG_POSTS.map((b) => b.slug));
   const featureSlugs = new Set(Object.keys(FEATURE_PAGES));
   const staticFeature = new Set(["demand-forecasting", "purchase-orders", "supplier-scorecards"]);
-  for (const p of Object.values(FEATURE_PAGES)) {
+  for (const p of Object.values(ALL_PAGES)) {
     for (const g of p.guides) assert.ok(blogSlugs.has(g), `${p.slug} → missing guide ${g}`);
     for (const t of p.terms) assert.ok(getTerm(t), `${p.slug} → missing term ${t}`);
     const inlines: Inline[] = [
@@ -64,13 +67,14 @@ test("internal links and related items resolve", () => {
       else if (i.href.startsWith("/features/")) {
         const s = i.href.slice(10);
         assert.ok(featureSlugs.has(s) || staticFeature.has(s), `${p.slug} → broken ${i.href}`);
-      } else assert.ok(i.href === "/pricing", `${p.slug} links to unexpected ${i.href}`);
+      } else if (i.href.startsWith("/tools/")) assert.ok(i.href.slice(7) in TOOL_PAGES, `${p.slug} → broken ${i.href}`);
+      else assert.ok(i.href === "/pricing", `${p.slug} links to unexpected ${i.href}`);
     }
   }
 });
 
 test("pages do not claim what the app cannot do", () => {
-  const all = Object.values(FEATURE_PAGES)
+  const all = Object.values(ALL_PAGES)
     .map((p) => JSON.stringify(p))
     .join(" ")
     .toLowerCase();

@@ -4,6 +4,7 @@ import { COMPETITORS } from "@/lib/competitors-data";
 import { BLOG_POSTS } from "@/lib/blog/posts";
 import { GLOSSARY_TERMS, GLOSSARY_UPDATED } from "@/lib/glossary";
 import { FEATURE_PAGES } from "@/lib/feature-pages";
+import { TOOL_PAGES } from "@/lib/tool-pages";
 
 // When each page's content last changed. Update the date when you edit a
 // page — a date that moves on every deploy tells search engines nothing.
@@ -38,6 +39,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.8,
   }));
 
+  const toolEntries: MetadataRoute.Sitemap = Object.values(TOOL_PAGES).map((p) => ({
+    url: `${SITE_URL}/tools/${p.slug}`,
+    lastModified: new Date(p.updated),
+    changeFrequency: "monthly",
+    priority: 0.7,
+  }));
+
   // Each post carries its own updated date (src/lib/blog/posts.ts).
   const blogEntries: MetadataRoute.Sitemap = BLOG_POSTS.map((post) => ({
     url: `${SITE_URL}/blog/${post.slug}`,
@@ -69,8 +77,15 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "monthly" as const,
       priority: 0.9,
     })),
+    {
+      url: `${SITE_URL}/vs`,
+      lastModified: COMPETITORS_UPDATED,
+      changeFrequency: "monthly" as const,
+      priority: 0.8,
+    },
     ...competitorEntries,
     ...featureEntries,
+    ...toolEntries,
     {
       url: `${SITE_URL}/blog`,
       lastModified: blogUpdated,

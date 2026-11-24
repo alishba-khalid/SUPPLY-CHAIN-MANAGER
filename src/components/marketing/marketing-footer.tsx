@@ -14,6 +14,9 @@ const PRODUCT_LINKS = [
   { href: "/features/data-importer", label: "Data Importer" },
   { href: "/features/automatic-data-refresh", label: "Automatic Refresh" },
   { href: "/features/ai-manager", label: "AI Manager" },
+  { href: "/tools/reorder-point-calculator", label: "Reorder Point Calculator" },
+  { href: "/tools/safety-stock-calculator", label: "Safety Stock Calculator" },
+  { href: "/tools/eoq-calculator", label: "EOQ Calculator" },
   { href: "/pricing", label: "Pricing" },
   { href: "/faq", label: "FAQ" },
 ];
@@ -26,6 +29,10 @@ const COMPARISON_LINKS = [
   { href: "/vs/cin7", label: "vs Cin7 Core" },
   { href: "/vs/eazystock", label: "vs EazyStock" },
   { href: "/vs/netstock", label: "vs Netstock" },
+  { href: "/vs/fishbowl", label: "vs Fishbowl" },
+  { href: "/vs/inflow", label: "vs inFlow" },
+  { href: "/vs/zoho-inventory", label: "vs Zoho Inventory" },
+  { href: "/vs", label: "All comparisons" },
 ];
 
 const COMPANY_LINKS = [
