@@ -53,6 +53,18 @@ export const GLOSSARY_MERGED: Record<string, string> = {
   "landed-cost": "total-cost-of-ownership",
   "purchase-price-variance": "total-cost-of-ownership",
   "back-to-back-order": "drop-shipment",
+  // Warehouse (2026-11-24)
+  "bin-location": "putaway",
+  slotting: "putaway",
+  "dock-to-stock-time": "putaway",
+  kitting: "order-picking",
+  "order-cycle-time": "order-picking",
+  "less-than-truckload": "third-party-logistics",
+  "cross-docking": "third-party-logistics",
+  "physical-inventory-count": "cycle-counting",
+  "inventory-accuracy": "cycle-counting",
+  "serialized-inventory": "lot-tracking",
+  fefo: "lot-tracking",
 };
 
 /** Glossary terms whose topic a blog guide already covers in depth. */

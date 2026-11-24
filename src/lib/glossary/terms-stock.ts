@@ -329,7 +329,7 @@ export const STOCK_TERMS: GlossaryTerm[] = [
         a: ["It should count as demand at the sending warehouse, not as a customer sale, so keep the two apart when analyzing sales."],
       },
     ],
-    related: ["days-of-supply", "cycle-stock", "stockout", "lead-time", "on-time-delivery-rate"],
+    related: ["days-of-supply", "cycle-stock", "stockout", "lead-time", "third-party-logistics"],
     guides: ["reorder-expedite-or-transfer"],
     updated: U,
   },
