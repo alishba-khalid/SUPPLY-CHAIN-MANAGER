@@ -1,6 +1,6 @@
 # New-page proposal: 30 pages to reach 100 (2026-11-24)
 
-Status: rows 1 to 6 (feature pages) BUILT 2026-11-24 and committed locally; rows 7 to 30 still proposed.
+Status: ALL 30 rows BUILT 2026-11-24 and committed locally (sitemap = 100 URLs). Rows 20 and 21 were built as differentiated how-to guides; watch them for overlap with the glossary pages once Search Console data exists.
 
 ## Where the count stands
 - Sitemap today: 70 URLs (home, 4 section pages, 3 feature pages, 7 compare pages, blog index plus 5 guides, glossary index plus 44 terms, about, terms, privacy, security).

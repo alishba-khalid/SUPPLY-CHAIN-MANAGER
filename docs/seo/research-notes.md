@@ -53,3 +53,5 @@ Not read: Netstock/EazyStock free trial, Unleashed anything. Re-check by 2027-02
 - OPEN: app has no allocations/holds, backorders, fill rate, min/max levels or UoM conversion; "available" in the UI = quantity on hand.
 - 2026-11-24: purchasing done (19 -> 8 pages + payment-terms kept for finance) and warehouse done (19 terms incl. 2 moved earlier -> 7 pages). 51 glossary pages live, 67 redirects total. Remaining: finance (13 terms -> 6 pages; payment-terms joins cash-to-cash-cycle).
 - 2026-11-24: finance done (13 terms + payment-terms -> 6 pages). GLOSSARY CONSOLIDATION COMPLETE: 108 terms -> 44 pages (49 incl. blog-guide entries), 61 slug redirects + 3 to blog guides. Site now ~72 URLs; 28 slots left for new pages.
+- 2026-11-24: ALL BUILT. 100 sitemap URLs (sitemap index + 5 section files), IndexNow key + dry-run script (not run), clean-checkout production build passes (webpack), crawl of all 100 URLs: 200, unique titles, one H1, correct canonicals, no broken internal links.
+- Google Search Console verification file already present: public/google5b92f80032503954.html.

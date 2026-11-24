@@ -89,3 +89,38 @@ Intent key: I = informational, C = commercial investigation, T = transactional, 
 - `/features/supplier-scorecards` versus blog `supplier-otif` and glossary `on-time-delivery-rate`: three different intents (software, calculation guide, definition). Keep the product wording consistent (on-time delivery, not OTIF).
 - `/vs/*` pages versus any future roundup: one primary per vendor (`{vendor} alternative`), roundup uses a generic head term.
 - Glossary `economic-order-quantity` and `min-max-inventory` versus proposed how-to guides: see the new-page proposal for how each is differentiated, or cut.
+
+## Pages added 2026-11-24 (30 URLs; same caveat: no volume data)
+
+| URL | Primary keyword | Supporting terms | Intent |
+|---|---|---|---|
+| /features/stockout-projections | stockout projection software | projected stockout date; reorder expedite transfer | C |
+| /features/supply-chain-health-score | supply chain health score | inventory health score formula | C |
+| /features/data-importer | import inventory data from excel csv | smart importer; template import | C |
+| /features/automatic-data-refresh | auto refresh inventory from google sheets | onedrive csv link refresh | C |
+| /features/multi-warehouse-planning | multi-warehouse inventory planning software | transfer suggestions | C |
+| /features/ai-manager | ai inventory assistant | ask your data; rule-based assistant | C |
+| /tools/reorder-point-calculator | reorder point calculator | rop calculator | T |
+| /tools/safety-stock-calculator | safety stock calculator | service level z-score | T |
+| /tools/eoq-calculator | eoq calculator | economic order quantity calculator | T |
+| /vs | supply chain manager alternatives | inventory software comparison | C |
+| /vs/fishbowl | fishbowl alternative | supply chain manager vs fishbowl | C |
+| /vs/inflow | inflow inventory alternative | supply chain manager vs inflow | C |
+| /vs/zoho-inventory | zoho inventory alternative | supply chain manager vs zoho inventory | C |
+| /blog/excel-vs-inventory-software-for-distributors | excel vs inventory software | outgrow excel inventory | C |
+| /blog/reduce-stockouts-and-overstock | reduce stockouts and overstock | stockouts and overstock together | I |
+| /blog/inventory-kpis-for-distributors | inventory kpis for distributors | distribution kpis | I |
+| /blog/how-to-choose-inventory-planning-software | how to choose inventory planning software | inventory software checklist | C |
+| /blog/measure-supplier-lead-time-from-purchase-orders | how to measure supplier lead time | lead time from purchase orders | I |
+| /blog/multi-warehouse-inventory-planning | balance stock across warehouses | inventory balancing transfers | I |
+| /blog/how-to-set-min-max-levels | how to set min max inventory levels | min max calculation | I |
+| /blog/how-to-calculate-reorder-quantity | how to calculate reorder quantity | reorder quantity moq | I |
+| /blog/set-service-levels-by-abc-class | service level by abc class | abc service level targets | I |
+| /blog/prepare-spreadsheet-data-for-inventory-software | prepare data for inventory software import | clean inventory data | I |
+| /blog/seasonal-demand-planning-for-distributors | seasonal demand planning | seasonal index inventory | I |
+| /blog/how-to-run-a-supplier-performance-review | supplier performance review | supplier review template | I |
+| /blog/first-90-days-with-inventory-planning-software | inventory software implementation plan | first 90 days | I |
+| /blog/how-to-read-a-stockout-projection | stockout projection chart explained | read projected inventory | I |
+| /blog/purchase-order-checklist-for-distributors | purchase order checklist | before sending a purchase order | I |
+| /blog/inventory-turnover-by-category-in-excel | calculate inventory turnover in excel | turnover by category | I |
+| /blog/supplier-scorecard-template | supplier scorecard template | supplier scorecard csv | T |
