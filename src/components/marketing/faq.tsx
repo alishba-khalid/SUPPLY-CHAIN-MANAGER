@@ -19,7 +19,7 @@ export const FAQ_ITEMS: AccordionItem[] = [
   {
     question: "How does it decide what to reorder?",
     answer:
-      "Reorder points and suggested order quantities come from your trailing 90-day demand per SKU per warehouse, combined with your supplier's actual lead time — real reorder point software, not a fixed formula you maintain by hand. When stock drops toward that point, a suggested purchase order — quantity, supplier, and cost — is ready for your approval.",
+      "Reorder points and suggested order quantities come from your trailing 90-day demand per SKU per warehouse, combined with your supplier's actual lead time — real reorder point software, not a fixed formula you maintain by hand. When stock drops toward that point, a suggested purchase order is ready for you to review. Where your data lacks a supplier or unit price, you fill it in before creating the order.",
   },
   {
     question: "How does Supply Chain Health work?",
@@ -29,7 +29,7 @@ export const FAQ_ITEMS: AccordionItem[] = [
   {
     question: "Does it buy inventory automatically?",
     answer:
-      "No — you approve every action. It recommends a specific purchase order, a supplier review, or a warehouse transfer, and explains why. Nothing happens until you approve it.",
+      "No — you approve every action. It recommends a specific purchase order, a supplier review, or a warehouse transfer, and explains why. A purchase order is only created when you click to create it, and the app does not send it to your supplier.",
   },
   {
     question: "Can I try it before paying?",

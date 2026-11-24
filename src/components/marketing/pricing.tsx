@@ -13,7 +13,7 @@ export function Pricing() {
         <h2 className="text-h1 text-(--color-text-primary)">What it costs to keep on payroll</h2>
         <p className="mt-3 text-body-lg text-(--color-text-secondary)">
           Try everything in the live demo first, free. Paid plans unlock adding your own data. Billed monthly in US
-          dollars, cancel anytime. Sales tax or VAT is added at checkout where your country requires it.
+          dollars, cancel anytime. Sales tax or VAT is added at checkout where your country requires it. The warehouse and SKU counts show what each plan is sized for.
         </p>
       </div>
 
