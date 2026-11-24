@@ -26,3 +26,8 @@ Checked marketing copy against code. Files read: src/lib/metrics/*, src/lib/subs
 ## Not yet checked
 - Forecasting claims (7-model tournament, forecasting service availability), the AI Manager page, security/privacy statements, and how-it-works copy.
 - Health score thresholds 80 / 60.
+
+## Added 2026-11-24 (purchasing batch): "OTIF" is only on-time
+- prisma PurchaseOrder has no received-quantity column. src/lib/metrics/supplier.ts: isInFull() = "received date exists", so every received order counts as in full. The app's "OTIF" score therefore measures on-time delivery only. It cannot detect short shipments.
+- "OTIF scorecards", "on-time-in-full delivery" and similar wording appears in: tiers.ts (Starter and Growth feature lists), features-grid, faq, ai-spotlight, daily-review, morning-briefing, competitor-page + competitors-data (15 mentions), features page, supplier-scorecards page, blog index, glossary index, terms page, the supplier-otif blog guide, and the app UI itself.
+- Decision needed from the owner: (a) rename to "on-time delivery" everywhere, or (b) add received quantity to purchase orders so "in full" is real. Until then new pages must not claim in-full tracking. The glossary pages already say so.

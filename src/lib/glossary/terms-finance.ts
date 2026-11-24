@@ -173,39 +173,6 @@ export const FINANCE_TERMS: GlossaryTerm[] = [
     updated: U,
   },
   {
-    slug: "landed-cost",
-    term: "Landed Cost",
-    short: "Landed cost",
-    category: "finance",
-    definition:
-      "Landed cost is the full cost of getting a product into your warehouse: purchase price plus freight, insurance, duties, taxes, brokerage and handling.",
-    explain: [
-      [
-        "For imported goods, the extras can be a large share of the unit price. Margins, pricing and supplier comparisons are only accurate when they use landed cost rather than the supplier's price.",
-      ],
-      [
-        "Freight and duty can be allocated by units, weight, volume or value. The right basis depends on what drives the cost: freight usually follows weight or volume, duty usually follows value. Using a single per-unit allocation for a mixed container can make small, light items look more expensive than they are and heavy items cheaper.",
-      ],
-    ],
-    formula: ["Landed Cost per Unit = (Purchase cost + Freight + Insurance + Duties & taxes + Brokerage + Handling) ÷ Units received"],
-    example: [
-      [
-        "Illustrative numbers: 2,000 units at $5.00 ($10,000), plus $1,400 freight, $100 insurance, $600 duty and $200 brokerage. Landed cost = $12,300 ÷ 2,000 = $6.15 a unit, 23% above the supplier price.",
-      ],
-    ],
-    why: [
-      [
-        "A product that looks profitable at supplier price may not be at landed cost. It also changes which supplier is really cheapest, especially between domestic and imported options.",
-      ],
-    ],
-    mistakes: [
-      ["Pricing from the supplier's price list instead of landed cost."],
-      ["Spreading freight evenly by unit when products differ greatly in weight or volume."],
-    ],
-    related: ["incoterms", "total-cost-of-ownership", "purchase-price-variance", "less-than-truckload"],
-    updated: U,
-  },
-  {
     slug: "fifo",
     term: "FIFO (First In, First Out)",
     short: "FIFO",

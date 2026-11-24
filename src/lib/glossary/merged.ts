@@ -42,6 +42,17 @@ export const GLOSSARY_MERGED: Record<string, string> = {
   "allocated-inventory": "quantity-on-hand",
   "inventory-position": "quantity-on-hand",
   "consignment-inventory": "vendor-managed-inventory",
+  // Purchasing (2026-11-24)
+  "purchase-requisition": "purchase-order",
+  "blanket-purchase-order": "purchase-order",
+  "po-cycle-time": "purchase-order",
+  "goods-receipt": "three-way-match",
+  "advance-shipping-notice": "three-way-match",
+  expediting: "on-time-delivery-rate",
+  "spend-analysis": "request-for-quote",
+  "landed-cost": "total-cost-of-ownership",
+  "purchase-price-variance": "total-cost-of-ownership",
+  "back-to-back-order": "drop-shipment",
 };
 
 /** Glossary terms whose topic a blog guide already covers in depth. */

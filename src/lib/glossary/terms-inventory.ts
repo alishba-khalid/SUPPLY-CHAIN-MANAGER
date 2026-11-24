@@ -563,7 +563,7 @@ export const INVENTORY_TERMS: GlossaryTerm[] = [
       ["Reporting each perfect-order component separately and never the combined figure."],
     ],
     inApp: [
-      "Supply Chain Manager does not measure customer fill rate or perfect order rate. It measures supplier on-time-in-full (OTIF) on purchase orders, which is the supply-side equivalent.",
+      "Supply Chain Manager does not measure customer fill rate or perfect order rate. It does score suppliers on purchase order timeliness (see on-time delivery rate), which is the supply-side counterpart.",
     ],
     faq: [
       {
